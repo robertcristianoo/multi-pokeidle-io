@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Atalhos</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: transparent; font: 14px "Segoe UI", sans-serif; color: #eee; }
+  body { display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, .55); }
+  .panel { background: #1b1b22; border: 1px solid #444; border-radius: 10px; padding: 18px 24px 14px; width: min(760px, 94vw); max-height: 92vh; overflow: auto; box-shadow: 0 10px 40px #000a; }
+  h1 { margin: 0 0 12px; font-size: 18px; }
+  h2 { margin: 14px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: #8ab4ff; }
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 4px 0; border-bottom: 1px solid #2a2a33; vertical-align: top; }
+  td:first-child { width: 280px; white-space: nowrap; }
+  kbd { background: #2c2c38; border: 1px solid #555; border-bottom-width: 2px; border-radius: 4px; padding: 1px 6px; font: 12px Consolas, monospace; margin-right: 2px; }
+  .or { color: #888; margin: 0 4px; }
+  .note { margin-top: 12px; color: #aaa; font-size: 12px; line-height: 1.5; }
+  .close { margin-top: 10px; text-align: right; color: #888; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="panel">
+  <h1>Atalhos</h1>
+
+  <h2>Foco e grade</h2>
+  <table>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>1</kbd>…<kbd>4</kbd></td><td>Foca a conta da posição (de novo = volta à grade)</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>0</kbd></td><td>Volta à grade</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>←</kbd> / <kbd>→</kbd></td><td>Move a conta atual uma posição</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>0</kbd><span class="or">ou</span><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>0</kbd></td><td>Alterna entre 2 e 4 contas</td></tr>
+    <tr><td><kbd>F11</kbd></td><td>Tela cheia liga/desliga</td></tr>
+  </table>
+
+  <h2>Contas</h2>
+  <table>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>1</kbd>…<kbd>4</kbd></td><td>Reseta a sessão da conta da posição (pede confirmação)</td></tr>
+  </table>
+
+  <h2>Outros</h2>
+  <table>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>L</kbd></td><td>Mostra/esconde a janela de logs</td></tr>
+    <tr><td><kbd>F1</kbd></td><td>Mostra/esconde esta ajuda</td></tr>
+  </table>
+
+  <div class="note">Os números são a <b>posição</b> na grade (esquerda→direita, cima→baixo), não o número da conta.</div>
+  <div class="close"><kbd>F1</kbd> ou <kbd>Esc</kbd> ou clique fora para fechar</div>
+</div>
+<script>
+  document.body.addEventListener('mousedown', (e) => { if (e.target === document.body) window.help.close(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+{
+  "name": "multi-pokeidle-io",
+  "version": "1.0.0",
+  "description": "Várias contas do PokeIdle em uma só janela, com sessões isoladas",
+  "main": "main.js",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.pokeidle.multi",
+    "win": {
+      "target": ["portable", "nsis"],
+      "icon": "assets/favicon.ico"
+    }
+  }
+}

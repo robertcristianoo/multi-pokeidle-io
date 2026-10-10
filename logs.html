@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Logs</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 12px Consolas, monospace; background: #111; color: #ddd; display: flex; flex-direction: column; height: 100vh; }
+  #bar { display: flex; gap: 12px; align-items: center; padding: 6px 10px; background: #1c1c1c; border-bottom: 1px solid #333; flex-wrap: wrap; }
+  #bar label { cursor: pointer; user-select: none; }
+  #bar input[type=text] { background: #000; color: #ddd; border: 1px solid #444; padding: 3px 6px; width: 220px; }
+  button { background: #333; color: #ddd; border: 1px solid #555; padding: 3px 10px; cursor: pointer; }
+  #log { flex: 1; overflow: auto; padding: 4px 10px; }
+  .row { white-space: pre-wrap; word-break: break-all; padding: 1px 0; border-bottom: 1px solid #1a1a1a; }
+  .error { color: #ff6b6b; }
+  .warn { color: #e5c07b; }
+  .info { color: #ddd; }
+  .verbose { color: #888; }
+  .acc { display: inline-block; width: 52px; font-weight: bold; }
+  .conta1 .acc { color: #61afef; } .conta2 .acc { color: #98c379; }
+  .conta3 .acc { color: #c678dd; } .conta4 .acc { color: #d19a66; }
+  .kind { display: inline-block; width: 60px; color: #888; }
+  .t { color: #666; margin-right: 6px; }
+</style>
+</head>
+<body>
+<div id="bar">
+  <strong>Contas:</strong>
+  <label><input type="checkbox" class="acc-f" value="conta1" checked> 1</label>
+  <label><input type="checkbox" class="acc-f" value="conta2" checked> 2</label>
+  <label><input type="checkbox" class="acc-f" value="conta3" checked> 3</label>
+  <label><input type="checkbox" class="acc-f" value="conta4" checked> 4</label>
+  <strong>Tipo:</strong>
+  <label><input type="checkbox" class="kind-f" value="console" checked> console</label>
+  <label><input type="checkbox" class="kind-f" value="net" checked> rede</label>
+  <label><input type="checkbox" class="kind-f" value="load" checked> carga</label>
+  <label><input type="checkbox" id="onlyErr"> só erros/falhas</label>
+  <label><input type="checkbox" id="noStatic" checked> ocultar imagens/css/fontes</label>
+  <input type="text" id="q" placeholder="filtrar texto (ex.: api, register)">
+  <label><input type="checkbox" id="auto" checked> auto-scroll</label>
+  <button id="clear">Limpar</button>
+</div>
+<div id="log"></div>
+<script>
+  const logEl = document.getElementById('log');
+  const entries = [];
+  const STATIC = /\[(image|stylesheet|font|media)\]/;
+
+  const checked = (sel) => new Set([...document.querySelectorAll(sel)].filter((c) => c.checked).map((c) => c.value));
+
+  function visible(e) {
+    if (!checked('.acc-f').has(e.acc)) return false;
+    if (!checked('.kind-f').has(e.kind)) return false;
+    if (document.getElementById('onlyErr').checked && e.level !== 'error') return false;
+    if (document.getElementById('noStatic').checked && STATIC.test(e.text)) return false;
+    const q = document.getElementById('q').value.toLowerCase();
+    if (q && !e.text.toLowerCase().includes(q)) return false;
+    return true;
+  }
+
+  function render(e) {
+    const d = document.createElement('div');
+    d.className = `row ${e.level} ${e.acc}`;
+    const t = document.createElement('span'); t.className = 't'; t.textContent = e.t;
+    const a = document.createElement('span'); a.className = 'acc'; a.textContent = e.acc;
+    const k = document.createElement('span'); k.className = 'kind'; k.textContent = e.kind;
+    d.append(t, a, k, document.createTextNode(e.text));
+    logEl.appendChild(d);
+    if (document.getElementById('auto').checked) logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function rerender() {
+    logEl.textContent = '';
+    entries.filter(visible).forEach(render);
+  }
+
+  window.logs.onLog((e) => {
+    entries.push(e);
+    if (entries.length > 5000) entries.shift();
+    if (visible(e)) render(e);
+  });
+
+  document.querySelectorAll('#bar input').forEach((i) => i.addEventListener('input', rerender));
+  document.getElementById('clear').onclick = () => { entries.length = 0; logEl.textContent = ''; };
+</script>
+</body>
+</html>

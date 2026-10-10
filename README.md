@@ -1,0 +1,72 @@
+# PokeIdle Multi
+
+Abre **várias contas do [PokeIdle](https://pokeidle.io) em uma única janela**, em grade, cada uma com sua própria sessão (cookies, login e dados locais isolados, sem compartilhamento entre contas).
+
+> Projeto de fã, **não oficial** e sem afiliação com o PokeIdle, Nintendo, Game Freak, Creatures ou The Pokémon Company. O app só embute o site oficial; não modifica o jogo nem automatiza ações.
+
+## Requisitos
+
+- Windows 10/11 (testado no Windows 11; Electron também roda em macOS/Linux, mas não foi testado)
+- [Node.js LTS](https://nodejs.org) (inclui o npm)
+- [Git](https://git-scm.com) (opcional, só para clonar)
+
+## Instalação e execução
+
+```bash
+git clone https://github.com/<seu-usuario>/multi-pokeidle-io.git
+cd multi-pokeidle-io
+npm install
+npm start
+```
+
+Sem Git: baixe o ZIP pelo botão **Code → Download ZIP**, extraia e rode `npm install` e `npm start` na pasta.
+
+### Atalho na Área de Trabalho (Windows)
+
+```powershell
+$proj = (Get-Location).Path
+$exe  = Join-Path $proj 'node_modules\electron\dist\electron.exe'
+$s = (New-Object -ComObject WScript.Shell).CreateShortcut("$([Environment]::GetFolderPath('Desktop'))\PokeIdle Multi.lnk")
+$s.TargetPath = $exe; $s.Arguments = "`"$proj`""; $s.WorkingDirectory = $proj; $s.IconLocation = "$exe,0"
+$s.Save()
+```
+
+Rode dentro da pasta do projeto, depois do `npm install`. Se mover a pasta, refaça o atalho.
+
+## Como usar
+
+O app abre em tela cheia com **2 contas** lado a lado. Faça login uma vez em cada quadrante; a sessão fica salva em disco. Pressione **F1** a qualquer momento para ver os atalhos.
+
+| Atalho | Ação |
+|---|---|
+| `Ctrl+1…4` | Foca a conta da posição (de novo = volta à grade) |
+| `Ctrl+0` | Volta à grade |
+| `Ctrl+Alt+←/→` | Move a conta atual uma posição na grade |
+| `Ctrl+Shift+0` ou `Ctrl+Alt+Shift+0` | Alterna entre 2 e 4 contas |
+| `Ctrl+Shift+1…4` | Reseta a sessão da conta da posição (pede confirmação) |
+| `Ctrl+L` | Mostra/esconde a janela de logs (console, rede e erros de carregamento) |
+| `F11` | Tela cheia liga/desliga |
+| `F1` | Mostra/esconde a ajuda |
+
+Os números se referem à **posição** na grade (esquerda→direita, cima→baixo), não ao número da conta. Os atalhos valem com o app em foco.
+
+## Como funciona
+
+- Janela principal: `BaseWindow` do Electron com uma `WebContentsView` por conta.
+- Isolamento: cada conta usa uma partição própria (`persist:conta1` … `persist:conta4`), com cookies e `localStorage` separados e salvos em disco.
+- `backgroundThrottling` desligado para o jogo não pausar nos quadrantes sem foco.
+- O User-Agent não inclui "Electron", porque sites com captcha costumam recusar isso.
+- Preferências (número de contas e ordem da grade) ficam em `config.json` e `order.json`, na pasta de dados do app (`%APPDATA%\multi-pokeidle-io`).
+- Nenhum dado do jogo é enviado a terceiros pelo app. A janela de logs mostra só método, status e URL das requisições, nunca o corpo (portanto sem senhas).
+
+## Link de indicação
+
+O app abre o jogo usando o link que contém o meu código de indicação. Para usar o seu, troque a constante `URL` no topo de [`main.js`](main.js).
+
+## Termos do jogo
+
+Use contas e múltiplas sessões de acordo com os [termos do PokeIdle](https://pokeidle.io/terms). Cada pessoa é responsável pelo uso que faz do app e das suas contas.
+
+## Licença
+
+[MIT](LICENSE)
