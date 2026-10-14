@@ -2,3 +2,5 @@ node_modules/
 dist/
 local.js
 err.txt
+local-*
+dist-release/
