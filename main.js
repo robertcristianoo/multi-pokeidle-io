@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { createLives } = require('./lives');
 const { app, BaseWindow, BrowserWindow, WebContentsView, dialog, ipcMain } = require('electron');
 
 // Evita o Chromium tratar views como "ocultas/oclusas" (afeta captcha e timers do jogo)
@@ -80,20 +81,29 @@ function attachLogging(id, view) {
 const orderFile = () => path.join(app.getPath('userData'), 'order.json');
 const configFile = () => path.join(app.getPath('userData'), 'config.json');
 
-function loadAccountCount() {
+function loadConfig() {
   try {
-    const n = JSON.parse(fs.readFileSync(configFile(), 'utf8')).accounts;
-    if (Number.isInteger(n) && n >= 1 && n <= MAX_ACCOUNTS) return n;
-  } catch {}
-  return DEFAULT_ACCOUNTS;
+    return JSON.parse(fs.readFileSync(configFile(), 'utf8')) || {};
+  } catch {
+    return {};
+  }
 }
 
-function saveAccountCount(n) {
+function saveConfig(patch) {
   try {
-    fs.writeFileSync(configFile(), JSON.stringify({ accounts: n }));
+    fs.writeFileSync(configFile(), JSON.stringify({ ...loadConfig(), ...patch }, null, 2));
   } catch (err) {
     console.error('não foi possível salvar a configuração:', err);
   }
+}
+
+function loadAccountCount() {
+  const n = loadConfig().accounts;
+  return Number.isInteger(n) && n >= 1 && n <= MAX_ACCOUNTS ? n : DEFAULT_ACCOUNTS;
+}
+
+function saveAccountCount(n) {
+  saveConfig({ accounts: n });
 }
 
 // Ids das contas ativas (1..count) na ordem salva; ids sem posição salva vão para o fim.
@@ -123,6 +133,7 @@ const slots = []; // [{ id, view }] na ordem da grade
 
 // ---- Ajuda (sobreposição) ----
 // View própria, por cima das contas e isolada das páginas do jogo (o site não enxerga nem altera).
+let livesCtl = null;
 let helpView = null;
 let helpOpen = false;
 
@@ -161,6 +172,7 @@ function layout() {
   if (!mainWin) return;
   const { width, height } = mainWin.getContentBounds();
   if (helpView) helpView.setBounds({ x: 0, y: 0, width, height });
+  livesCtl?.place(width, height);
   const COLS = Math.max(1, Math.min(MAX_COLS, slots.length));
   const ROWS = Math.max(1, Math.ceil(slots.length / COLS));
   const w = Math.floor(width / COLS);
@@ -232,14 +244,19 @@ async function resetAccount(index) {
 }
 
 // ---- Extensões locais (opcional) ----
-// Se existir um `local.js` ao lado deste arquivo (ignorado pelo git), ele é carregado com acesso
-// às contas abertas. Contrato: `module.exports = ({ getSlots, sendLog }) => ({ onShortcut?, onSlotRemoved? })`.
-let ext = null;
-function loadExtension() {
-  try {
-    ext = require('./local.js')({ getSlots: () => slots, sendLog });
-  } catch (err) {
-    if (err.code !== 'MODULE_NOT_FOUND') console.error('falha ao carregar local.js:', err);
+// Se existirem `local.js` / `local-*.js` ao lado deste arquivo (ignorados pelo git), são carregados com
+// acesso às contas abertas. Contrato:
+//   `module.exports = ({ getSlots, sendLog }) => ({ onShortcut?, onSlotCreated?, onSlotRemoved? })`
+// `onSlotCreated(id, view)` roda antes de a conta carregar a página (dá para registrar preloads).
+const LOCAL_EXTENSIONS = ['./local.js', './local-sniper.js'];
+const exts = [];
+function loadExtensions() {
+  for (const file of LOCAL_EXTENSIONS) {
+    try {
+      exts.push(require(file)({ getSlots: () => slots, sendLog }));
+    } catch (err) {
+      if (err.code !== 'MODULE_NOT_FOUND' || !String(err.message).includes(file.slice(2))) console.error(`falha ao carregar ${file}:`, err);
+    }
   }
 }
 
@@ -247,6 +264,8 @@ function loadExtension() {
 //   Ctrl+1..4          foca a conta da posição
 //   Ctrl+0             volta à grade
 //   Ctrl+L             mostra/esconde logs
+//   Ctrl+T             abre as lives (Twitch/Kick) no navegador; o mesmo do botão no canto
+//   F5 / Ctrl+F5 / Ctrl+Shift+F5   recarrega / ignora o cache / todas as contas
 //   Ctrl+Shift+1..4    reseta a sessão da conta da posição (com confirmação)
 //   Ctrl+Alt+←/→       move a conta atual na grade (a em foco, ou a que tem o teclado)
 //   Ctrl+Shift+0 ou Ctrl+Alt+Shift+0   alterna entre 2 e 4 contas na janela
@@ -262,8 +281,19 @@ function makeShortcutHandler(id) {
       mainWin.setFullScreen(!mainWin.isFullScreen());
       return;
     }
+    if (input.type === 'keyDown' && input.code === 'F5') {
+      // F5 não recarrega sozinho (não há menu). F5 = recarrega a conta com o teclado;
+      // Ctrl+F5 = ignora o cache; Ctrl+Shift+F5 = todas as contas, ignorando o cache.
+      event.preventDefault();
+      const targets = input.control && input.shift ? slots.map((s) => s.view) : [slots.find((s) => s.id === id).view];
+      for (const v of targets) {
+        if (input.control) v.webContents.session.clearCache().then(() => v.webContents.reloadIgnoringCache());
+        else v.webContents.reload();
+      }
+      return;
+    }
     if (input.type !== 'keyDown' || !input.control) return;
-    if (ext?.onShortcut?.(event, input)) return;
+    if (exts.some((x) => x.onShortcut?.(event, input))) return;
     const digit = /^Digit([0-9])$/.exec(input.code);
     const n = digit ? Number(digit[1]) : null;
     const pos = slots.findIndex((s) => s.id === id);
@@ -289,6 +319,9 @@ function makeShortcutHandler(id) {
     } else if (!input.alt && !input.shift && input.code === 'KeyL') {
       event.preventDefault();
       toggleLogWindow();
+    } else if (!input.alt && !input.shift && input.code === 'KeyT') {
+      event.preventDefault();
+      livesCtl?.open();
     }
   };
 }
@@ -298,6 +331,7 @@ function createSlot(id) {
   const view = new WebContentsView({
     webPreferences: {
       partition: `persist:conta${id}`,
+      preload: path.join(__dirname, 'lives-preload.js'), // só lê as lives que o jogo já informa
       backgroundThrottling: false, // idle game: não pausar views sem foco
     },
   });
@@ -307,6 +341,7 @@ function createSlot(id) {
   });
   attachLogging(id, view);
   view.webContents.on('before-input-event', makeShortcutHandler(id));
+  exts.forEach((x) => x.onSlotCreated?.(id, view));
   mainWin.contentView.addChildView(view);
   view.webContents.loadURL(URL);
   slots.push({ id, view });
@@ -319,7 +354,7 @@ function setAccountCount(count) {
   for (let i = slots.length - 1; i >= 0; i--) {
     if (slots[i].id > count) {
       const { id, view } = slots[i];
-      ext?.onSlotRemoved?.(id);
+      exts.forEach((x) => x.onSlotRemoved?.(id));
       mainWin.contentView.removeChildView(view);
       view.webContents.close();
       slots.splice(i, 1);
@@ -331,6 +366,7 @@ function setAccountCount(count) {
   if (focused !== null && focused >= slots.length) focused = null;
   saveAccountCount(count);
   saveOrder();
+  livesCtl?.raise();
   if (helpOpen) mainWin.contentView.addChildView(helpView); // mantém a ajuda por cima
   layout();
   updateTitle();
@@ -347,6 +383,7 @@ function createWindow() {
   const win = mainWin;
 
   for (const id of loadOrder(loadAccountCount())) createSlot(id);
+  livesCtl = createLives({ mainWin, getSlots: () => slots });
   createHelpView();
 
   layout();
@@ -356,8 +393,8 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  loadExtensions();
   createWindow();
-  loadExtension();
   app.on('activate', () => {
     if (BaseWindow.getAllWindows().length === 0) createWindow();
   });
