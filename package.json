@@ -10,7 +10,7 @@
     "dist:release": "electron-builder --win --publish never --config electron-builder.release.json"
   },
   "devDependencies": {
-    "electron": "^33.0.0",
+    "electron": "^41.10.6",
     "electron-builder": "^24.13.3"
   },
   "build": {
