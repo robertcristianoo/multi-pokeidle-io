@@ -97,7 +97,9 @@ O app abre o jogo usando o link que contém o meu código de indicação. Para u
 
 ## Termos do jogo
 
-Use contas e múltiplas sessões de acordo com os [termos do PokeIdle](https://pokeidle.io/terms). Cada pessoa é responsável pelo uso que faz do app e das suas contas.
+Use contas e múltiplas sessões de acordo com os [termos do PokeIdle](https://pokeidle.io/terms).
+
+**Aviso de responsabilidade:** o app é uma ferramenta gratuita, de código aberto e sem garantias. Todo o código está público neste repositório, para qualquer pessoa ler, auditar e conferir o que ele faz. O uso é por conta e risco de quem usa: quem publica o projeto **não se responsabiliza** por suspensões, bans ou outras penalidades aplicadas pelo jogo, seja por mau uso, por alterações que você faça no código ou por qualquer ação que viole os termos do PokeIdle. Cabe a cada pessoa conhecer e respeitar as regras do jogo.
 
 ## Licença
 
