@@ -16,7 +16,7 @@ Os executáveis não são assinados, então o Windows SmartScreen pode avisar na
 ## Requisitos
 
 - Windows 10/11 (testado no Windows 11; Electron também roda em macOS/Linux, mas não foi testado)
-- [Node.js LTS](https://nodejs.org) (inclui o npm)
+- [Node.js LTS](https://nodejs.org), versão 22.12 ou mais nova (inclui o npm)
 - [Git](https://git-scm.com) (opcional, só para clonar)
 
 ## Instalação e execução
