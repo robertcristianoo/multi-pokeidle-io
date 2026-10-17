@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Barra</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #1b1220; color: #eee; font: 12px "Segoe UI", sans-serif; overflow: hidden; user-select: none; }
+  #bar { display: flex; align-items: center; gap: 4px; height: 100%; padding: 0 6px; }
+  .sp { flex: 1; }
+  button { border: 1px solid #ffffff22; background: #2a2030; color: #cfc6d6; border-radius: 6px; padding: 3px 9px; font: inherit; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  button:hover { background: #3a2f44; }
+  button.on { background: #1b8f3a; border-color: #2fd160; color: #fff; }
+  button.plain.on { background: #2f6fed; border-color: #6c9bff; }
+  button.on.warn { background: #b45309; border-color: #f59e0b; }
+  button.on.real { background: #b91c1c; border-color: #f87171; }
+  .gear { padding: 3px 5px; background: transparent; border-color: transparent; }
+  button.lives-idle { background: #2f6fed; border-color: #6c9bff; color: #fff; }
+  button.lives-ok { background: #1b8f3a; border-color: #2fd160; color: #fff; }
+  button.lives-changed { background: #d9342b; border-color: #ff7a72; color: #fff; animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 5px #d9342b66; } }
+  .tag { color: #a99bb8; font-weight: 700; margin-right: 2px; }
+</style>
+</head>
+<body>
+<div id="bar"></div>
+<script>
+  const bar = document.getElementById('bar');
+  const el = (tag, cls, text, title) => {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined) e.textContent = text;
+    if (title) e.title = title;
+    return e;
+  };
+
+  function renderSlot(s) {
+    bar.textContent = '';
+    bar.append(el('span', 'tag', `Conta ${s.id}`, `Posição ${s.pos + 1} na grade`));
+    for (const f of s.features) {
+      const warn = f.on && /^⚠/.test(f.badge);
+      const cls = (f.on ? 'on' : '') + (warn ? ' warn' : '') + (f.on && f.badge === 'REAL' ? ' real' : '');
+      const dica = [f.title, `${f.on ? 'Ligado' : 'Desligado'} nesta conta — clique para alternar`, f.hint].filter(Boolean).join('\n');
+      const b = el('button', cls, f.on && f.badge ? `${f.label} · ${f.badge}` : f.label, dica);
+      b.onclick = () => tb.toggle(f.id);
+      bar.append(b);
+      if (f.hasSettings) {
+        const g = el('button', 'gear', '⚙', `Configurar ${f.label}`);
+        g.onclick = () => tb.action('settings:' + f.id);
+        bar.append(g);
+      }
+    }
+    bar.append(el('div', 'sp'));
+    const foco = el('button', 'plain', 'Foco', 'Mostra só esta conta em tela cheia (de novo: volta à grade)');
+    foco.onclick = () => tb.action('focus');
+    bar.append(foco);
+  }
+
+  function renderApp(s) {
+    bar.textContent = '';
+    bar.append(el('div', 'sp'));
+    const a = s.accounts;
+    const mk = (text, title, name, on) => {
+      const b = el('button', 'plain' + (on ? ' on' : ''), text, title);
+      b.onclick = () => tb.action(name);
+      bar.append(b);
+    };
+    mk(`Contas: ${a.count}/${a.max}`, `Alterna entre 2 e ${a.max} contas na janela`, 'accounts');
+    if (a.focused !== null) mk('Voltar à grade', 'Sai do foco e mostra todas as contas', 'grid', true);
+    mk('Logs', 'Mostra/esconde os logs', 'logs');
+    // Lives: cinza = nenhuma com bônus no ar; azul = há lives para abrir; verde = abertas e em dia;
+    // vermelho piscando = o conjunto mudou desde a última vez (clique para abrir as novas)
+    const lv = a.lives || { kind: 'none', text: '' };
+    const label = { none: 'Lives', idle: 'Lives', ok: 'Lives ✓', changed: 'Lives: atualizar' }[lv.kind] || 'Lives';
+    const dica = [lv.text || 'Nenhuma live com bônus no ar agora.', lv.detail].filter(Boolean).join('\n');
+    const bl = el('button', 'plain lives-' + lv.kind, label, dica);
+    bl.onclick = () => tb.action('lives');
+    bar.append(bl);
+    mk('Ajuda (F1)', 'Atalhos e ajuda', 'help');
+  }
+
+  const render = (s) => (s.kind === 'app' ? renderApp(s) : renderSlot(s));
+  tb.onState(render);
+  tb.get().then((s) => s && render(s));
+</script>
+</body>
+</html>

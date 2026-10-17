@@ -1,7 +1,9 @@
 const fs = require('fs');
 const path = require('path');
 const { createLives } = require('./lives');
-const { app, BaseWindow, BrowserWindow, WebContentsView, dialog, ipcMain } = require('electron');
+const { createToolbars } = require('./toolbar');
+const { createToasts } = require('./toasts');
+const { app, BaseWindow, BrowserWindow, WebContentsView, dialog, ipcMain, shell } = require('electron');
 
 // Evita o Chromium tratar views como "ocultas/oclusas" (afeta captcha e timers do jogo)
 app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
@@ -134,6 +136,8 @@ const slots = []; // [{ id, view }] na ordem da grade
 // ---- Ajuda (sobreposição) ----
 // View própria, por cima das contas e isolada das páginas do jogo (o site não enxerga nem altera).
 let livesCtl = null;
+let toastsCtl = null; // avisos no canto superior direito
+let tbs = null; // barras de botões (uma por conta + a do app)
 let helpView = null;
 let helpOpen = false;
 
@@ -170,29 +174,32 @@ function toggleHelp(show = !helpOpen) {
 
 function layout() {
   if (!mainWin) return;
-  const { width, height } = mainWin.getContentBounds();
-  if (helpView) helpView.setBounds({ x: 0, y: 0, width, height });
-  livesCtl?.place(width, height);
+  const { width, height: fullH } = mainWin.getContentBounds();
+  const top = tbs ? tbs.appBarH : 0;
+  const height = fullH - top;
+  if (helpView) helpView.setBounds({ x: 0, y: 0, width, height: fullH });
+  tbs?.placeApp(width);
+  toastsCtl?.place(width, fullH);
+  const barH = tbs ? tbs.slotBarH : 0;
+  // cada conta ganha uma barra de botões no topo do quadrante; a página do jogo ocupa o resto
+  const put = ({ id, view }, x, y, w, h, visible) => {
+    view.setVisible(visible);
+    tbs?.placeSlot(id, { x, y, width: w }, visible);
+    if (visible) view.setBounds({ x, y: y + barH, width: w, height: Math.max(0, h - barH) });
+  };
   const COLS = Math.max(1, Math.min(MAX_COLS, slots.length));
   const ROWS = Math.max(1, Math.ceil(slots.length / COLS));
   const w = Math.floor(width / COLS);
   const h = Math.floor(height / ROWS);
-  slots.forEach(({ view }, i) => {
+  slots.forEach((slot, i) => {
     if (focused !== null) {
-      view.setVisible(i === focused);
-      if (i === focused) view.setBounds({ x: 0, y: 0, width, height });
+      put(slot, 0, top, width, height, i === focused);
       return;
     }
-    view.setVisible(true);
     const col = i % COLS;
     const row = Math.floor(i / COLS);
-    view.setBounds({
-      x: col * w,
-      y: row * h,
-      // a última coluna/linha absorve o resto dos pixels
-      width: col === COLS - 1 ? width - col * w : w,
-      height: row === ROWS - 1 ? height - row * h : h,
-    });
+    // a última coluna/linha absorve o resto dos pixels
+    put(slot, col * w, top + row * h, col === COLS - 1 ? width - col * w : w, row === ROWS - 1 ? height - row * h : h, true);
   });
 }
 
@@ -246,14 +253,16 @@ async function resetAccount(index) {
 // ---- Extensões locais (opcional) ----
 // Se existirem `local.js` / `local-*.js` ao lado deste arquivo (ignorados pelo git), são carregados com
 // acesso às contas abertas. Contrato:
-//   `module.exports = ({ getSlots, sendLog }) => ({ onShortcut?, onSlotCreated?, onSlotRemoved? })`
+//   `module.exports = ({ getSlots, sendLog, notify }) => ({ onShortcut?, onSlotCreated?, onSlotRemoved?, features? })`
+// `features()` devolve [{ id, label, title, isOn(contaId), set(contaId, on), settings?() }]: viram botões
+// liga/desliga na barra de cada conta (ver toolbar.js).
 // `onSlotCreated(id, view)` roda antes de a conta carregar a página (dá para registrar preloads).
-const LOCAL_EXTENSIONS = ['./local.js', './local-sniper.js'];
+const LOCAL_EXTENSIONS = ['./local.js', './local-sniper.js', './local-autocatch.js'];
 const exts = [];
 function loadExtensions() {
   for (const file of LOCAL_EXTENSIONS) {
     try {
-      exts.push(require(file)({ getSlots: () => slots, sendLog }));
+      exts.push(require(file)({ getSlots: () => slots, sendLog, notify: (n) => toastsCtl?.show(n) }));
     } catch (err) {
       if (err.code !== 'MODULE_NOT_FOUND' || !String(err.message).includes(file.slice(2))) console.error(`falha ao carregar ${file}:`, err);
     }
@@ -336,13 +345,15 @@ function createSlot(id) {
     },
   });
   view.webContents.setWindowOpenHandler(({ url }) => {
-    view.webContents.loadURL(url);
+    // links/popups abrem no navegador padrão do sistema (nova aba)
+    if (/^(https?|mailto):/i.test(url)) shell.openExternal(url).catch(() => {});
     return { action: 'deny' };
   });
   attachLogging(id, view);
   view.webContents.on('before-input-event', makeShortcutHandler(id));
   exts.forEach((x) => x.onSlotCreated?.(id, view));
   mainWin.contentView.addChildView(view);
+  tbs?.addSlot(id);
   view.webContents.loadURL(URL);
   slots.push({ id, view });
 }
@@ -355,6 +366,7 @@ function setAccountCount(count) {
     if (slots[i].id > count) {
       const { id, view } = slots[i];
       exts.forEach((x) => x.onSlotRemoved?.(id));
+      tbs?.removeSlot(id);
       mainWin.contentView.removeChildView(view);
       view.webContents.close();
       slots.splice(i, 1);
@@ -366,7 +378,7 @@ function setAccountCount(count) {
   if (focused !== null && focused >= slots.length) focused = null;
   saveAccountCount(count);
   saveOrder();
-  livesCtl?.raise();
+  toastsCtl?.raise(); // contas novas entram por cima: os avisos voltam ao topo
   if (helpOpen) mainWin.contentView.addChildView(helpView); // mantém a ajuda por cima
   layout();
   updateTitle();
@@ -378,12 +390,32 @@ function createWindow() {
     height: 900,
     autoHideMenuBar: true,
     title: 'PokeIdle Multi',
-    fullscreen: true, // abre em tela cheia; F11 alterna
+    fullscreen: !process.env.PKMULTI_TEST, // abre em tela cheia; F11 alterna
+    show: !process.env.PKMULTI_TEST, // os testes (test/) rodam com a janela escondida
   });
   const win = mainWin;
 
+  tbs = createToolbars({
+    mainWin,
+    getSlots: () => slots,
+    getFeatures: () => exts.flatMap((x) => x.features?.() ?? []),
+    getAccountInfo: () => ({ count: slots.length, max: MAX_ACCOUNTS, focused, lives: livesCtl?.state() ?? { kind: 'none', text: '' } }),
+    actions: {
+      accounts: () => setAccountCount(slots.length >= MAX_ACCOUNTS ? 2 : MAX_ACCOUNTS),
+      grid: () => setFocus(null),
+      focus: (id) => {
+        const pos = slots.findIndex((s) => s.id === id);
+        if (pos >= 0) setFocus(focused === pos ? null : pos);
+      },
+      logs: toggleLogWindow,
+      lives: () => livesCtl?.open(),
+      help: () => toggleHelp(),
+      refocus: (id) => slots.find((s) => s.id === id)?.view.webContents.focus(),
+    },
+  });
   for (const id of loadOrder(loadAccountCount())) createSlot(id);
   livesCtl = createLives({ mainWin, getSlots: () => slots });
+  toastsCtl = createToasts({ mainWin, getTop: () => tbs.appBarH });
   createHelpView();
 
   layout();

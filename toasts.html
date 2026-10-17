@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Avisos</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: transparent; font: 12px "Segoe UI", sans-serif; overflow: hidden; }
+  #list { display: flex; flex-direction: column; gap: 4px; }
+  .t { border-radius: 6px; padding: 5px 8px 5px 10px; background: #241a2cf2; color: #f1ecf5; border: 1px solid #ffffff22; border-left: 4px solid #6c9bff; box-shadow: 0 3px 10px #0009; cursor: pointer; animation: in .15s ease-out; }
+  .t.ok { border-left-color: #2fd160; background: #12281af2; }
+  .t.fail { border-left-color: #ff5a52; background: #2e1517f2; }
+  .t b { display: block; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .t p { margin: 1px 0 0; font-size: 11px; color: #cfc6d6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  @keyframes in { from { opacity: 0; transform: translateX(16px); } }
+</style>
+</head>
+<body>
+<div id="list"></div>
+<script>
+  const MAX = 3; // cheio: o mais antigo sai, nada fica empilhado por cima do jogo
+  const list = document.getElementById('list');
+  const report = () => tt.size(list.children.length ? list.getBoundingClientRect().height : 0);
+  new ResizeObserver(report).observe(list);
+
+  tt.onAdd((t) => {
+    const card = document.createElement('div');
+    card.className = 't ' + t.kind;
+    const title = document.createElement('b');
+    title.textContent = t.title;
+    const p = document.createElement('p');
+    p.textContent = t.text;
+    card.title = [t.title, t.text, t.openPath ? '(clique para abrir o print)' : '(clique para fechar)'].filter(Boolean).join('\n');
+    card.append(title);
+    if (t.text) card.append(p);
+    const close = () => { card.remove(); report(); };
+    card.onclick = () => { if (t.openPath) tt.open(t.openPath); close(); };
+    setTimeout(close, t.ms);
+    list.prepend(card);
+    while (list.children.length > MAX) list.lastChild.remove();
+    report();
+  });
+</script>
+</body>
+</html>

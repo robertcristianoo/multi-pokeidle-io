@@ -7,7 +7,10 @@
   "scripts": {
     "start": "electron .",
     "dist": "electron-builder --win",
-    "dist:release": "electron-builder --win --publish never --config electron-builder.release.json"
+    "dist:release": "electron-builder --win --publish never --config electron-builder.release.json",
+    "test": "node test/run.js",
+    "predist": "npm test",
+    "predist:release": "npm test"
   },
   "devDependencies": {
     "electron": "^33.0.0",
