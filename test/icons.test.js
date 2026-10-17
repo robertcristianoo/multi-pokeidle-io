@@ -1,5 +1,4 @@
-// Ícones do app: arquivos presentes e válidos, ICO com várias resoluções, configs de build apontando para eles e
-// ícone da janela trocando de acordo com a posição em foco.
+// Ícones do app: arquivos presentes e válidos, ICO com várias resoluções e configs de build apontando para ele.
 const { app, check, finish } = require('./helpers');
 const fs = require('fs');
 const path = require('path');
@@ -13,7 +12,7 @@ const png = (rel) => {
 };
 
 app.whenReady().then(() => {
-  for (const f of ['assets/icons/grade.png', 'assets/icons/pos-1.png', 'assets/icons/pos-2.png', 'assets/icons/pos-3.png', 'assets/icons/pos-4.png']) {
+  for (const f of ['assets/icons/app.png']) {
     const p = png(f);
     check(p.ok && p.w === 256 && p.h === 256, `${f} é PNG 256x256`);
     check(!nativeImage.createFromPath(path.join(root, f)).isEmpty(), `${f} abre como imagem no Electron`);

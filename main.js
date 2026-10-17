@@ -214,21 +214,14 @@ function layout() {
   });
 }
 
-// Ícone da barra de tarefas: a grade (Venusaur, Blastoise, Charizard e Pikachu numa Ultra Ball) e, com uma conta em
-// foco, o pokémon da posição dela: 1 Venusaur, 2 Blastoise, 3 Charizard, 4 Pikachu.
-const iconPath = (name) => path.join(__dirname, 'assets', 'icons', name);
-const posIcons = new Map();
-function windowIcon(pos) {
-  const name = pos === null ? 'grade.png' : `pos-${pos + 1}.png`;
-  if (!posIcons.has(name)) posIcons.set(name, nativeImage.createFromPath(iconPath(name)));
-  return posIcons.get(name);
-}
+// Ícone da janela (barra de tarefas): o Charizard shiny ocioso, em pixel art. O executável e o instalador usam o
+// mesmo desenho (assets/icon.ico).
+const appIcon = nativeImage.createFromPath(path.join(__dirname, 'assets', 'icons', 'app.png'));
 
 function updateTitle() {
   mainWin.setTitle(
     focused === null ? 'PokeIdle Multi' : `PokeIdle Multi - posição ${focused + 1} (conta ${slots[focused].id})`
   );
-  mainWin.setIcon(windowIcon(focused));
 }
 
 function setFocus(index) {
@@ -412,7 +405,7 @@ function createWindow() {
     height: 900,
     autoHideMenuBar: true,
     title: 'PokeIdle Multi',
-    icon: windowIcon(null),
+    icon: appIcon,
     fullscreen: !process.env.PKMULTI_TEST, // abre em tela cheia; F11 alterna
     show: !process.env.PKMULTI_TEST, // os testes (test/) rodam com a janela escondida
   });
