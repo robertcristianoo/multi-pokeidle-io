@@ -15,6 +15,7 @@
   button.on.warn { background: #b45309; border-color: #f59e0b; }
   button.on.real { background: #b91c1c; border-color: #f87171; }
   .gear { padding: 3px 5px; background: transparent; border-color: transparent; }
+  button.upd { background: #b45309; border-color: #f59e0b; color: #fff; animation: pulse 1s ease-in-out infinite; }
   button.lives-idle { background: #2f6fed; border-color: #6c9bff; color: #fff; }
   button.lives-ok { background: #1b8f3a; border-color: #2fd160; color: #fff; }
   button.lives-changed { background: #d9342b; border-color: #ff7a72; color: #fff; animation: pulse 1s ease-in-out infinite; }
@@ -58,13 +59,21 @@
 
   function renderApp(s) {
     bar.textContent = '';
-    bar.append(el('div', 'sp'));
     const a = s.accounts;
+    if (a.version) bar.append(el('span', 'tag', 'v' + a.version, 'Versão do app'));
+    bar.append(el('div', 'sp'));
     const mk = (text, title, name, on) => {
       const b = el('button', 'plain' + (on ? ' on' : ''), text, title);
       b.onclick = () => tb.action(name);
       bar.append(b);
     };
+    // Versão nova no GitHub: laranja piscando; o clique abre a página do Release (de lá baixa-se o instalador)
+    if (a.update && a.update.kind === 'available') {
+      const dicaUpd = [`Há uma versão nova (v${a.update.latest}); a sua é a v${a.update.current}.`, 'Clique para abrir a página da versão e baixar o instalador.'].join('\n');
+      const bu = el('button', 'plain upd', 'Atualizar → v' + a.update.latest, dicaUpd);
+      bu.onclick = () => tb.action('update');
+      bar.append(bu);
+    }
     mk(`Contas: ${a.count}/${a.max}`, `Alterna entre 2 e ${a.max} contas na janela`, 'accounts');
     if (a.focused !== null) mk('Voltar à grade', 'Sai do foco e mostra todas as contas', 'grid', true);
     mk('Logs', 'Mostra/esconde os logs', 'logs');
