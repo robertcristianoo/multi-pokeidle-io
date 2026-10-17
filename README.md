@@ -56,21 +56,29 @@ O app abre em tela cheia com **2 contas** lado a lado. Faça login uma vez em ca
 | `F5` | Recarrega a conta que está com o teclado |
 | `Ctrl+F5` | Força a atualização (limpa o cache) da conta |
 | `Ctrl+Shift+F5` | Força a atualização de todas as contas |
-| `Ctrl+T` | Abre no navegador as lives que dão bônus de XP (Twitch com bônus + 2 da Kick); também há um botão no canto da janela, que avisa quando uma live abre ou fecha |
+| `Ctrl+T` | Abre no navegador as lives que dão bônus de XP (Twitch com bônus + 2 da Kick); o botão **Lives** da barra superior faz o mesmo e avisa quando uma live abre ou fecha |
 | `Ctrl+L` | Mostra/esconde a janela de logs (console, rede e erros de carregamento) |
 | `F11` | Tela cheia liga/desliga |
 | `F1` | Mostra/esconde a ajuda |
 
 Os números se referem à **posição** na grade (esquerda→direita, cima→baixo), não ao número da conta. Os atalhos valem com o app em foco.
 
+## Barras de botões e avisos
+
+Cada conta tem uma barra de botões no topo do próprio quadrante (liga/desliga só daquela conta, mais o **Foco**), e há uma barra do app no topo da janela (Contas 2/4, Logs, Lives, Ajuda). Cada funcionalidade extra que o app carrega aparece como um botão sozinha. Os avisos (`toasts.js`) são pequenos, ficam no canto superior direito e somem em até 5 s.
+
+## Testes
+
+`npm test` roda a checagem de sintaxe e os testes do Electron (`test/`), com a janela escondida e uma pasta de dados temporária (nunca toca nas suas sessões). Ele roda sozinho antes de `npm run dist` e `npm run dist:release`, e a compilação é bloqueada se algo falhar.
+
 ## Lives de bônus (Twitch e Kick)
 
-O jogo dá XP extra a quem assiste lives dos canais parceiros. O botão **Abrir lives**, no canto inferior direito (ou `Ctrl+T`), abre no navegador padrão, com um clique:
+O jogo dá XP extra a quem assiste lives dos canais parceiros. O botão **Lives** da barra superior (ou `Ctrl+T`), abre no navegador padrão, com um clique:
 
 - todas as lives da Twitch que dão bônus (as com "falta ativação" ficam de fora);
 - até 2 lives da Kick (a Kick não conta mais que isso).
 
-Depois do primeiro clique, se uma live abrir ou fechar, o botão fica vermelho, o Windows mostra uma notificação e o ícone pisca na barra de tarefas. Clicar de novo abre só as lives novas; as encerradas você fecha no navegador. Para o bônus valer, você precisa estar logado na Twitch/Kick nesse navegador, com a conta vinculada no jogo.
+Depois do primeiro clique, se uma live abrir ou fechar, o botão fica vermelho e pisca, o Windows mostra uma notificação e o ícone pisca na barra de tarefas. Clicar de novo abre só as lives novas; as encerradas você fecha no navegador. Para o bônus valer, você precisa estar logado na Twitch/Kick nesse navegador, com a conta vinculada no jogo.
 
 O app só lê os dados de lives que o servidor do jogo já envia para a página; não envia nada de volta.
 

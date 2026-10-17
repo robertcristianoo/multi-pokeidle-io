@@ -1,41 +1,21 @@
-// Botão "Abrir lives": abre no navegador padrão as lives que dão bônus de XP no jogo (todas as da
+// Botão "Lives" da barra superior: abre no navegador padrão as lives que dão bônus de XP no jogo (todas as da
 // Twitch com bônus e até 2 da Kick) com um clique, e avisa quando o conjunto muda (live nova ou
 // encerrada) para o jogador atualizar. Só lê o que o jogo já mostra; não envia nada ao servidor.
-const path = require('path');
-const { WebContentsView, shell, Notification, ipcMain } = require('electron');
+const { shell, Notification } = require('electron');
 
 const KICK_MAX = 2; // a Kick só conta 2 lives
 const POLL_MS = 3000;
 const OPEN_GAP_MS = 500;
-const BTN_W = 360;
-const BTN_H = 52;
 
 const twitchUrl = (id) => `https://www.twitch.tv/${encodeURIComponent(id)}`;
 const kickUrl = (id) => `https://kick.com/${encodeURIComponent(id)}`;
 
+// O estado (kind: none | idle | ok | changed) é lido pelo botão "Lives" da barra superior (toolbar.js).
 function createLives({ mainWin, getSlots }) {
-  const view = new WebContentsView({ webPreferences: { preload: path.join(__dirname, 'lives-ui-preload.js') } });
-  view.setBackgroundColor('#00000000');
-  view.setVisible(false);
-  mainWin.contentView.addChildView(view);
-  view.webContents.loadFile(path.join(__dirname, 'lives.html'));
-
   let opened = null; // { tw: Set(id), kick: Set(id) } da última vez que o botão foi clicado
   let desired = { tw: [], kick: [] }; // [{ id, nome }]
   let lastAlert = '';
   let state = { kind: 'none', text: '' };
-  let size = { width: 0, height: 0 };
-
-  function place(width = size.width, height = size.height) {
-    size = { width, height };
-    view.setVisible(state.kind !== 'none');
-    view.setBounds({ x: Math.max(0, width - BTN_W - 12), y: Math.max(0, height - BTN_H - 12), width: BTN_W, height: BTN_H });
-  }
-
-  function push() {
-    place();
-    if (!view.webContents.isDestroyed()) view.webContents.send('lives:state', state);
-  }
 
   async function collect() {
     const tw = new Map();
@@ -65,7 +45,7 @@ function createLives({ mainWin, getSlots }) {
     const c = await collect();
     if (!c.any) {
       state = { kind: 'none', text: '' };
-      return push();
+      return;
     }
     desired = { tw: c.tw, kick: pickKick(c.kick) };
     const resumo = `Twitch ${desired.tw.length} · Kick ${desired.kick.length}`;
@@ -73,7 +53,7 @@ function createLives({ mainWin, getSlots }) {
       state = desired.tw.length + desired.kick.length
         ? { kind: 'idle', text: `Abrir lives (${resumo})`, detail: 'Abre no navegador as lives que dão bônus de XP' }
         : { kind: 'none', text: '' };
-      return push();
+      return;
     }
     const idsTw = new Set(desired.tw.map((l) => l.id));
     const idsKick = new Set(desired.kick.map((l) => l.id));
@@ -98,7 +78,6 @@ function createLives({ mainWin, getSlots }) {
       lastAlert = '';
       state = { kind: 'ok', text: `Lives abertas ✓ (${resumo})`, detail: 'Nada mudou desde o último clique' };
     }
-    push();
   }
 
   async function open() {
@@ -111,7 +90,6 @@ function createLives({ mainWin, getSlots }) {
     opened = { tw: new Set(desired.tw.map((l) => l.id)), kick: new Set(desired.kick.map((l) => l.id)) };
     lastAlert = '';
     state = { kind: 'ok', text: `Lives abertas ✓ (Twitch ${desired.tw.length} · Kick ${desired.kick.length})`, detail: 'Nada mudou desde o último clique' };
-    push();
     try { mainWin.flashFrame(false); } catch {}
     for (const url of aAbrir) {
       shell.openExternal(url);
@@ -119,15 +97,11 @@ function createLives({ mainWin, getSlots }) {
     }
   }
 
-  ipcMain.on('lives:open', () => { open(); });
-  view.webContents.on('did-finish-load', push);
   setInterval(refresh, POLL_MS);
 
   return {
     open,
-    place,
-    // re-adicionar move a view para o topo (contas novas entram por cima)
-    raise: () => mainWin.contentView.addChildView(view),
+    state: () => state,
   };
 }
 
