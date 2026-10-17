@@ -4,7 +4,7 @@ const { createLives } = require('./lives');
 const { createToolbars } = require('./toolbar');
 const { createToasts } = require('./toasts');
 const { createUpdater } = require('./updates');
-const { app, BaseWindow, BrowserWindow, WebContentsView, dialog, ipcMain, shell } = require('electron');
+const { app, BaseWindow, BrowserWindow, WebContentsView, dialog, ipcMain, nativeImage, shell } = require('electron');
 
 // Evita o Chromium tratar views como "ocultas/oclusas" (afeta captcha e timers do jogo)
 app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
@@ -214,6 +214,10 @@ function layout() {
   });
 }
 
+// Ícone da janela (barra de tarefas): o Charizard shiny ocioso, em pixel art. O executável e o instalador usam o
+// mesmo desenho (assets/icon.ico).
+const appIcon = nativeImage.createFromPath(path.join(__dirname, 'assets', 'icons', 'app.png'));
+
 function updateTitle() {
   mainWin.setTitle(
     focused === null ? 'PokeIdle Multi' : `PokeIdle Multi - posição ${focused + 1} (conta ${slots[focused].id})`
@@ -401,6 +405,7 @@ function createWindow() {
     height: 900,
     autoHideMenuBar: true,
     title: 'PokeIdle Multi',
+    icon: appIcon,
     fullscreen: !process.env.PKMULTI_TEST, // abre em tela cheia; F11 alterna
     show: !process.env.PKMULTI_TEST, // os testes (test/) rodam com a janela escondida
   });
