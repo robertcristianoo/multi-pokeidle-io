@@ -3,6 +3,7 @@ const path = require('path');
 const { createLives } = require('./lives');
 const { createToolbars } = require('./toolbar');
 const { createToasts } = require('./toasts');
+const { createUpdater } = require('./updates');
 const { app, BaseWindow, BrowserWindow, WebContentsView, dialog, ipcMain, shell } = require('electron');
 
 // Evita o Chromium tratar views como "ocultas/oclusas" (afeta captcha e timers do jogo)
@@ -137,6 +138,16 @@ const slots = []; // [{ id, view }] na ordem da grade
 // View própria, por cima das contas e isolada das páginas do jogo (o site não enxerga nem altera).
 let livesCtl = null;
 let toastsCtl = null; // avisos no canto superior direito
+let updater = null; // aviso de versão nova (só em pacote de Release)
+
+// Versão do Release que gerou este pacote (o workflow grava release-info.json); nula em desenvolvimento/build local
+function releaseVersion() {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(__dirname, 'release-info.json'), 'utf8')).version ?? null;
+  } catch {
+    return null;
+  }
+}
 let tbs = null; // barras de botões (uma por conta + a do app)
 let helpView = null;
 let helpOpen = false;
@@ -399,7 +410,8 @@ function createWindow() {
     mainWin,
     getSlots: () => slots,
     getFeatures: () => exts.flatMap((x) => x.features?.() ?? []),
-    getAccountInfo: () => ({ count: slots.length, max: MAX_ACCOUNTS, focused, lives: livesCtl?.state() ?? { kind: 'none', text: '' } }),
+    getAccountInfo: () => ({ count: slots.length, max: MAX_ACCOUNTS, focused, lives: livesCtl?.state() ?? { kind: 'none', text: '' },
+      version: releaseVersion(), update: updater?.state() ?? null }),
     actions: {
       accounts: () => setAccountCount(slots.length >= MAX_ACCOUNTS ? 2 : MAX_ACCOUNTS),
       grid: () => setFocus(null),
@@ -409,6 +421,10 @@ function createWindow() {
       },
       logs: toggleLogWindow,
       lives: () => livesCtl?.open(),
+      update: () => {
+        const u = updater?.state();
+        if (u?.kind === 'available') shell.openExternal(u.url); // página do Release: de lá se baixa o instalador
+      },
       help: () => toggleHelp(),
       refocus: (id) => slots.find((s) => s.id === id)?.view.webContents.focus(),
     },
@@ -416,6 +432,10 @@ function createWindow() {
   for (const id of loadOrder(loadAccountCount())) createSlot(id);
   livesCtl = createLives({ mainWin, getSlots: () => slots });
   toastsCtl = createToasts({ mainWin, getTop: () => tbs.appBarH });
+  updater = createUpdater({
+    currentVersion: releaseVersion(),
+    onAvailable: (u) => toastsCtl?.show({ kind: 'info', title: `Versão nova: v${u.latest}`, text: 'Use o botão Atualizar na barra para baixar', ms: 5000 }),
+  });
   createHelpView();
 
   layout();

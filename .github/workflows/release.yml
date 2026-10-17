@@ -1,0 +1,97 @@
+name: Release
+
+# Toda vez que um PR entra na main, decide (pelo rótulo ou pelo prefixo do título do PR) se sai uma versão nova.
+# Se sair: cria a tag vX.Y.Z, gera o instalador e o portátil e publica o Release com as notas automáticas.
+# As regras estão em tools/release-plan.js. Também dá para lançar na mão: Actions > Release > Run workflow.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Tipo de versão (lançamento manual)'
+        required: true
+        type: choice
+        options: [patch, minor, major]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Planejar a versão
+        id: plan
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { planRelease } = require('./tools/release-plan.js');
+            const { execSync } = require('child_process');
+            const tags = execSync('git tag --list "v*"', { encoding: 'utf8' }).split(/\r?\n/).filter(Boolean);
+
+            let title = '';
+            let labels = [];
+            if (context.eventName === 'push') {
+              const { data: prs } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                owner: context.repo.owner, repo: context.repo.repo, commit_sha: context.sha,
+              });
+              const pr = prs.find((p) => p.merged_at && p.base.ref === 'main') ?? prs[0];
+              if (pr) { title = pr.title; labels = pr.labels.map((l) => l.name); }
+              core.info(`PR associado: ${pr ? `#${pr.number} "${title}"` : '(nenhum: push direto)'}`);
+            }
+            const plan = planRelease({ title, labels, tags, manualBump: context.payload.inputs?.bump });
+            core.info(JSON.stringify(plan));
+            core.setOutput('skip', String(plan.skip));
+            core.setOutput('version', plan.version ?? '');
+            core.setOutput('tag', plan.tag ?? '');
+            core.summary.addRaw(plan.skip
+              ? `Sem versão nova: ${plan.reason} (atual ${plan.current}).`
+              : `Nova versão **${plan.tag}** (${plan.reason}, anterior ${plan.current}).`).write();
+
+      - uses: actions/setup-node@v4
+        if: steps.plan.outputs.skip == 'false'
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependências
+        if: steps.plan.outputs.skip == 'false'
+        run: npm ci
+
+      # O pacote carrega a própria versão (package.json + release-info.json): é com ela que o app compara
+      # com o último Release publicado. Nada disso volta para a main (ela só aceita PR).
+      - name: Carimbar a versão
+        if: steps.plan.outputs.skip == 'false'
+        shell: bash
+        run: |
+          npm version "${{ steps.plan.outputs.version }}" --no-git-tag-version --allow-same-version
+          node -e "require('fs').writeFileSync('release-info.json', JSON.stringify({ version: '${{ steps.plan.outputs.version }}', tag: '${{ steps.plan.outputs.tag }}', commit: '${{ github.sha }}' }, null, 2))"
+
+      # `dist:release` roda `npm test` antes (predist:release): teste quebrado = nenhum Release.
+      - name: Testar e gerar os executáveis
+        if: steps.plan.outputs.skip == 'false'
+        run: npm run dist:release
+
+      - name: Publicar o Release
+        if: steps.plan.outputs.skip == 'false'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.plan.outputs.tag }}" \
+            --target "${{ github.sha }}" \
+            --title "${{ steps.plan.outputs.tag }}" \
+            --generate-notes \
+            dist-release/multi-pokeidle-io-Setup-*.exe \
+            dist-release/multi-pokeidle-io-Portable-*.exe

@@ -97,7 +97,26 @@ O app só lê os dados de lives que o servidor do jogo já envia para a página;
 npm run dist:release
 ```
 
-Gera o instalador e o portátil em `dist-release/` (configuração em [`electron-builder.release.json`](electron-builder.release.json)). Arquivos `local.js` e `local-*.js` (extensões pessoais, ignoradas pelo git) nunca entram nesse pacote.
+Gera o instalador e o portátil em `dist-release/` (configuração em [`electron-builder.release.json`](electron-builder.release.json)). Na prática quem faz isso é o workflow de Release (veja abaixo); rodar na mão só serve para testar o pacote.
+
+## Versões e atualizações
+
+Cada PR que entra na `main` pode gerar uma versão nova automaticamente (workflow [`release.yml`](.github/workflows/release.yml)): o workflow cria a tag `vX.Y.Z`, roda os testes, gera o instalador e o portátil e publica o Release com as notas automáticas.
+
+Quem decide o tipo da versão é o **título do PR** (no estilo `tipo: texto`) ou um **rótulo**:
+
+| Título / rótulo do PR | Versão |
+|---|---|
+| `feat: …` | minor (1.2.0 → 1.3.0) |
+| `fix: …`, `perf: …`, `refactor: …` | patch (1.2.0 → 1.2.1) |
+| `tipo!: …` ou `BREAKING CHANGE` no título | major (1.2.0 → 2.0.0) |
+| `docs:`, `chore:`, `ci:`, `test:`, `style:`, `build:`, `revert:` | não lança versão |
+| rótulo `release:major` / `release:minor` / `release:patch` | força aquele tipo |
+| rótulo `release:skip` | não lança versão |
+
+Também dá para lançar na mão em **Actions → Release → Run workflow**. As regras ficam em [`tools/release-plan.js`](tools/release-plan.js).
+
+**Aviso de versão nova no app:** os pacotes de Release carregam a própria versão e, de tempos em tempos, o app consulta o último Release público do GitHub (`api.github.com`, sem login e sem enviar nada seu). Se existir uma versão mais nova, o botão **Atualizar → vX.Y.Z** pisca na barra superior e um aviso aparece uma vez; o clique abre a página do Release para baixar o instalador. O app não se atualiza sozinho. Builds locais e execução por `npm start` não consultam nada.
 
 ## Link de indicação
 
