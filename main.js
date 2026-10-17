@@ -4,7 +4,7 @@ const { createLives } = require('./lives');
 const { createToolbars } = require('./toolbar');
 const { createToasts } = require('./toasts');
 const { createUpdater } = require('./updates');
-const { app, BaseWindow, BrowserWindow, WebContentsView, dialog, ipcMain, shell } = require('electron');
+const { app, BaseWindow, BrowserWindow, WebContentsView, dialog, ipcMain, nativeImage, shell } = require('electron');
 
 // Evita o Chromium tratar views como "ocultas/oclusas" (afeta captcha e timers do jogo)
 app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
@@ -214,10 +214,21 @@ function layout() {
   });
 }
 
+// Ícone da barra de tarefas: a grade (Venusaur, Blastoise, Charizard e Pikachu numa Ultra Ball) e, com uma conta em
+// foco, o pokémon da posição dela: 1 Venusaur, 2 Blastoise, 3 Charizard, 4 Pikachu.
+const iconPath = (name) => path.join(__dirname, 'assets', 'icons', name);
+const posIcons = new Map();
+function windowIcon(pos) {
+  const name = pos === null ? 'grade.png' : `pos-${pos + 1}.png`;
+  if (!posIcons.has(name)) posIcons.set(name, nativeImage.createFromPath(iconPath(name)));
+  return posIcons.get(name);
+}
+
 function updateTitle() {
   mainWin.setTitle(
     focused === null ? 'PokeIdle Multi' : `PokeIdle Multi - posição ${focused + 1} (conta ${slots[focused].id})`
   );
+  mainWin.setIcon(windowIcon(focused));
 }
 
 function setFocus(index) {
@@ -401,6 +412,7 @@ function createWindow() {
     height: 900,
     autoHideMenuBar: true,
     title: 'PokeIdle Multi',
+    icon: windowIcon(null),
     fullscreen: !process.env.PKMULTI_TEST, // abre em tela cheia; F11 alterna
     show: !process.env.PKMULTI_TEST, // os testes (test/) rodam com a janela escondida
   });

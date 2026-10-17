@@ -20,7 +20,7 @@
     "appId": "com.pokeidle.multi",
     "win": {
       "target": ["portable", "nsis"],
-      "icon": "assets/favicon.ico"
+      "icon": "assets/icon.ico"
     }
   }
 }
