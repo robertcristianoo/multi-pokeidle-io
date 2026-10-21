@@ -38,7 +38,15 @@
   function renderSlot(s) {
     bar.textContent = '';
     bar.append(el('span', 'tag', `Conta ${s.id}`, `Posição ${s.pos + 1} na grade`));
-    for (const f of s.features) {
+    // Funcionalidades com `group` ficam juntas num botão em drop (menu nativo); as demais seguem como botões
+    for (const g of [...new Set(s.features.filter((f) => f.group).map((f) => f.group))]) {
+      const fs = s.features.filter((f) => f.group === g);
+      const dica = fs.map((f) => `${f.label}: ${f.on ? 'ligado' : 'desligado'}`).join('\n');
+      const b = el('button', fs.some((f) => f.on) ? 'on' : '', `${g} ▾`, dica);
+      b.onclick = () => { const r = b.getBoundingClientRect(); tb.menu(g, { x: r.left, y: r.bottom }); };
+      bar.append(b);
+    }
+    for (const f of s.features.filter((x) => !x.group)) {
       const warn = f.on && /^⚠/.test(f.badge);
       const cls = (f.on ? 'on' : '') + (warn ? ' warn' : '') + (f.on && f.badge === 'REAL' ? ' real' : '');
       const dica = [f.title, `${f.on ? 'Ligado' : 'Desligado'} nesta conta — clique para alternar`, f.hint].filter(Boolean).join('\n');
