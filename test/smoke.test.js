@@ -50,9 +50,10 @@ app.whenReady().then(async () => {
       check(l.includes('Foco'), `barra da conta tem "Foco": ${JSON.stringify(l)}`);
     }
     const l0 = slotBars[0] ? await labels(slotBars[0]) : [];
-    const featureBtns = l0.filter((x) => !['Foco', '⚙'].includes(x));
-    console.log(`  funcionalidades vistas na barra: ${featureBtns.join(', ') || '(nenhuma)'}`);
-
+    // botões em drop ("Grupo ▾") abrem um menu nativo em vez de ligar direto: ficam fora do liga/desliga abaixo
+    const dropBtns = l0.filter((x) => x.endsWith(' ▾'));
+    const featureBtns = l0.filter((x) => !['Foco', '⚙'].includes(x) && !dropBtns.includes(x));
+    console.log(`  funcionalidades vistas na barra: ${featureBtns.join(', ') || '(nenhuma)'}${dropBtns.length ? ` | drops: ${dropBtns.join(', ')}` : ''}`);
     // barra do app: o botão Lives existe (a bolinha flutuante "Lives abertas" não existe mais)
     if (appBar) {
       const l = await labels(appBar);

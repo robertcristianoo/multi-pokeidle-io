@@ -3,7 +3,7 @@
 //    cada botão liga/desliga só aquela conta;
 //  - uma barra global fina no topo da janela, com o que é do app (contas, logs, lives, ajuda).
 const path = require('path');
-const { WebContentsView, ipcMain } = require('electron');
+const { WebContentsView, ipcMain, Menu } = require('electron');
 
 const SLOT_BAR_H = 30;
 const APP_BAR_H = 30;
@@ -36,6 +36,7 @@ function createToolbars({ mainWin, getSlots, getFeatures, getAccountInfo, action
         id: f.id,
         label: f.label,
         title: f.title ?? '',
+        group: f.group ?? '',
         hasSettings: typeof f.settings === 'function',
         on: !!f.isOn(kind),
         badge: f.badge?.(kind) ?? '',
@@ -69,6 +70,28 @@ function createToolbars({ mainWin, getSlots, getFeatures, getAccountInfo, action
     f.set(kind, !f.isOn(kind));
     push(kind);
     actions.refocus?.(kind);
+  });
+  // Menu em drop das funcionalidades com `group`: uma entrada liga/desliga por funcionalidade, seguida das ações dela
+  // (`actions: [{ label, run(contaId) }]`). É um menu nativo, porque a barra tem só 30 px de altura e cortaria um drop em HTML.
+  ipcMain.on('tb:menu', (e, group, rect) => {
+    const kind = whoIs(e);
+    if (kind === undefined || kind === 'app' || typeof group !== 'string' || !group) return;
+    const bar = bars.get(kind);
+    const feats = getFeatures().filter((f) => f.group === group);
+    if (!bar || !feats.length) return;
+    const after = () => { push(kind); actions.refocus?.(kind); };
+    const template = feats.flatMap((f, i) => [
+      ...(i ? [{ type: 'separator' }] : []),
+      { label: f.label, type: 'checkbox', checked: !!f.isOn(kind), toolTip: f.title ?? '', click: () => { f.set(kind, !f.isOn(kind)); after(); } },
+      ...(f.actions ?? []).map((a) => ({ label: a.label, click: () => { a.run(kind); after(); } })),
+    ]);
+    const b = bar.view.getBounds();
+    Menu.buildFromTemplate(template).popup({
+      window: mainWin,
+      x: Math.round(b.x + (Number(rect?.x) || 0)),
+      y: Math.round(b.y + (Number(rect?.y) || b.height)),
+      callback: () => actions.refocus?.(kind),
+    });
   });
   ipcMain.on('tb:action', (e, name) => {
     const kind = whoIs(e);
