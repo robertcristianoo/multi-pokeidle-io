@@ -9,7 +9,7 @@ const SLOT_BAR_H = 30;
 const APP_BAR_H = 30;
 const POLL_MS = 600;
 
-function createToolbars({ mainWin, getSlots, getFeatures, getAccountInfo, actions }) {
+function createToolbars({ mainWin, getSlots, getFeatures, getAccountInfo, getSlotState = () => ({}), actions }) {
   const bars = new Map(); // 'app' | id -> { view, last }
 
   function makeView(kind) {
@@ -32,6 +32,7 @@ function createToolbars({ mainWin, getSlots, getFeatures, getAccountInfo, action
       kind: 'slot',
       id: kind,
       pos,
+      ...getSlotState(kind),
       features: getFeatures().map((f) => ({
         id: f.id,
         label: f.label,
