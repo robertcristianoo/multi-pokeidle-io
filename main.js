@@ -499,8 +499,9 @@ function createWindow() {
       },
       logs: toggleLogWindow,
       lives: () => livesCtl?.open(),
-      update: () => {
-        const u = updater?.state();
+      update: async () => {
+        // reconsulta antes de abrir: o botão pode estar mostrando uma versão já superada por outra
+        const u = (await updater?.check()) ?? updater?.state();
         if (u?.kind === 'available') shell.openExternal(u.url); // página do Release: de lá se baixa o instalador
       },
       help: () => toggleHelp(),
@@ -522,6 +523,7 @@ function createWindow() {
     onAvailable: (u) => toastsCtl?.show({ kind: 'info', title: `Versão nova: v${u.latest}`, text: 'Use o botão Atualizar na barra para baixar', ms: 10000 }),
   });
   createHelpView();
+  win.on('focus', () => updater?.check({ force: false })); // voltou à janela: confere se saiu versão nova
 
   layout();
   ['resize', 'maximize', 'unmaximize', 'enter-full-screen', 'leave-full-screen'].forEach((ev) =>

@@ -7,7 +7,8 @@ const { parseVersion, compare } = require('./tools/release-plan');
 
 const REPO = 'robertcristianoo/multi-pokeidle-io';
 const FIRST_CHECK_MS = 15 * 1000;
-const EVERY_MS = 3 * 60 * 60 * 1000;
+const EVERY_MS = 20 * 60 * 1000;
+const MIN_GAP_MS = 60 * 1000; // consultas pedidas (foco da janela) não passam de uma por minuto
 
 function isNewer(latest, current) {
   const a = parseVersion(latest);
@@ -19,8 +20,11 @@ function createUpdater({ currentVersion, onAvailable, fetchImpl = globalThis.fet
   let state = { kind: 'none', current: currentVersion ?? null };
   let notified = null;
 
-  async function check() {
+  let lastAt = 0;
+  async function check({ force = true } = {}) {
     if (!currentVersion || typeof fetchImpl !== 'function') return state;
+    if (!force && Date.now() - lastAt < MIN_GAP_MS) return state;
+    lastAt = Date.now();
     try {
       const res = await fetchImpl(`https://api.github.com/repos/${repo}/releases/latest`, {
         headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'multi-pokeidle-io-update-check' },
@@ -47,7 +51,7 @@ function createUpdater({ currentVersion, onAvailable, fetchImpl = globalThis.fet
 
   if (timers && currentVersion) {
     setTimeout(check, FIRST_CHECK_MS).unref?.();
-    setInterval(check, EVERY_MS).unref?.();
+    setInterval(() => check(), EVERY_MS).unref?.();
   }
 
   return { check, state: () => state };
