@@ -4,7 +4,7 @@ const { createLives } = require('./lives');
 const { createToolbars } = require('./toolbar');
 const { createToasts } = require('./toasts');
 const { createUpdater } = require('./updates');
-const { app, BaseWindow, BrowserWindow, WebContentsView, dialog, ipcMain, nativeImage, shell } = require('electron');
+const { app, BaseWindow, BrowserWindow, WebContentsView, dialog, ipcMain, nativeImage, screen, shell } = require('electron');
 
 // Evita o Chromium tratar views como "ocultas/oclusas" (afeta captcha e timers do jogo)
 app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
@@ -262,6 +262,7 @@ function updateTitle() {
 
 function setFocus(index) {
   focused = index;
+  saveConfig({ focusedId: index === null ? null : slots[index].id });
   layout();
   if (index !== null) slots[index].view.webContents.focus();
   updateTitle();
@@ -438,17 +439,49 @@ function setAccountCount(count) {
   updateTitle();
 }
 
+// ---- Estado da janela (persistido) ----
+// Abre do jeito que foi deixado: tela cheia, maximizada ou normal (com posição e tamanho). Sem estado salvo, abre maximizada.
+function loadWindowState() {
+  const w = loadConfig().window ?? {};
+  const b = w.bounds;
+  const ok = b && [b.x, b.y, b.width, b.height].every(Number.isFinite) && b.width >= 400 && b.height >= 300 &&
+    screen.getAllDisplays().some((d) => { // a janela precisa cair em alguma tela atual (monitor pode ter sido removido)
+      const a = d.workArea;
+      return b.x < a.x + a.width - 50 && b.x + b.width > a.x + 50 && b.y < a.y + a.height - 50 && b.y + b.height > a.y + 50;
+    });
+  return { bounds: ok ? b : null, maximized: w.maximized ?? true, fullscreen: !!w.fullscreen };
+}
+
+let saveWindowTimer = null;
+function saveWindowState() {
+  if (process.env.PKMULTI_TEST || !mainWin || mainWin.isDestroyed()) return;
+  const prev = loadConfig().window ?? {};
+  const fullscreen = mainWin.isFullScreen();
+  saveConfig({ window: {
+    fullscreen,
+    maximized: fullscreen ? prev.maximized ?? true : mainWin.isMaximized(), // em tela cheia mantém o estado de antes
+    bounds: fullscreen ? prev.bounds ?? mainWin.getNormalBounds() : mainWin.getNormalBounds(),
+  } });
+}
+const scheduleSaveWindow = () => {
+  clearTimeout(saveWindowTimer);
+  saveWindowTimer = setTimeout(saveWindowState, 400);
+};
+
 function createWindow() {
+  const st = loadWindowState();
   mainWin = new BaseWindow({
     width: 1600,
     height: 900,
+    ...(st.bounds ?? {}),
     autoHideMenuBar: true,
     title: 'PokeIdle Multi',
     icon: appIcon,
-    fullscreen: !process.env.PKMULTI_TEST, // abre em tela cheia; F11 alterna
+    fullscreen: st.fullscreen && !process.env.PKMULTI_TEST,
     show: !process.env.PKMULTI_TEST, // os testes (test/) rodam com a janela escondida
   });
   const win = mainWin;
+  if (st.maximized && !process.env.PKMULTI_TEST) win.maximize();
 
   tbs = createToolbars({
     mainWin,
@@ -480,6 +513,8 @@ function createWindow() {
     },
   });
   for (const id of loadOrder(loadAccountCount())) createSlot(id);
+  const lastFocus = slots.findIndex((x) => x.id === loadConfig().focusedId); // volta ao quadrante que estava em foco
+  if (lastFocus >= 0) focused = lastFocus;
   livesCtl = createLives({ mainWin, getSlots: () => slots });
   toastsCtl = createToasts({ mainWin, getTop: () => tbs.appBarH });
   updater = createUpdater({
@@ -492,6 +527,9 @@ function createWindow() {
   ['resize', 'maximize', 'unmaximize', 'enter-full-screen', 'leave-full-screen'].forEach((ev) =>
     win.on(ev, layout)
   );
+  ['resize', 'move', 'maximize', 'unmaximize', 'enter-full-screen', 'leave-full-screen'].forEach((ev) => win.on(ev, scheduleSaveWindow));
+  win.on('close', saveWindowState);
+  updateTitle();
 }
 
 app.whenReady().then(() => {
