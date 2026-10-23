@@ -109,6 +109,36 @@ function saveAccountCount(n) {
   saveConfig({ accounts: n });
 }
 
+// Zoom e som por conta (persistidos): { [id]: { zooms: { [modo]: fator }, muted } }.
+// O zoom vale por modo de exibição: em foco volta a 100%; na grade de 4 contas o padrão é 60%.
+const ZOOM_MIN = 0.25;
+const ZOOM_MAX = 3;
+const ZOOM_STEP = 0.1;
+const ZOOM_DEFAULTS = { focus: 1, grid4: 0.6, grid: 1 };
+const viewMode = () => (focused !== null ? 'focus' : slots.length >= MAX_ACCOUNTS ? 'grid4' : 'grid');
+const slotPrefs = (id) => ({ muted: false, ...(loadConfig().view?.[id] ?? {}) });
+const slotZoom = (id) => slotPrefs(id).zooms?.[viewMode()] ?? ZOOM_DEFAULTS[viewMode()];
+function saveSlotPrefs(id, patch) {
+  const view = loadConfig().view ?? {};
+  saveConfig({ view: { ...view, [id]: { ...slotPrefs(id), ...patch } } });
+}
+function setSlotZoom(id, factor) {
+  const slot = slots.find((s) => s.id === id);
+  if (!slot) return;
+  const z = Math.round(Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, factor)) * 100) / 100;
+  slot.view.webContents.setZoomFactor(z);
+  saveSlotPrefs(id, { zooms: { ...slotPrefs(id).zooms, [viewMode()]: z } });
+}
+function applyZooms() {
+  for (const { id, view } of slots) if (!view.webContents.isDestroyed()) view.webContents.setZoomFactor(slotZoom(id));
+}
+function setSlotMuted(id, muted) {
+  const slot = slots.find((s) => s.id === id);
+  if (!slot) return;
+  slot.view.webContents.setAudioMuted(muted);
+  saveSlotPrefs(id, { muted });
+}
+
 // Ids das contas ativas (1..count) na ordem salva; ids sem posição salva vão para o fim.
 function loadOrder(count) {
   let saved = [];
@@ -141,11 +171,12 @@ let toastsCtl = null; // avisos no canto superior direito
 let updater = null; // aviso de versão nova (só em pacote de Release)
 
 // Versão do Release que gerou este pacote (o workflow grava release-info.json); nula em desenvolvimento/build local
+// Pacote sem release-info.json (build local de `npm run dist`) usa a versão do package.json, para o aviso também funcionar nele.
 function releaseVersion() {
   try {
     return JSON.parse(fs.readFileSync(path.join(__dirname, 'release-info.json'), 'utf8')).version ?? null;
   } catch {
-    return null;
+    return app.isPackaged && !process.env.PKMULTI_TEST ? app.getVersion() : null;
   }
 }
 let tbs = null; // barras de botões (uma por conta + a do app)
@@ -183,8 +214,13 @@ function toggleHelp(show = !helpOpen) {
   }
 }
 
+let lastMode = null;
 function layout() {
   if (!mainWin) return;
+  if (lastMode !== viewMode()) {
+    lastMode = viewMode();
+    applyZooms();
+  }
   const { width, height: fullH } = mainWin.getContentBounds();
   const top = tbs ? tbs.appBarH : 0;
   const height = fullH - top;
@@ -365,6 +401,9 @@ function createSlot(id) {
     return { action: 'deny' };
   });
   attachLogging(id, view);
+  // o zoom é reaplicado a cada carga (a navegação pode zerá-lo)
+  view.webContents.setAudioMuted(slotPrefs(id).muted);
+  view.webContents.on('did-finish-load', () => view.webContents.setZoomFactor(slotZoom(id)));
   view.webContents.on('before-input-event', makeShortcutHandler(id));
   exts.forEach((x) => x.onSlotCreated?.(id, view));
   mainWin.contentView.addChildView(view);
@@ -417,6 +456,7 @@ function createWindow() {
     getFeatures: () => exts.flatMap((x) => x.features?.() ?? []),
     getAccountInfo: () => ({ count: slots.length, max: MAX_ACCOUNTS, focused, lives: livesCtl?.state() ?? { kind: 'none', text: '' },
       version: releaseVersion(), update: updater?.state() ?? null }),
+    getSlotState: (id) => ({ zoom: slotZoom(id), muted: slotPrefs(id).muted }),
     actions: {
       accounts: () => setAccountCount(slots.length >= MAX_ACCOUNTS ? 2 : MAX_ACCOUNTS),
       grid: () => setFocus(null),
@@ -431,6 +471,11 @@ function createWindow() {
         if (u?.kind === 'available') shell.openExternal(u.url); // página do Release: de lá se baixa o instalador
       },
       help: () => toggleHelp(),
+      zoomIn: (id) => setSlotZoom(id, slotZoom(id) + ZOOM_STEP),
+      zoomOut: (id) => setSlotZoom(id, slotZoom(id) - ZOOM_STEP),
+      zoomReset: (id) => setSlotZoom(id, ZOOM_DEFAULTS[viewMode()]),
+      mute: (id) => setSlotMuted(id, !slotPrefs(id).muted),
+      reload: (id) => slots.find((s) => s.id === id)?.view.webContents.reload(),
       refocus: (id) => slots.find((s) => s.id === id)?.view.webContents.focus(),
     },
   });
@@ -439,7 +484,7 @@ function createWindow() {
   toastsCtl = createToasts({ mainWin, getTop: () => tbs.appBarH });
   updater = createUpdater({
     currentVersion: releaseVersion(),
-    onAvailable: (u) => toastsCtl?.show({ kind: 'info', title: `Versão nova: v${u.latest}`, text: 'Use o botão Atualizar na barra para baixar', ms: 5000 }),
+    onAvailable: (u) => toastsCtl?.show({ kind: 'info', title: `Versão nova: v${u.latest}`, text: 'Use o botão Atualizar na barra para baixar', ms: 10000 }),
   });
   createHelpView();
 

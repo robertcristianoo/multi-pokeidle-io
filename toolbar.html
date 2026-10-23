@@ -14,6 +14,8 @@
   button.plain.on { background: #2f6fed; border-color: #6c9bff; }
   button.on.warn { background: #b45309; border-color: #f59e0b; }
   button.on.real { background: #b91c1c; border-color: #f87171; }
+  .ic { padding: 3px 7px; min-width: 24px; }
+  .pct { min-width: 44px; }
   .gear { padding: 3px 5px; background: transparent; border-color: transparent; }
   button.upd { background: #b45309; border-color: #f59e0b; color: #fff; animation: pulse 1s ease-in-out infinite; }
   button.lives-idle { background: #2f6fed; border-color: #6c9bff; color: #fff; }
@@ -60,6 +62,13 @@
       }
     }
     bar.append(el('div', 'sp'));
+    // zoom da página da conta, som e recarregar
+    const ic = (text, title, name, cls = '') => { const b = el('button', 'plain ic ' + cls, text, title); b.onclick = () => tb.action(name); bar.append(b); };
+    ic('−', 'Diminuir o zoom', 'zoomOut');
+    ic(Math.round((s.zoom ?? 1) * 100) + '%', 'Zoom desta conta neste modo (clique para voltar ao padrão: 100% em foco, 60% na grade de 4)', 'zoomReset', 'pct');
+    ic('+', 'Aumentar o zoom', 'zoomIn');
+    ic(s.muted ? '🔇' : '🔊', s.muted ? 'Som desligado — clique para ligar' : 'Som ligado — clique para silenciar', 'mute', s.muted ? 'on warn' : '');
+    ic('⟳', 'Recarregar esta conta', 'reload');
     const foco = el('button', 'plain', 'Foco', 'Mostra só esta conta em tela cheia (de novo: volta à grade)');
     foco.onclick = () => tb.action('focus');
     bar.append(foco);
