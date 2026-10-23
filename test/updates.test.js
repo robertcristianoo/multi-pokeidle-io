@@ -20,6 +20,13 @@ app.whenReady().then(async () => {
     await u.check();
     check(avisos.length === 1, 'o aviso na tela sai uma vez por versão, não a cada consulta');
 
+    // saiu outra versão depois do primeiro aviso: a consulta seguinte atualiza o estado (o botão não fica preso na antiga)
+    let tag = 'v1.2.0';
+    const u2 = createUpdater({ currentVersion: '1.1.0', fetchImpl: async () => resp(rel(tag))(), timers: false });
+    await u2.check(); tag = 'v1.3.1';
+    s = await u2.check();
+    check(s.latest === '1.3.1' && /v1.3.1/.test(s.url), `nova consulta troca a versão e o link (${s.latest})`);
+
     // em dia / mais velho / rascunho / pré-lançamento / erro
     check((await createUpdater({ currentVersion: '1.2.0', fetchImpl: resp(rel('v1.2.0')), timers: false }).check()).kind === 'none', 'mesma versão: nada a avisar');
     check((await createUpdater({ currentVersion: '1.3.0', fetchImpl: resp(rel('v1.2.0')), timers: false }).check()).kind === 'none', 'build mais novo que o Release: nada a avisar');
