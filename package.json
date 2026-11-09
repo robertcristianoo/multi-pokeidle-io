@@ -2,15 +2,16 @@
   "name": "multi-pokeidle-io",
   "version": "1.0.0",
   "description": "Várias contas do PokeIdle em uma só janela, com sessões isoladas",
-  "main": "main.js",
+  "main": "src/main.js",
   "license": "MIT",
   "scripts": {
     "start": "electron .",
     "dist": "electron-builder --win",
     "dist:release": "electron-builder --win --publish never --config electron-builder.release.json",
     "test": "node test/run.js",
-    "predist": "npm test",
-    "predist:release": "npm test"
+    "predist": "npm test && node tools/dev-release-info.js",
+    "predist:release": "npm test",
+    "postdist": "node tools/dev-release-info.js --remove"
   },
   "devDependencies": {
     "electron": "^44.9.0",
@@ -18,6 +19,7 @@
   },
   "build": {
     "appId": "com.pokeidle.multi",
+    "files": ["**/*", "!dist-release/**", "!test/**", "!err.txt"],
     "win": {
       "target": ["portable", "nsis"],
       "icon": "assets/icon.ico"

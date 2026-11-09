@@ -2,7 +2,7 @@
 // (os mais antigos saem) e somem sozinhos em até 5 s.
 const { app, sleep, check, finish, waitFor } = require('./helpers');
 const { BaseWindow } = require('electron');
-const { createToasts } = require('../toasts');
+const { createToasts } = require('../src/toasts');
 
 app.whenReady().then(async () => {
   try {

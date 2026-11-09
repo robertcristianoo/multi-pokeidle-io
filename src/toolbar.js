@@ -13,11 +13,11 @@ function createToolbars({ mainWin, getSlots, getFeatures, getAccountInfo, getSlo
   const bars = new Map(); // 'app' | id -> { view, last }
 
   function makeView(kind) {
-    const view = new WebContentsView({ webPreferences: { preload: path.join(__dirname, 'toolbar-preload.js') } });
+    const view = new WebContentsView({ webPreferences: { preload: path.join(__dirname, 'preload', 'toolbar.js') } });
     view.setBackgroundColor('#1b1220');
     mainWin.contentView.addChildView(view);
     const query = kind === 'app' ? { kind: 'app' } : { kind: 'slot', id: String(kind) };
-    view.webContents.loadFile(path.join(__dirname, 'toolbar.html'), { query });
+    view.webContents.loadFile(path.join(__dirname, 'ui', 'toolbar.html'), { query });
     const bar = { view, last: '' };
     bars.set(kind, bar);
     view.webContents.on('did-finish-load', () => push(kind, true));
