@@ -2,7 +2,7 @@
 const { app, check, finish, waitFor } = require('./helpers');
 const path = require('path');
 const { BrowserWindow } = require('electron');
-const { createUpdater, isNewer } = require('../updates');
+const { createUpdater, isNewer } = require('../src/updates');
 
 const resp = (body, ok = true) => async () => ({ ok, json: async () => body });
 const rel = (tag, extra = {}) => ({ tag_name: tag, html_url: `https://github.com/x/y/releases/tag/${tag}`, draft: false, prerelease: false, ...extra });
@@ -42,7 +42,7 @@ app.whenReady().then(async () => {
     const snap = { kind: 'app', accounts: { count: 2, max: 4, focused: null, lives: { kind: 'none', text: '' }, version: '1.1.0', update: { kind: 'available', current: '1.1.0', latest: '1.2.0', url: 'https://x' } } };
     process.env.PKMULTI_TB_SNAP = JSON.stringify(snap);
     const win = new BrowserWindow({ show: false, width: 900, height: 60, webPreferences: { preload: path.join(__dirname, 'tb-stub-preload.js'), backgroundThrottling: false } });
-    await win.loadFile(path.join(__dirname, '..', 'toolbar.html'));
+    await win.loadFile(path.join(__dirname, '..', 'src', 'ui', 'toolbar.html'));
     const run = (code) => win.webContents.executeJavaScript(code);
     check(await waitFor(() => run('[...document.querySelectorAll("button")].some(b => b.textContent === "Atualizar → v1.2.0")'), 4000), 'barra mostra "Atualizar → v1.2.0"');
     check(/v1\.1\.0/.test(await run('document.querySelector(".tag").textContent')), 'barra mostra a versão atual (v1.1.0)');
@@ -53,7 +53,7 @@ app.whenReady().then(async () => {
     snap.accounts.update = { kind: 'none', current: '1.1.0' };
     process.env.PKMULTI_TB_SNAP = JSON.stringify(snap);
     const win2 = new BrowserWindow({ show: false, width: 900, height: 60, webPreferences: { preload: path.join(__dirname, 'tb-stub-preload.js') } });
-    await win2.loadFile(path.join(__dirname, '..', 'toolbar.html'));
+    await win2.loadFile(path.join(__dirname, '..', 'src', 'ui', 'toolbar.html'));
     await waitFor(() => win2.webContents.executeJavaScript('document.querySelectorAll("button").length > 2'), 4000);
     check(!(await win2.webContents.executeJavaScript('[...document.querySelectorAll("button")].some(b => b.textContent.startsWith("Atualizar"))')), 'em dia: sem botão de atualizar');
   } catch (err) {

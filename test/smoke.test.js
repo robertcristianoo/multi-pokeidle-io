@@ -3,7 +3,7 @@
 const { app, sleep, check, finish, waitFor } = require('./helpers');
 const { BaseWindow } = require('electron');
 
-require('../main.js');
+require('../src/main.js');
 
 app.whenReady().then(async () => {
   try {

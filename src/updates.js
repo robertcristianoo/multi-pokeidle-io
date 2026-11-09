@@ -3,7 +3,7 @@
 // página do Release no navegador, de onde se baixa o instalador ou o portátil.
 // Só roda em pacote de Release (o workflow grava `release-info.json`); em desenvolvimento ou em build local
 // `currentVersion` vem nulo e nada é consultado.
-const { parseVersion, compare } = require('./tools/release-plan');
+const { parseVersion, compare } = require('../tools/release-plan');
 
 const REPO = 'robertcristianoo/multi-pokeidle-io';
 const FIRST_CHECK_MS = 15 * 1000;

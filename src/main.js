@@ -43,9 +43,9 @@ function toggleLogWindow() {
     height: 600,
     title: 'Logs - Multi PokeIdle IO',
     autoHideMenuBar: true,
-    webPreferences: { preload: path.join(__dirname, 'logs-preload.js') },
+    webPreferences: { preload: path.join(__dirname, 'preload', 'logs.js') },
   });
-  logWin.loadFile(path.join(__dirname, 'logs.html'));
+  logWin.loadFile(path.join(__dirname, 'ui', 'logs.html'));
   logWin.webContents.on('did-finish-load', () => {
     logBuffer.forEach((e) => logWin.webContents.send('log', e));
   });
@@ -174,7 +174,7 @@ let updater = null; // aviso de versão nova (só em pacote de Release)
 // Pacote sem release-info.json (build local de `npm run dist`) usa a versão do package.json, para o aviso também funcionar nele.
 function releaseVersion() {
   try {
-    return JSON.parse(fs.readFileSync(path.join(__dirname, 'release-info.json'), 'utf8')).version ?? null;
+    return JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'release-info.json'), 'utf8')).version ?? null;
   } catch {
     return app.isPackaged && !process.env.PKMULTI_TEST ? app.getVersion() : null;
   }
@@ -185,12 +185,12 @@ let helpOpen = false;
 
 function createHelpView() {
   helpView = new WebContentsView({
-    webPreferences: { preload: path.join(__dirname, 'help-preload.js') },
+    webPreferences: { preload: path.join(__dirname, 'preload', 'help.js') },
   });
   helpView.setBackgroundColor('#00000000');
   helpView.setVisible(false);
   mainWin.contentView.addChildView(helpView);
-  helpView.webContents.loadFile(path.join(__dirname, 'help.html'));
+  helpView.webContents.loadFile(path.join(__dirname, 'ui', 'help.html'));
   helpView.webContents.on('before-input-event', (event, input) => {
     if (input.type === 'keyDown' && (input.code === 'F1' || input.code === 'Escape')) {
       event.preventDefault();
@@ -252,7 +252,7 @@ function layout() {
 
 // Ícone da janela (barra de tarefas): o Charizard shiny ocioso, em pixel art. O executável e o instalador usam o
 // mesmo desenho (assets/icon.ico).
-const appIcon = nativeImage.createFromPath(path.join(__dirname, 'assets', 'icons', 'app.png'));
+const appIcon = nativeImage.createFromPath(path.join(__dirname, '..', 'assets', 'icons', 'app.png'));
 
 function updateTitle() {
   mainWin.setTitle(
@@ -303,20 +303,20 @@ async function resetAccount(index) {
 }
 
 // ---- Extensões locais (opcional) ----
-// Se existirem `local.js` / `local-*.js` ao lado deste arquivo (ignorados pelo git), são carregados com
+// Se existirem arquivos na pasta `local/` (ignorada pelo git), são carregados com
 // acesso às contas abertas. Contrato:
 //   `module.exports = ({ getSlots, sendLog, notify }) => ({ onShortcut?, onSlotCreated?, onSlotRemoved?, features? })`
 // `features()` devolve [{ id, label, title, isOn(contaId), set(contaId, on), settings?() }]: viram botões
 // liga/desliga na barra de cada conta (ver toolbar.js).
 // `onSlotCreated(id, view)` roda antes de a conta carregar a página (dá para registrar preloads).
-const LOCAL_EXTENSIONS = ['./local.js', './local-sniper.js', './local-autocatch.js'];
+const LOCAL_EXTENSIONS = ['../local/autoball.js', '../local/sniper.js', '../local/autocatch.js'];
 const exts = [];
 function loadExtensions() {
   for (const file of LOCAL_EXTENSIONS) {
     try {
       exts.push(require(file)({ getSlots: () => slots, sendLog, notify: (n) => toastsCtl?.show(n) }));
     } catch (err) {
-      if (err.code !== 'MODULE_NOT_FOUND' || !String(err.message).includes(file.slice(2))) console.error(`falha ao carregar ${file}:`, err);
+      if (err.code !== 'MODULE_NOT_FOUND' || !String(err.message).includes(file.slice(3))) console.error(`falha ao carregar ${file}:`, err);
     }
   }
 }
@@ -392,7 +392,7 @@ function createSlot(id) {
   const view = new WebContentsView({
     webPreferences: {
       partition: `persist:conta${id}`,
-      preload: path.join(__dirname, 'lives-preload.js'), // só lê as lives que o jogo já informa
+      preload: path.join(__dirname, 'preload', 'lives.js'), // só lê as lives que o jogo já informa
       backgroundThrottling: false, // idle game: não pausar views sem foco
     },
   });

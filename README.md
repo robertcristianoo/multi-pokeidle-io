@@ -65,7 +65,7 @@ Os números se referem à **posição** na grade (esquerda→direita, cima→bai
 
 ## Barras de botões e avisos
 
-Cada conta tem uma barra de botões no topo do próprio quadrante (liga/desliga só daquela conta, mais o **Foco**), e há uma barra do app no topo da janela (Contas 2/4, Logs, Lives, Ajuda). Cada funcionalidade extra que o app carrega aparece como um botão sozinha. Os avisos (`toasts.js`) são pequenos, ficam no canto superior direito e somem em até 5 s.
+Cada conta tem uma barra de botões no topo do próprio quadrante (liga/desliga só daquela conta, mais o **Foco**), e há uma barra do app no topo da janela (Contas 2/4, Logs, Lives, Ajuda). Cada funcionalidade extra que o app carrega aparece como um botão sozinha. Os avisos (`src/toasts.js`) são pequenos, ficam no canto superior direito e somem em até 5 s.
 
 ## Testes
 
@@ -120,7 +120,7 @@ Também dá para lançar na mão em **Actions → Release → Run workflow**. As
 
 ## Link de indicação
 
-O app abre o jogo usando o link que contém o meu código de indicação. Para usar o seu, troque a constante `URL` no topo de [`main.js`](main.js).
+O app abre o jogo usando o link que contém o meu código de indicação. Para usar o seu, troque a constante `URL` no topo de [`src/main.js`](src/main.js).
 
 ## Termos do jogo
 

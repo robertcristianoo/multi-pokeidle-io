@@ -9,11 +9,11 @@ const WIDTH = 260;
 const MARGIN = 6;
 
 function createToasts({ mainWin, getTop }) {
-  const view = new WebContentsView({ webPreferences: { preload: path.join(__dirname, 'toasts-preload.js') } });
+  const view = new WebContentsView({ webPreferences: { preload: path.join(__dirname, 'preload', 'toasts.js') } });
   view.setBackgroundColor('#00000000');
   view.setVisible(false);
   mainWin.contentView.addChildView(view);
-  view.webContents.loadFile(path.join(__dirname, 'toasts.html'));
+  view.webContents.loadFile(path.join(__dirname, 'ui', 'toasts.html'));
 
   let height = 0;
   let winWidth = 0;
