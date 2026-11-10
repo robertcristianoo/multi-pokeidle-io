@@ -1,10 +1,12 @@
 # PokeIdle Multi
 
-**App de desktop para Windows (Electron) que abre várias contas do [PokeIdle](https://pokeidle.io) em uma única janela**, em grade de 2 ou 4 quadrantes, cada uma com sua própria sessão (cookies, login e dados locais isolados, sem compartilhamento entre contas).
+**App de desktop para Windows (Electron) que abre várias contas do [PokeIdle.io](https://pokeidle.io) em uma única janela**, em grade de 2 ou 4 quadrantes, cada uma com sua própria sessão (cookies, login e dados locais isolados, sem compartilhamento entre contas).
 
-**Palavras-chave:** PokeIdle · multi-conta · várias contas · Electron · Windows · jogo idle · Pokémon · app de desktop · projeto de fã.
+**Palavras-chave:** PokeIdle.io · pokeidle.io · multi-conta · várias contas · Electron · Windows · jogo idle · Pokémon · app de desktop · projeto de fã.
 
-**In English:** *PokeIdle Multi is an unofficial, open-source Windows desktop app (Electron) that runs several [PokeIdle](https://pokeidle.io) accounts side by side in a single window, each one with a fully isolated session. Download the installer or the portable build from the [Releases](https://github.com/robertcristianoo/multi-pokeidle-io/releases/latest) page.*
+> Feito **só para o [PokeIdle.io](https://pokeidle.io)**. Não serve para outros jogos de nome parecido, como o PokeIdle World.
+
+**In English:** *PokeIdle Multi is an unofficial, open-source Windows desktop app (Electron) that runs several [PokeIdle.io](https://pokeidle.io) accounts side by side in a single window, each one with a fully isolated session. It is made only for PokeIdle.io, not for similarly named games such as PokeIdle World. Download the installer or the portable build from the [Releases](https://github.com/robertcristianoo/multi-pokeidle-io/releases/latest) page.*
 
 > Projeto de fã, **não oficial** e sem afiliação com o PokeIdle, Nintendo, Game Freak, Creatures ou The Pokémon Company. O app só embute o site oficial; não modifica o jogo nem automatiza ações. Ele apenas **lê** as lives que o próprio jogo informa, para o botão de lives (veja abaixo).
 
