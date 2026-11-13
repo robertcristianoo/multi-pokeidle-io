@@ -23,7 +23,10 @@
   button.lives-ok { background: #1b8f3a; border-color: #2fd160; color: #fff; }
   button.lives-changed { background: #d9342b; border-color: #ff7a72; color: #fff; animation: pulse 1s ease-in-out infinite; }
   @keyframes pulse { 50% { box-shadow: 0 0 0 5px #d9342b66; } }
+  button.vote-ready { background: #1b8f3a; border-color: #2fd160; color: #fff; }
+  button.vote-login { background: #2f6fed; border-color: #6c9bff; color: #fff; }
   .tag { color: #a99bb8; font-weight: 700; margin-right: 2px; }
+  .tag.vote-ok { color: #2fd160; }
 </style>
 </head>
 <body>
@@ -77,6 +80,13 @@
         bar.append(g);
       }
     }
+    // Voto no TopIdle (🗳): verde = liberado; azul = precisa entrar no TopIdle; o resto mostra quanto falta
+    if (s.vote) {
+      const cls = s.vote.kind === 'ready' ? 'vote-ready' : s.vote.kind === 'login' ? 'vote-login' : '';
+      const bv = el('button', cls, s.vote.label, s.vote.hint);
+      bv.onclick = () => tb.action('vote');
+      bar.append(bv);
+    }
     bar.append(el('div', 'sp'));
     // zoom da página da conta, som e recarregar
     const ic = (text, title, name, cls = '') => { const b = el('button', 'plain ic ' + cls, text, title); b.onclick = () => tb.action(name); bar.append(b); };
@@ -94,6 +104,8 @@
     bar.textContent = '';
     const a = s.accounts;
     if (a.version) bar.append(el('span', 'tag', 'v' + a.version, 'Versão do app'));
+    // quem pode votar no TopIdle agora (ou quanto falta para o próximo voto)
+    if (a.votes?.text) bar.append(el('span', 'tag' + (a.votes.ready?.length ? ' vote-ok' : ''), a.votes.text, 'Voto no TopIdle: clique no 🗳 de cada conta'));
     bar.append(el('div', 'sp'));
     const mk = (text, title, name, on) => {
       const b = el('button', 'plain' + (on ? ' on' : ''), text, title);

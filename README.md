@@ -118,6 +118,19 @@ Depois do primeiro clique, se uma live abrir ou fechar, o botão fica vermelho e
 
 O app só lê os dados de lives que o servidor do jogo já envia para a página; não envia nada de volta.
 
+## Voto no TopIdle
+
+O jogo dá recompensa a quem vota no pokeidle pelo [TopIdle](https://topidle.com). Cada conta tem um botão **🗳** na própria barra:
+
+- **🗳 Votar** (verde): a conta já pode votar. A barra do app mostra quais contas estão liberadas.
+- **🗳 2 h 05 min**: quanto falta para o próximo voto; ao passar do horário o botão fica verde.
+- **🗳 ✓ Votou**: a conta já votou e o app está conferindo quando libera o próximo voto.
+- **🗳 Votar** (azul): a conta ainda não entrou no TopIdle; a primeira vez pede o login na janela que abre.
+
+Ao clicar, abre uma janela com a página de voto do TopIdle, com o nick do personagem já preenchido. O captcha e o voto são concluídos por você nessa janela; o app não resolve captcha nem vota sozinho. Quando o TopIdle registra o voto, o app percebe e reinicia o contador. O mesmo acontece com o "votar" de dentro do jogo.
+
+O login do TopIdle fica salvo por conta, numa área separada da sessão do jogo. Para saber o estado, o app consulta `topidle.com` com os cookies dessa conta (`/api/me` e `/api/games`) e não envia nada além disso.
+
 ## Como funciona
 
 - Janela principal: `BaseWindow` do Electron com uma `WebContentsView` por conta.
