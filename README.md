@@ -63,11 +63,20 @@ O app abre em tela cheia com **2 contas** lado a lado. Faça login uma vez em ca
 | `Ctrl+F5` | Força a atualização (limpa o cache) da conta |
 | `Ctrl+Shift+F5` | Força a atualização de todas as contas |
 | `Ctrl+T` | Abre no navegador as lives que dão bônus de XP (Twitch com bônus + 2 da Kick); o botão **Lives** da barra superior faz o mesmo e avisa quando uma live abre ou fecha |
+| `Ctrl+U` | Liga/desliga o modo ULTRA do jogo em todas as contas (o botão **⚡ ULTRA** da barra superior faz o mesmo) |
 | `Ctrl+L` | Mostra/esconde a janela de logs (console, rede e erros de carregamento) |
 | `F11` | Tela cheia liga/desliga |
 | `F1` | Mostra/esconde a ajuda |
 
 Os números se referem à **posição** na grade (esquerda→direita, cima→baixo), não ao número da conta. Os atalhos valem com o app em foco.
+
+## Modo ULTRA
+
+O botão **⚡ ULTRA** da barra superior (ou `Ctrl+U`) liga o **Modo ULTRA Economia** que o próprio jogo oferece, em todas as contas de uma vez: a tela do jogo vira uma caixa pequena de XP/Gold/drops e a caçada continua. O botão fica azul quando está ligado.
+
+- O app só usa os controles do jogo (Configurações → interruptor do ULTRA, e "Voltar ao jogo" para sair); não altera nada por conta própria.
+- A escolha fica salva (`config.json`). Ligada, ela volta sozinha a cada vez que uma conta recarrega ou entra no jogo (inclusive depois da tela de login).
+- Desligar pelo botão também desmarca a escolha salva no jogo, para que a conta não volte ao ULTRA ao recarregar.
 
 ## Barras de botões e avisos
 

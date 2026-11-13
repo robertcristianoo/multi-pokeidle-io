@@ -96,6 +96,8 @@
     mk(a.reduceMotion ? 'Animações: reduzidas' : 'Animações: normais',
       'Reduz as animações do jogo em todas as contas (menos CPU). Clique para alternar; vale na hora, sem recarregar', 'reduceMotion', a.reduceMotion);
     mk('Logs', 'Mostra/esconde os logs', 'logs');
+    // ULTRA: liga/desliga o modo ULTRA Economia do próprio jogo em todas as contas (Ctrl+U)
+    mk(a.ultra ? '⚡ ULTRA ligado' : '⚡ ULTRA', a.ultra ? 'Modo ULTRA do jogo ligado em todas as contas. Clique para desligar (Ctrl+U)' : 'Liga o modo ULTRA Economia do jogo em todas as contas (Ctrl+U)', 'ultra', a.ultra);
     // Lives: cinza = nenhuma com bônus no ar; azul = há lives para abrir; verde = abertas e em dia;
     // vermelho piscando = o conjunto mudou desde a última vez (clique para abrir as novas)
     const lv = a.lives || { kind: 'none', text: '' };

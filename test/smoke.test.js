@@ -61,6 +61,7 @@ app.whenReady().then(async () => {
     if (appBar) {
       const l = await labels(appBar);
       check(l.some((x) => x.startsWith('Lives')), `botão Lives na barra do app: ${JSON.stringify(l)}`);
+      check(l.some((x) => x.includes('ULTRA')), `botão ULTRA na barra do app: ${JSON.stringify(l)}`);
     }
     check(!win.contentView.children.some((v) => /lives.html/.test(v.webContents?.getURL() ?? '')), 'sem view flutuante de lives');
 
