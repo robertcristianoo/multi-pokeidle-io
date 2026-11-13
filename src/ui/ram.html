@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Memória</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #1b1220; color: #a99bb8; font: 11px "Segoe UI", sans-serif; overflow: hidden; user-select: none; }
+  #bar { display: flex; align-items: center; gap: 10px; height: 100%; padding: 0 8px; white-space: nowrap; }
+  .item { display: inline-flex; align-items: center; gap: 4px; }
+  .item b { color: #eee; font-weight: 600; }
+  .ok { color: #cfc6d6; }
+  .warn { color: #f59e0b; }
+  .danger { color: #f87171; font-weight: 700; }
+  .sp { flex: 1; }
+  .hide { border: 0; background: transparent; color: #a99bb8; font: inherit; cursor: pointer; padding: 0 4px; line-height: 1; }
+  .hide:hover { color: #fff; }
+</style>
+</head>
+<body>
+<div id="bar"></div>
+<script>
+  const bar = document.getElementById('bar');
+  const cls = (level) => (level === 'danger' ? 'danger' : level === 'warn' ? 'warn' : 'ok');
+  const item = (label, txt, level, title) => {
+    const s = document.createElement('span');
+    s.className = 'item ' + cls(level);
+    s.title = title;
+    const k = document.createElement('span');
+    k.textContent = label;
+    const v = document.createElement('b');
+    v.textContent = txt;
+    s.append(k, v);
+    return s;
+  };
+
+  function render(s) {
+    bar.textContent = '';
+    bar.append(item('RAM', s.total.txt, s.total.level, 'Memória de trabalho de todo o app (soma dos processos)'));
+    bar.append(item('app/outros', s.app.txt, 'ok', 'Processo principal, GPU e barras/avisos do app'));
+    for (const a of s.accounts) {
+      bar.append(item(`Conta ${a.id}`, a.txt, a.level, `Posição ${a.pos + 1} na grade: processo da página do jogo`));
+    }
+    const x = document.createElement('button');
+    x.className = 'hide';
+    x.textContent = '×';
+    x.title = 'Ocultar a barra de RAM (volta com Ctrl+M ou pela ajuda F1)';
+    x.onclick = () => ram.hide();
+    const sp = document.createElement('div');
+    sp.className = 'sp';
+    bar.append(sp, x);
+  }
+
+  ram.onState(render);
+</script>
+</body>
+</html>

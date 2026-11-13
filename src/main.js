@@ -6,6 +6,7 @@ const { createToasts } = require('./toasts');
 const { createUpdater } = require('./updates');
 const { createReduceMotion } = require('./reduce-motion');
 const { createUltra } = require('./ultra');
+const { createRamBar } = require('./ram');
 const { app, BaseWindow, BrowserWindow, WebContentsView, dialog, ipcMain, nativeImage, screen, shell } = require('electron');
 
 // Evita o Chromium tratar views como "ocultas/oclusas" (afeta captcha e timers do jogo)
@@ -178,6 +179,7 @@ let livesCtl = null;
 let toastsCtl = null; // avisos no canto superior direito
 let updater = null; // aviso de versão nova (só em pacote de Release)
 let ultraCtl = null; // Modo ULTRA do jogo em todas as contas (ver src/ultra.js)
+let ramCtl = null; // barra de RAM no rodapé (src/ram.js)
 
 // Versão do Release que gerou este pacote (o workflow grava release-info.json); nula em desenvolvimento/build local
 // Pacote sem release-info.json (build local de `npm run dist`) usa a versão do package.json, para o aviso também funcionar nele.
@@ -232,10 +234,11 @@ function layout() {
   }
   const { width, height: fullH } = mainWin.getContentBounds();
   const top = tbs ? tbs.appBarH : 0;
-  const height = fullH - top;
+  const height = fullH - top - (ramCtl ? ramCtl.height() : 0); // o rodapé da barra de RAM sai da área das contas
   if (helpView) helpView.setBounds({ x: 0, y: 0, width, height: fullH });
   tbs?.placeApp(width);
   toastsCtl?.place(width, fullH);
+  ramCtl?.place(width, fullH);
   const barH = tbs ? tbs.slotBarH : 0;
   // cada conta ganha uma barra de botões no topo do quadrante; a página do jogo ocupa o resto
   const put = ({ id, view }, x, y, w, h, visible) => {
@@ -339,6 +342,7 @@ function loadExtensions() {
 //   Ctrl+Shift+1..4    reseta a sessão da conta da posição (com confirmação)
 //   Ctrl+Alt+←/→       move a conta atual na grade (a em foco, ou a que tem o teclado)
 //   Ctrl+Shift+0 ou Ctrl+Alt+Shift+0   alterna entre 2 e 4 contas na janela
+//   Ctrl+M             mostra/esconde a barra de RAM do rodapé
 function makeShortcutHandler(id) {
   return (event, input) => {
     if (input.type === 'keyDown' && input.code === 'F1') {
@@ -393,6 +397,9 @@ function makeShortcutHandler(id) {
     } else if (!input.alt && !input.shift && input.code === 'KeyT') {
       event.preventDefault();
       livesCtl?.open();
+    } else if (!input.alt && !input.shift && input.code === 'KeyM') {
+      event.preventDefault();
+      ramCtl?.toggle();
     }
   };
 }
@@ -538,6 +545,15 @@ function createWindow() {
   if (lastFocus >= 0) focused = lastFocus;
   livesCtl = createLives({ mainWin, getSlots: () => slots });
   toastsCtl = createToasts({ mainWin, getTop: () => tbs.appBarH });
+  ramCtl = createRamBar({
+    mainWin,
+    getSlots: () => slots,
+    visible: loadConfig().ramBar !== false, // ligada por padrão; a escolha de ocultar fica salva em config.json
+    onToggle: (shown) => {
+      saveConfig({ ramBar: shown });
+      layout();
+    },
+  });
   updater = createUpdater({
     currentVersion: releaseVersion(),
     onAvailable: (u) => toastsCtl?.show({ kind: 'info', title: `Versão nova: v${u.latest}`, text: 'Use o botão Atualizar na barra para baixar', ms: 10000 }),
