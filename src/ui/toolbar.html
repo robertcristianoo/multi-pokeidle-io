@@ -94,6 +94,12 @@
     mk(`Contas: ${a.count}/${a.max}`, `Alterna entre 2 e ${a.max} contas na janela`, 'accounts');
     if (a.focused !== null) mk('Voltar à grade', 'Sai do foco e mostra todas as contas', 'grid', true);
     mk('Logs', 'Mostra/esconde os logs', 'logs');
+    // Pontos: painel com o rodapé do chat de cada live (para resgatar à mão); o log e a config do resgate automático
+    const pOpen = a.points?.open ?? null;
+    mk('Pontos da Twitch', 'Abre/fecha o painel com o chat das lives da Twitch (botão dos pontos)', 'pointsTwitch', pOpen === 'twitch');
+    mk('Pontos da Kick', 'Abre/fecha o painel com o chat das lives da Kick (botão dos pontos)', 'pointsKick', pOpen === 'kick');
+    mk('Resgate auto', 'Resgate automático dos bônus, por conta e por site (desligado de fábrica)', 'redeemConfig');
+    mk('Log de resgates', 'Registro de cada resgate, recusa e parada', 'redeemLog');
     // Lives: cinza = nenhuma com bônus no ar; azul = há lives para abrir; verde = abertas e em dia;
     // vermelho piscando = o conjunto mudou desde a última vez (clique para abrir as novas)
     const lv = a.lives || { kind: 'none', text: '' };

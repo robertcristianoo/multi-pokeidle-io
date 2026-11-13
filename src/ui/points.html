@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Pontos</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #1b1220; color: #eee; font: 12px "Segoe UI", sans-serif; overflow: hidden; user-select: none; }
+  #grip { height: 6px; cursor: ns-resize; background: #2f6fed; opacity: .6; }
+  #grip:hover { opacity: 1; }
+  #bar { display: flex; align-items: center; gap: 6px; height: 34px; padding: 0 8px; }
+  #title { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  #title small { color: #a99bb8; font-weight: 400; margin-left: 6px; }
+  .sp { flex: 1; }
+  button { border: 1px solid #ffffff22; background: #2a2030; color: #cfc6d6; border-radius: 6px; padding: 3px 9px; font: inherit; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  button:hover { background: #3a2f44; }
+  button.on { background: #2f6fed; border-color: #6c9bff; color: #fff; }
+  button:disabled { opacity: .4; cursor: default; }
+  #notice { color: #f5c46b; padding: 0 8px; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #notice:empty { display: none; }
+</style>
+</head>
+<body>
+<div id="grip" title="Arraste para mudar a altura do painel"></div>
+<div id="bar">
+  <div id="title">Pontos</div>
+  <span class="sp"></span>
+  <button id="next" title="Vai para a próxima conta (com a live no ar)">Próxima conta ▶</button>
+  <button id="full" class="" title="Mostra só o rodapé do chat (botão dos pontos) ou a página inteira">Página completa</button>
+  <button id="config" title="Resgate automático, por conta e por site">Config…</button>
+  <button id="log" title="Registro dos resgates">Registro…</button>
+  <button id="close" title="Fecha o painel e libera as páginas da memória">Fechar ✕</button>
+</div>
+<div id="notice"></div>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const grip = $('grip');
+  let dragging = false;
+  grip.addEventListener('pointerdown', (e) => { dragging = true; grip.setPointerCapture(e.pointerId); });
+  grip.addEventListener('pointermove', (e) => { if (dragging && e.movementY) pts.resize(e.movementY); });
+  const stopDrag = () => { dragging = false; };
+  grip.addEventListener('pointerup', stopDrag);
+  grip.addEventListener('pointercancel', stopDrag);
+
+  $('next').onclick = () => pts.cmd('next');
+  $('full').onclick = () => pts.cmd('full');
+  $('config').onclick = () => pts.cmd('config');
+  $('log').onclick = () => pts.cmd('log');
+  $('close').onclick = () => pts.cmd('close');
+
+  pts.onState((s) => {
+    const cont = s.total ? `${s.index + 1}/${s.total}` : '0';
+    const t = $('title');
+    t.textContent = `Pontos da ${s.label}`;
+    if (s.title) {
+      const sm = document.createElement('small');
+      sm.textContent = `${s.title} (${cont})`;
+      t.append(sm);
+    }
+    $('next').disabled = s.total < 2;
+    $('full').textContent = s.full ? 'Só o rodapé' : 'Página completa';
+    $('full').classList.toggle('on', !!s.full);
+    const avisos = [s.stopped ? `Resgate parado: ${s.stopped}` : '', s.notice, s.text && !s.stopped ? s.text : ''].filter(Boolean);
+    $('notice').textContent = avisos.join('  ·  ');
+    $('notice').title = avisos.join('\n');
+  });
+</script>
+</body>
+</html>

@@ -16,22 +16,25 @@ function createLives({ mainWin, getSlots }) {
   let desired = { tw: [], kick: [] }; // [{ id, nome }]
   let lastAlert = '';
   let state = { kind: 'none', text: '' };
+  let perAccount = []; // [{ acc, twitch: [{id, nome}], kick: [{id, nome}] }] da última conferência (painel de pontos)
 
   async function collect() {
     const tw = new Map();
     const kick = new Map();
+    const per = [];
     let any = false;
-    for (const { view: v } of getSlots()) {
+    for (const { id, view: v } of getSlots()) {
       const wc = v.webContents;
       if (wc.isDestroyed() || wc.isLoading()) continue;
       try {
         const snap = await wc.executeJavaScript('window.__lives ? window.__lives.snap() : null');
         if (!snap) continue;
+        per.push({ acc: id, twitch: snap.twitch?.lives ?? [], kick: snap.kick?.lives ?? [] });
         if (snap.twitch) { any = true; snap.twitch.lives.forEach((l) => tw.set(l.id, l)); }
         if (snap.kick) { any = true; snap.kick.lives.forEach((l) => kick.set(l.id, l)); }
       } catch {}
     }
-    return { any, tw: [...tw.values()], kick: [...kick.values()] };
+    return { any, tw: [...tw.values()], kick: [...kick.values()], per };
   }
 
   // Kick: mantém as já abertas que continuam no ar e completa até o limite
@@ -43,6 +46,7 @@ function createLives({ mainWin, getSlots }) {
 
   async function refresh() {
     const c = await collect();
+    perAccount = c.per;
     if (!c.any) {
       state = { kind: 'none', text: '' };
       return;
@@ -102,6 +106,7 @@ function createLives({ mainWin, getSlots }) {
   return {
     open,
     state: () => state,
+    accounts: () => perAccount,
   };
 }
 

@@ -4,6 +4,7 @@ const { createLives } = require('./lives');
 const { createToolbars } = require('./toolbar');
 const { createToasts } = require('./toasts');
 const { createUpdater } = require('./updates');
+const { createPoints } = require('./points');
 const { app, BaseWindow, BrowserWindow, WebContentsView, dialog, ipcMain, nativeImage, screen, shell } = require('electron');
 
 // Evita o Chromium tratar views como "ocultas/oclusas" (afeta captcha e timers do jogo)
@@ -167,6 +168,7 @@ const slots = []; // [{ id, view }] na ordem da grade
 // ---- Ajuda (sobreposição) ----
 // View própria, por cima das contas e isolada das páginas do jogo (o site não enxerga nem altera).
 let livesCtl = null;
+let pointsCtl = null; // painel de pontos Twitch/Kick e resgate automático (src/points)
 let toastsCtl = null; // avisos no canto superior direito
 let updater = null; // aviso de versão nova (só em pacote de Release)
 
@@ -223,10 +225,12 @@ function layout() {
   }
   const { width, height: fullH } = mainWin.getContentBounds();
   const top = tbs ? tbs.appBarH : 0;
-  const height = fullH - top;
+  const panelH = pointsCtl?.panelHeight(fullH) ?? 0; // painel de pontos aberto ocupa a parte de baixo
+  const height = fullH - top - panelH;
   if (helpView) helpView.setBounds({ x: 0, y: 0, width, height: fullH });
   tbs?.placeApp(width);
   toastsCtl?.place(width, fullH);
+  pointsCtl?.place(width, fullH);
   const barH = tbs ? tbs.slotBarH : 0;
   // cada conta ganha uma barra de botões no topo do quadrante; a página do jogo ocupa o resto
   const put = ({ id, view }, x, y, w, h, visible) => {
@@ -488,7 +492,7 @@ function createWindow() {
     getSlots: () => slots,
     getFeatures: () => exts.flatMap((x) => x.features?.() ?? []),
     getAccountInfo: () => ({ count: slots.length, max: MAX_ACCOUNTS, focused, lives: livesCtl?.state() ?? { kind: 'none', text: '' },
-      version: releaseVersion(), update: updater?.state() ?? null }),
+      version: releaseVersion(), update: updater?.state() ?? null, points: pointsCtl?.state() ?? { open: null } }),
     getSlotState: (id) => ({ zoom: slotZoom(id), muted: slotPrefs(id).muted }),
     actions: {
       accounts: () => setAccountCount(slots.length >= MAX_ACCOUNTS ? 2 : MAX_ACCOUNTS),
@@ -499,6 +503,10 @@ function createWindow() {
       },
       logs: toggleLogWindow,
       lives: () => livesCtl?.open(),
+      pointsTwitch: () => pointsCtl?.toggle('twitch'),
+      pointsKick: () => pointsCtl?.toggle('kick'),
+      redeemConfig: () => pointsCtl?.showConfig(),
+      redeemLog: () => pointsCtl?.showLog(),
       update: async () => {
         // reconsulta antes de abrir: o botão pode estar mostrando uma versão já superada por outra
         const u = (await updater?.check()) ?? updater?.state();
@@ -523,6 +531,19 @@ function createWindow() {
     onAvailable: (u) => toastsCtl?.show({ kind: 'info', title: `Versão nova: v${u.latest}`, text: 'Use o botão Atualizar na barra para baixar', ms: 10000 }),
   });
   createHelpView();
+  pointsCtl = createPoints({
+    mainWin,
+    getAccounts: () => livesCtl?.accounts() ?? [],
+    config: {
+      get: () => loadConfig().points ?? {},
+      set: (patch) => saveConfig({ points: { ...(loadConfig().points ?? {}), ...patch } }),
+    },
+    userDataDir: app.getPath('userData'),
+    notify: (n) => toastsCtl?.show(n),
+    raise: () => { toastsCtl?.raise(); if (helpOpen) mainWin.contentView.addChildView(helpView); },
+    relayout: () => layout(),
+    maxAccounts: MAX_ACCOUNTS,
+  });
   win.on('focus', () => updater?.check({ force: false })); // voltou à janela: confere se saiu versão nova
 
   layout();
