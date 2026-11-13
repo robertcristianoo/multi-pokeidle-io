@@ -93,6 +93,16 @@ Uma faixa fina no rodapé da janela mostra a memória que o app está usando: o 
 
 A lógica está em `src/ram.js` (e `src/ui/ram.html`, `src/preload/ram.js`).
 
+### Ligar e desligar uma conta
+
+O botão **⏻** da barra de cada conta liga ou desliga só aquela conta:
+
+- **Desligar** destrói o jogo da conta, então ela deixa de gastar CPU e memória. No lugar do quadrante aparece a página "Conta N desligada", com o botão **Ligar conta**. O rótulo da barra mostra "Conta N · desligada".
+- **Ligar** recria o jogo e recarrega a página. A sessão (login e dados) fica na partição `persist:contaN`, então o login volta sem precisar entrar de novo.
+- O estado fica em `config.json` (chave `offAccounts`, lista de posições 1 a 4 desligadas) e vale na próxima abertura do app: a conta continua desligada até você ligar.
+- Enquanto a conta está ligada, a barra mostra há quantos minutos ela está rodando ("Conta N · 12 min"; a dica do rótulo diz "rodando há 12 min").
+- Contas desligadas continuam na grade, na ordem e com os atalhos de foco (`Ctrl+1…4`, `Ctrl+Alt+←/→`); em foco, a página de desligada ocupa a janela. `F5` e `Ctrl+Shift+F5` ignoram as contas desligadas.
+
 ## Testes
 
 `npm test` roda a checagem de sintaxe e os testes do Electron (`test/`), com a janela escondida e uma pasta de dados temporária (nunca toca nas suas sessões). Ele roda sozinho antes de `npm run dist` e `npm run dist:release`, e a compilação é bloqueada se algo falhar.

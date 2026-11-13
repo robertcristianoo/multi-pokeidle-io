@@ -18,6 +18,7 @@
   .pct { min-width: 44px; }
   .gear { padding: 3px 5px; background: transparent; border-color: transparent; }
   button.upd { background: #b45309; border-color: #f59e0b; color: #fff; animation: pulse 1s ease-in-out infinite; }
+  button.pw-off { background: #1b8f3a; border-color: #2fd160; color: #fff; }
   button.lives-idle { background: #2f6fed; border-color: #6c9bff; color: #fff; }
   button.lives-ok { background: #1b8f3a; border-color: #2fd160; color: #fff; }
   button.lives-changed { background: #d9342b; border-color: #ff7a72; color: #fff; animation: pulse 1s ease-in-out infinite; }
@@ -39,7 +40,22 @@
 
   function renderSlot(s) {
     bar.textContent = '';
-    bar.append(el('span', 'tag', `Conta ${s.id}`, `Posição ${s.pos + 1} na grade`));
+    // liga/desliga da conta: desligada não usa CPU nem memória (o jogo é descarregado); o login fica salvo
+    const tempo = s.uptime == null ? '' : ` · ${s.uptime} min`;
+    bar.append(el('span', 'tag', s.off ? `Conta ${s.id} · desligada` : `Conta ${s.id}${tempo}`,
+      s.off ? `Posição ${s.pos + 1} na grade · desligada` : `Posição ${s.pos + 1} na grade · rodando há ${s.uptime} min`));
+    const pw = s.off
+      ? el('button', 'ic pw-off', '⏻ Ligar', 'Ligar esta conta (recarrega o jogo)')
+      : el('button', 'ic', '⏻', 'Desligar esta conta (libera CPU e memória; o login continua salvo)');
+    pw.onclick = () => tb.action('power');
+    bar.append(pw);
+    if (s.off) {
+      bar.append(el('div', 'sp'));
+      const foco = el('button', 'plain', 'Foco', 'Mostra só esta conta em tela cheia (de novo: volta à grade)');
+      foco.onclick = () => tb.action('focus');
+      bar.append(foco);
+      return;
+    }
     // Funcionalidades com `group` ficam juntas num botão em drop (menu nativo); as demais seguem como botões
     for (const g of [...new Set(s.features.filter((f) => f.group).map((f) => f.group))]) {
       const fs = s.features.filter((f) => f.group === g);
