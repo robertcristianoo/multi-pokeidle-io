@@ -93,6 +93,8 @@
     }
     mk(`Contas: ${a.count}/${a.max}`, `Alterna entre 2 e ${a.max} contas na janela`, 'accounts');
     if (a.focused !== null) mk('Voltar à grade', 'Sai do foco e mostra todas as contas', 'grid', true);
+    mk(a.reduceMotion ? 'Animações: reduzidas' : 'Animações: normais',
+      'Reduz as animações do jogo em todas as contas (menos CPU). Clique para alternar; vale na hora, sem recarregar', 'reduceMotion', a.reduceMotion);
     mk('Logs', 'Mostra/esconde os logs', 'logs');
     // Lives: cinza = nenhuma com bônus no ar; azul = há lives para abrir; verde = abertas e em dia;
     // vermelho piscando = o conjunto mudou desde a última vez (clique para abrir as novas)
