@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Reposição</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #1b1220; color: #eee; font: 13px "Segoe UI", sans-serif; }
+  body { padding: 16px 18px; }
+  h1 { font-size: 17px; margin: 0 0 4px; }
+  .sub { color: #a99bb8; margin-bottom: 10px; }
+  .aviso { background: #3b2a12; border: 1px solid #b45309; color: #fde68a; border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; line-height: 1.45; }
+  .aviso a { color: #fcd34d; }
+  .status { margin: 0 0 10px; color: #cfc6d6; line-height: 1.5; }
+  .ok { color: #9ee6b0; }
+  .alerta { color: #fca5a5; }
+  fieldset { border: 1px solid #ffffff22; border-radius: 8px; margin: 0 0 10px; padding: 8px 10px 10px; }
+  legend { color: #c4b5fd; font-weight: 600; padding: 0 4px; }
+  .linha { display: flex; align-items: center; gap: 8px; margin: 5px 0; flex-wrap: wrap; }
+  .linha > .rot { width: 110px; color: #cfc6d6; }
+  .est { margin-left: auto; color: #9ee6b0; font-weight: 600; white-space: nowrap; }
+  input, select { background: #2a2030; color: #eee; border: 1px solid #ffffff33; border-radius: 5px; padding: 4px 6px; font: inherit; }
+  input[type=number] { width: 120px; }
+  select { min-width: 190px; }
+  input[type=checkbox] { width: 16px; height: 16px; }
+  .dica { color: #8f8199; font-size: 12px; margin-top: 2px; }
+  #log { background: #120c17; border: 1px solid #ffffff22; border-radius: 8px; padding: 6px 8px; height: 190px; overflow: auto; font: 12px Consolas, monospace; white-space: pre-wrap; color: #cfc6d6; }
+  .botoes { display: flex; align-items: center; margin: 10px 0; }
+  button { background: #1b8f3a; color: #fff; border: 0; border-radius: 6px; padding: 6px 16px; font: inherit; font-weight: 600; cursor: pointer; }
+  button:hover { background: #22a847; }
+  #msg { margin-left: 10px; color: #cfc6d6; }
+</style>
+</head>
+<body>
+  <h1 id="titulo">Reposição</h1>
+  <div class="sub">Repõe o estoque no Mercado do NPC quando cai abaixo do pedido. Liga/desliga pelo botão 🛒 da barra da conta.</div>
+
+  <div class="aviso">
+    <b>Atenção:</b> a reposição <b>gasta ouro real do jogo</b> e não se responsabiliza por compras feitas por ela.
+    Cada pedido tem no máximo 9.999 unidades, há uma compra a cada 4 s por conta, e o app espera 30 s se o jogo recusar um pedido
+    (3 falhas seguidas pausam por 2 min). Use conforme os
+    <a href="https://pokeidle.io/termos" target="_blank" rel="noopener">termos do PokeIdle</a> (seção 5, "Automação").
+  </div>
+
+  <div id="status" class="status">Carregando…</div>
+
+  <fieldset>
+    <legend>Pokébolas</legend>
+    <div class="linha"><span class="rot">Tipo</span><select id="ballsId"></select><span id="estBalls" class="est">—</span></div>
+    <div class="linha"><span class="rot">Repor abaixo de</span><input id="ballsBelow" type="number" min="0" max="10000000" step="1"></div>
+    <div class="linha"><span class="rot">Manter até</span><input id="ballsKeep" type="number" min="0" max="10000000" step="1"></div>
+    <div class="linha"><label><input id="ballsOn" type="checkbox"> repor pokébolas</label></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Revives</legend>
+    <div class="linha"><span class="rot">Compra</span><span id="revivesNome" class="dica">o mais barato do balcão</span><span id="estRevives" class="est">—</span></div>
+    <div class="linha"><span class="rot">Repor abaixo de</span><input id="revivesBelow" type="number" min="0" max="10000000" step="1"></div>
+    <div class="linha"><span class="rot">Manter até</span><input id="revivesKeep" type="number" min="0" max="10000000" step="1"></div>
+    <div class="linha"><label><input id="revivesOn" type="checkbox"> repor revives</label></div>
+    <div class="dica">Revives são contados juntos.</div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Poções</legend>
+    <div class="linha"><span class="rot">Tipo</span><select id="potionsId"></select><span id="estPotions" class="est">—</span></div>
+    <div class="linha"><span class="rot">Repor abaixo de</span><input id="potionsBelow" type="number" min="0" max="10000000" step="1"></div>
+    <div class="linha"><span class="rot">Manter até</span><input id="potionsKeep" type="number" min="0" max="10000000" step="1"></div>
+    <div class="linha"><label><input id="potionsOn" type="checkbox"> repor poções</label></div>
+    <div class="dica">Poções são contadas juntas. "Melhor custo-benefício" escolhe a de menor ouro por HP curado no pokémon ativo (a Golden Potion fica de fora).</div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Ouro</legend>
+    <div class="linha"><span class="rot">Ouro mínimo</span><input id="goldFloor" type="number" min="0" step="1000"></div>
+    <div class="dica">Nunca compra a ponto de o ouro ficar abaixo disto. Se o ouro não alcança o item prioritário (poções, depois revives, depois bolas), nenhum tipo de menor prioridade é comprado.</div>
+  </fieldset>
+
+  <div class="botoes"><button id="salvar">Salvar</button><span id="msg"></span></div>
+
+  <fieldset>
+    <legend>Registro de compras</legend>
+    <div id="log"></div>
+  </fieldset>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const FALLBACK_BALLS = [{ id: 1, name: 'Poke Ball' }, { id: 2, name: 'Great Ball' }, { id: 3, name: 'Super Ball' }, { id: 4, name: 'Ultra Ball' }];
+  const POTIONS = [
+    { id: 0, name: 'Melhor custo-benefício' }, { id: 200, name: 'Small Potion' }, { id: 201, name: 'Great Potion' },
+    { id: 202, name: 'Ultra Potion' }, { id: 203, name: 'Hyper Potion' }, { id: 204, name: 'Ultimate Potion' },
+  ];
+  const fmt = (n) => Math.round(Number(n) || 0).toLocaleString('pt-BR');
+  let ready = false;
+
+  // Reconstrói as opções só quando a lista muda (para não perder a escolha do usuário a cada segundo)
+  function opcoes(sel, lista, valor) {
+    const chave = lista.map((o) => `${o.id}:${o.name}`).join('|');
+    if (sel.dataset.chave !== chave) {
+      const atual = sel.value;
+      sel.textContent = '';
+      for (const o of lista) {
+        const op = document.createElement('option');
+        op.value = String(o.id);
+        op.textContent = o.name;
+        sel.append(op);
+      }
+      sel.dataset.chave = chave;
+      if (atual && lista.some((o) => String(o.id) === atual)) sel.value = atual;
+    }
+    if (valor !== undefined && !ready) {
+      if (!lista.some((o) => o.id === valor)) {
+        const op = document.createElement('option');
+        op.value = String(valor);
+        op.textContent = `Item ${valor}`;
+        sel.append(op);
+        sel.dataset.chave = '';
+      }
+      sel.value = String(valor);
+    }
+  }
+
+  function preencher(cfg) {
+    $('ballsOn').checked = !!cfg.balls.on;
+    $('ballsBelow').value = cfg.balls.below;
+    $('ballsKeep').value = cfg.balls.keep;
+    $('revivesOn').checked = !!cfg.revives.on;
+    $('revivesBelow').value = cfg.revives.below;
+    $('revivesKeep').value = cfg.revives.keep;
+    $('potionsOn').checked = !!cfg.potions.on;
+    $('potionsBelow').value = cfg.potions.below;
+    $('potionsKeep').value = cfg.potions.keep;
+    $('goldFloor').value = cfg.goldFloor;
+    opcoes($('ballsId'), FALLBACK_BALLS, cfg.balls.id);
+    opcoes($('potionsId'), POTIONS, cfg.potions.id);
+  }
+
+  function ler() {
+    const n = (id) => Math.max(0, Math.trunc(Number($(id).value) || 0));
+    return {
+      balls: { on: $('ballsOn').checked, id: Number($('ballsId').value), below: n('ballsBelow'), keep: n('ballsKeep') },
+      revives: { on: $('revivesOn').checked, below: n('revivesBelow'), keep: n('revivesKeep') },
+      potions: { on: $('potionsOn').checked, id: Number($('potionsId').value), below: n('potionsBelow'), keep: n('potionsKeep') },
+      goldFloor: n('goldFloor'),
+    };
+  }
+
+  function mostrar(d) {
+    const s = d.status;
+    $('titulo').textContent = `Reposição — conta ${d.id}`;
+    const st = $('status');
+    if (!s) {
+      st.className = 'status alerta';
+      st.textContent = 'A página do jogo ainda não carregou a reposição. Recarregue a conta (F5).';
+    } else if (!s.connected) {
+      st.className = 'status alerta';
+      st.textContent = 'Sem conexão com o jogo nesta conta. Faça login para ver o estoque.';
+    } else {
+      st.className = 'status ok';
+      st.textContent = `Conectado${s.nick ? ` como ${s.nick}` : ''} · ouro: ${fmt(s.gold)}${s.paused ? ' · PAUSADA (3 falhas seguidas, volta em até 2 min)' : ''}`
+        + ` · reposição ${d.cfg.on ? 'LIGADA' : 'desligada'} (pelo botão 🛒)`;
+    }
+    if (s?.balls?.length) {
+      const b = s.balls.find((x) => x.id === Number($('ballsId').value));
+      $('estBalls').textContent = b ? `estoque: ${fmt(b.have)}` : '—';
+      opcoes($('ballsId'), s.balls.map((b) => ({ id: b.id, name: b.name })), d.cfg.balls.id);
+    } else {
+      $('estBalls').textContent = s ? '—' : '—';
+    }
+    if (s?.revives) {
+      const total = s.revives.reduce((t, r) => t + r.have, 0);
+      const barato = s.revives[0];
+      $('revivesNome').textContent = barato ? `compra: ${barato.name} (${fmt(barato.price)} ouro)` : 'o mais barato do balcão';
+      $('estRevives').textContent = `estoque: ${fmt(total)}`;
+    }
+    if (s?.potions) {
+      const total = s.potions.reduce((t, p) => t + p.have, 0);
+      $('estPotions').textContent = `estoque: ${fmt(total)}`;
+      if (s.potions.length) opcoes($('potionsId'), [{ id: 0, name: 'Melhor custo-benefício' }, ...s.potions.map((p) => ({ id: p.id, name: p.name }))], d.cfg.potions.id);
+      else opcoes($('potionsId'), POTIONS, d.cfg.potions.id);
+    }
+    const log = $('log');
+    const linhas = s?.log ?? [];
+    const perto = log.scrollTop + log.clientHeight >= log.scrollHeight - 20;
+    log.textContent = linhas.length ? linhas.join('\n') : 'Nenhuma compra ainda.';
+    if (perto) log.scrollTop = log.scrollHeight;
+  }
+
+  async function atualizar() {
+    const d = await window.rst.get();
+    if (!d) {
+      $('status').textContent = 'Esta janela não está ligada a uma conta.';
+      return;
+    }
+    if (!ready) {
+      preencher(d.cfg);
+      ready = true;
+    }
+    mostrar(d);
+  }
+
+  $('salvar').onclick = async () => {
+    $('msg').textContent = 'Salvando…';
+    const r = await window.rst.save(ler());
+    if (!r) {
+      $('msg').textContent = 'Não foi possível salvar.';
+      return;
+    }
+    ready = false; // mostra os valores já corrigidos pelo app (ex.: "manter" nunca abaixo de "repor abaixo de")
+    preencher(r);
+    ready = true;
+    $('msg').textContent = 'Salvo.';
+  };
+
+  atualizar();
+  setInterval(() => atualizar().catch(() => {}), 1000);
+</script>
+</body>
+</html>
