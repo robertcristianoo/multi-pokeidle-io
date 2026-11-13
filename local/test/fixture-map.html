@@ -1,0 +1,105 @@
+<!doctype html>
+<meta charset="utf-8">
+<!-- Imita só o que o auto-captura toca no Mapa novo do jogo (pokeidle.io, v1.300): botão Mapa, #modal, dropdown de
+     região, filtro Pokédex, chave Mapa|Lista e as linhas da lista. -->
+<div class="menu-topo"><button data-modal="mapa">Mapa</button></div>
+<div id="hunt-saida"><button id="ir-centro" type="button" disabled>Ir para o Centro Pokémon</button></div>
+<div id="centro-barra" class="hidden">Centro Pokémon</div>
+<button id="centro-curar" type="button" class="hidden">Curar equipe</button>
+<div id="modal" class="modal hidden"><button id="modal-fechar">×</button><div id="modal-corpo"></div></div>
+<script>
+const REG = [
+  { id: 'kanto', rot: 'Kanto', trancada: false },
+  { id: 'johto', rot: 'Johto', trancada: false },
+  { id: 'outland', rot: 'Outland', trancada: false },
+  { id: 'hoenn', rot: 'Hoenn', trancada: true }, // cadeado: nunca pode ser visitada
+  { id: 'sinnoh', rot: 'Sinnoh', trancada: false, emObra: true },
+];
+const G = (window.__game = {
+  picked: [],
+  filtro: '',
+  modo: 'mapa',
+  regiao: 'kanto',
+  hunting: 'area-inicial', // começa caçando, como o jogador que liga a automação no meio da hunt
+  noCentro: false,
+  travaAte: Date.now() + 1500, // o botão Ir ao Centro fica travado 3 s a cada dano (aqui 1,5 s, e rearma sozinho)
+  irCentroCliques: 0,
+  curas: 0,
+  curasNoPick: [],
+  pickedNoCentro: [],
+  bloquear: 0, // quantos cliques seguintes o jogo recusa (trava de combate): a linha treme e o mapa fica aberto
+  data: {
+    kanto: [
+      { slug: 'k-capturado', nv: 3, cap: true, lock: 0 },
+      { slug: 'k-nv30', nv: 30, cap: false, lock: 0 },
+      { slug: 'k-nv12', nv: 12, cap: false, lock: 0 },
+      { slug: 'k-travado', nv: 999, cap: false, lock: 1 }, // acima do nível do treinador
+      { slug: 'k-nv8', nv: 8, cap: false, lock: 0 },
+    ],
+    johto: [
+      { slug: 'j-nv20', nv: 20, cap: false, lock: 0 },
+      { slug: 'j-capturado', nv: 15, cap: true, lock: 0 },
+    ],
+    outland: [{ slug: 'o-nv150', nv: 150, cap: false, lock: 0 }],
+    hoenn: [{ slug: 'h-nv40', nv: 40, cap: false, lock: 0 }],
+    sinnoh: [],
+  },
+});
+const reg = () => REG.find((r) => r.id === G.regiao);
+function render() {
+  const todas = G.data[G.regiao];
+  const lista = todas.filter((m) => G.filtro !== 'faltam' || !m.cap);
+  const linhas = G.modo === 'lista'
+    ? lista.map((m) => `<button type="button" class="ml-linha${m.lock ? ' travada' : ''}${m.cap ? ' capturado' : ''}${G.hunting === m.slug ? ' on' : ''}" data-slug="${m.slug}">` +
+      `<b class="ml-nome">${m.slug}</b><span class="ml-nv"><svg width="11" height="11"></svg><span>Nv ${m.nv.toLocaleString('pt-BR')}</span></span></button>`).join('')
+    : '';
+  document.getElementById('modal-corpo').innerHTML =
+    '<div class="mapa-barra">' +
+    // v1.337: as regiões viraram abas (button.mapa-reg-bt[data-regiao], a trancada leva .mapa-area-travada)
+    '<div class="mapa-regs" id="f-regiao" role="tablist">' +
+    REG.map((r) => `<button type="button" class="mapa-area mapa-reg-bt${r.id === G.regiao ? ' on' : ''}${r.trancada ? ' mapa-area-travada' : ''}" data-regiao="${r.id}" role="tab" aria-selected="${r.id === G.regiao}"${r.emObra ? ' disabled' : ''}><span class="mapa-reg-nome">${r.rot}</span><span class="mapa-reg-nv">Nv 1</span></button>`).join('') +
+    '</div>' +
+    '<details class="cm-drop mapa-drop mapa-drop-captura" id="f-captura"><summary><b>Pokédex</b></summary><div class="cm-drop-corpo"><div class="mapa-capturas">' +
+    [['', 'Todos'], ['capturados', 'Capturados'], ['faltam', 'Não capturados']].map(([v, r]) => `<button type="button" class="cm-crit${G.filtro === v ? ' on' : ''}" data-captura="${v}">${r}</button>`).join('') +
+    '</div></div></details>' +
+    '<div class="mapa-modo" id="mapa-modo">' +
+    ['mapa', 'lista'].map((v) => `<button type="button" class="mapa-modo-bt${G.modo === v ? ' on' : ''}" data-modo="${v}">${v}</button>`).join('') +
+    '</div></div>' +
+    `<div class="mapa-principal${G.modo === 'lista' ? ' modo-lista' : ''}" id="mapa-principal"><div id="mapa-mundi"></div>` +
+    `<div class="mapa-lista" id="mapa-lista"><div id="ml-rolo"><div id="ml-corpo">${linhas}</div>` +
+    `<div id="ml-vazio"${G.modo === 'lista' && !lista.length ? '' : ' hidden'}>Nenhuma área passa nesses filtros.</div></div></div></div>` +
+    `<div id="mapa-rodape-txt">${lista.length} de ${todas.length} áreas em ${reg().rot}</div>`;
+}
+function syncLugar() {
+  document.getElementById('hunt-saida').classList.toggle('hidden', G.noCentro);
+  document.getElementById('centro-barra').classList.toggle('hidden', !G.noCentro);
+  document.getElementById('centro-curar').classList.toggle('hidden', !G.noCentro);
+}
+setInterval(() => {
+  if (!G.noCentro && Date.now() > G.travaAte + 400) G.travaAte = Date.now() + 1200; // combate rearma a trava
+  document.getElementById('ir-centro').disabled = Date.now() < G.travaAte;
+}, 50);
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('button');
+  if (!t) return;
+  if (t.id === 'centro-curar') { G.curas++; return; }
+  if (t.id === 'ir-centro') {
+    if (t.disabled) return;
+    G.irCentroCliques++;
+    setTimeout(() => { G.noCentro = true; G.hunting = null; syncLugar(); }, 300);
+    return;
+  }
+  if (t.matches('.menu-topo button[data-modal="mapa"]')) { document.getElementById('modal').classList.remove('hidden'); render(); }
+  else if (t.id === 'modal-fechar') document.getElementById('modal').classList.add('hidden');
+  else if (t.matches('.mapa-reg-bt')) { if (!t.disabled) { G.regiao = t.dataset.regiao; render(); } }
+  else if (t.matches('[data-captura]')) { G.filtro = t.dataset.captura; render(); }
+  else if (t.matches('[data-modo]')) { G.modo = t.dataset.modo; render(); }
+  else if (t.matches('.ml-linha')) {
+    if (t.classList.contains('travada')) return;
+    if (G.bloquear > 0) { G.bloquear--; return; } // "trava de combate": treme e não troca
+    G.picked.push(t.dataset.slug); G.pickedNoCentro.push(G.noCentro); G.curasNoPick.push(G.curas); G.hunting = t.dataset.slug;
+    G.noCentro = false; syncLugar();
+    setTimeout(() => document.getElementById('modal').classList.add('hidden'), 320); // a "partida" da lista
+  }
+});
+</script>
