@@ -349,6 +349,12 @@ function loadExtensions() {
       if (err.code !== 'MODULE_NOT_FOUND' || !String(err.message).includes(file.slice(3))) console.error(`falha ao carregar ${file}:`, err);
     }
   }
+  // Auto-reposição (🛒): à parte, para um erro nela não derrubar as demais extensões
+  try {
+    exts.push(require('./restock')({ getSlots: () => slots, sendLog }));
+  } catch (err) {
+    console.error('falha ao carregar a auto-reposição:', err);
+  }
 }
 
 // Atalhos locais (só valem com o app em foco). Usa input.code para independer do layout/Shift.

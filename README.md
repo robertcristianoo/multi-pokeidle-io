@@ -8,7 +8,7 @@
 
 **In English:** *PokeIdle Multi is an unofficial, open-source Windows desktop app (Electron) that runs several [PokeIdle.io](https://pokeidle.io) accounts side by side in a single window, each one with a fully isolated session. It is made only for PokeIdle.io, not for similarly named games such as PokeIdle World. Download the installer or the portable build from the [Releases](https://github.com/robertcristianoo/multi-pokeidle-io/releases/latest) page.*
 
-> Projeto de fã, **não oficial** e sem afiliação com o PokeIdle, Nintendo, Game Freak, Creatures ou The Pokémon Company. O app só embute o site oficial; não modifica o jogo nem automatiza ações. Ele apenas **lê** as lives que o próprio jogo informa, para o botão de lives (veja abaixo).
+> Projeto de fã, **não oficial** e sem afiliação com o PokeIdle, Nintendo, Game Freak, Creatures ou The Pokémon Company. O app só embute o site oficial e não modifica o jogo. Ele **lê** as lives que o próprio jogo informa, para o botão de lives, e, só se você ligar, **compra** no Mercado do NPC para repor o estoque da conta (veja a seção Auto-reposição, abaixo).
 
 ## Download
 
@@ -149,6 +149,20 @@ Em **Resgate auto**, escolha por conta e por site o bônus que pode ser resgatad
 ### Log de resgates
 
 O botão **Log de resgates** mostra cada resgate, recusa e parada, com hora, conta, site e canal, do mais recente para o mais antigo. O registro fica em `%APPDATA%\multi-pokeidle-io\resgates.log` (últimas 2.000 linhas).
+## Auto-reposição (🛒)
+
+Opcional e **desligada por padrão**. Em cada conta, o botão **🛒** da barra liga e desliga a reposição (fica verde quando ela está ligada e a conta conectada ao jogo); o **⚙** ao lado abre a janela com o estoque, o ouro, as regras e o registro das compras.
+
+Quando o estoque de um item cai abaixo de **Repor abaixo de**, o app compra no Mercado do NPC do próprio jogo até chegar em **Manter até**:
+
+- **Pokébolas:** o tipo é escolhível (padrão: Ultra Ball).
+- **Revives:** contados juntos; compra sempre o mais barato.
+- **Poções:** contadas juntas. O padrão é a Ultimate Potion, mas dá para escolher a de **melhor custo-benefício** (menor ouro por HP efetivamente curado no pokémon ativo). A Golden Potion fica de fora.
+- **Ouro mínimo:** nunca compra a ponto de o ouro ficar abaixo desse valor. Se o ouro não alcança o item prioritário, a ordem é poções, depois revives, depois bolas: os de menor prioridade só são comprados quando o item prioritário está em dia.
+
+Limites de segurança fixos: no máximo 9.999 unidades por pedido; uma compra a cada 4 s por conta; se o jogo recusar um pedido, o app espera 30 s; depois de 3 falhas seguidas, pausa por 2 min. O pedido é o mesmo do botão **Comprar** do jogo.
+
+> **Atenção:** a reposição **gasta ouro real do jogo**. Confira as regras antes de ligar, e use por sua conta e risco. Os [termos do PokeIdle](https://pokeidle.io/termos) permitem automações (seção 5, "Automação") desde que sigam as mesmas regras de quem joga na mão, não explorem falhas, não burlem limites do jogo e não sobrecarreguem o servidor. Quem publica este projeto não se responsabiliza por perdas de ouro ou por penalidades aplicadas pelo jogo.
 
 ## Como funciona
 
@@ -158,6 +172,7 @@ O botão **Log de resgates** mostra cada resgate, recusa e parada, com hora, con
 - Animações reduzidas (`src/reduce-motion.js`): a preferência `reduceMotion` do `config.json` (padrão ligada) faz cada conta receber `prefers-reduced-motion: reduce` por emulação do DevTools (sem CSS injetado), reaplicada a cada carga e alterada na hora pelo botão **Animações**. Só reduz o que o próprio site trata como movimento; animações feitas em canvas ou por script continuam.
 - O User-Agent não inclui "Electron", porque sites com captcha costumam recusar isso.
 - Preferências (número de contas, 2 ou 4, e ordem da grade; a última escolha é lembrada, inclusive se a barra de RAM está oculta) ficam em `config.json` e `order.json`, na pasta de dados do app (`%APPDATA%\multi-pokeidle-io`).
+- Preferências (número de contas, 2 ou 4, e ordem da grade; a última escolha é lembrada) ficam em `config.json` e `order.json`, na pasta de dados do app (`%APPDATA%\multi-pokeidle-io`). A configuração da auto-reposição fica em `restock.json`, na mesma pasta.
 - Nenhum dado do jogo é enviado a terceiros pelo app. A janela de logs mostra só método, status e URL das requisições, nunca o corpo (portanto sem senhas).
 
 ## Gerar os executáveis
