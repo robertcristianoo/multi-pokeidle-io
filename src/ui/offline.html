@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Conta desligada</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #15111a; color: #eee; font: 14px "Segoe UI", sans-serif; }
+  body { display: flex; align-items: center; justify-content: center; user-select: none; }
+  .box { text-align: center; max-width: 420px; padding: 24px; }
+  h1 { margin: 0 0 10px; font-size: 20px; }
+  p { margin: 0 0 18px; color: #b9afc4; line-height: 1.5; }
+  button { border: 1px solid #2fd160; background: #1b8f3a; color: #fff; border-radius: 8px; padding: 10px 22px; font: inherit; font-weight: 700; cursor: pointer; }
+  button:hover { background: #22a447; }
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>Conta <span id="n"></span> desligada</h1>
+  <p>O jogo desta conta não está carregado, então ela não usa CPU nem memória. O login e os dados continuam salvos e voltam ao ligar.</p>
+  <button id="ligar">Ligar conta</button>
+</div>
+<script>
+  document.getElementById('n').textContent = new URLSearchParams(location.search).get('id') || '';
+  document.getElementById('ligar').onclick = () => off.turnOn();
+</script>
+</body>
+</html>

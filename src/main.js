@@ -4,7 +4,8 @@ const { createLives } = require('./lives');
 const { createToolbars } = require('./toolbar');
 const { createToasts } = require('./toasts');
 const { createUpdater } = require('./updates');
-const { app, BaseWindow, BrowserWindow, WebContentsView, dialog, ipcMain, nativeImage, screen, shell } = require('electron');
+const { createPower } = require('./power');
+const { app, BaseWindow, BrowserWindow, WebContentsView, dialog, ipcMain, nativeImage, screen, session, shell } = require('electron');
 
 // Evita o Chromium tratar views como "ocultas/oclusas" (afeta captcha e timers do jogo)
 app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
@@ -130,7 +131,7 @@ function setSlotZoom(id, factor) {
   saveSlotPrefs(id, { zooms: { ...slotPrefs(id).zooms, [viewMode()]: z } });
 }
 function applyZooms() {
-  for (const { id, view } of slots) if (!view.webContents.isDestroyed()) view.webContents.setZoomFactor(slotZoom(id));
+  for (const { id, view } of liveSlots()) if (!view.webContents.isDestroyed()) view.webContents.setZoomFactor(slotZoom(id));
 }
 function setSlotMuted(id, muted) {
   const slot = slots.find((s) => s.id === id);
@@ -162,7 +163,16 @@ function saveOrder() {
 // null = grade com todas; 0..N-1 = só a conta dessa posição, em tela cheia
 let focused = null;
 let mainWin = null;
-const slots = []; // [{ id, view }] na ordem da grade
+const slots = []; // [{ id, view }] na ordem da grade; view = a do jogo (ligada) ou a página de desligada
+// Contas ligadas (com o jogo carregado): para o que mexe no jogo (zoom, F5, extensões, lives)
+const liveSlots = () => slots.filter((s) => !power.isOff(s.id));
+// Liga/desliga por conta (src/power.js); a troca de view é feita em setAccountPower
+const power = createPower({
+  loadConfig,
+  saveConfig,
+  shortcut: (id) => makeShortcutHandler(id),
+  setPower: (id, on) => setAccountPower(id, on),
+});
 
 // ---- Ajuda (sobreposição) ----
 // View própria, por cima das contas e isolada das páginas do jogo (o site não enxerga nem altera).
@@ -295,11 +305,12 @@ async function resetAccount(index) {
       'A conta criada no jogo continua existindo no servidor.',
   });
   if (response !== 1) return;
-  const ses = view.webContents.session;
+  // a sessão é a da partição da conta (a página de desligada não tem uma própria)
+  const ses = session.fromPartition(`persist:conta${id}`);
   await ses.clearStorageData();
   await ses.clearCache();
   await ses.clearAuthCache();
-  view.webContents.loadURL(URL);
+  if (!power.isOff(id) && !view.webContents.isDestroyed()) view.webContents.loadURL(URL);
 }
 
 // ---- Extensões locais (opcional) ----
@@ -314,7 +325,7 @@ const exts = [];
 function loadExtensions() {
   for (const file of LOCAL_EXTENSIONS) {
     try {
-      exts.push(require(file)({ getSlots: () => slots, sendLog, notify: (n) => toastsCtl?.show(n) }));
+      exts.push(require(file)({ getSlots: () => liveSlots(), sendLog, notify: (n) => toastsCtl?.show(n) }));
     } catch (err) {
       if (err.code !== 'MODULE_NOT_FOUND' || !String(err.message).includes(file.slice(3))) console.error(`falha ao carregar ${file}:`, err);
     }
@@ -346,7 +357,8 @@ function makeShortcutHandler(id) {
       // F5 não recarrega sozinho (não há menu). F5 = recarrega a conta com o teclado;
       // Ctrl+F5 = ignora o cache; Ctrl+Shift+F5 = todas as contas, ignorando o cache.
       event.preventDefault();
-      const targets = input.control && input.shift ? slots.map((s) => s.view) : [slots.find((s) => s.id === id).view];
+      // contas desligadas não recarregam (não têm jogo); só a de foco do teclado conta, se estiver ligada
+      const targets = input.control && input.shift ? liveSlots().map((s) => s.view) : power.isOff(id) ? [] : [slots.find((s) => s.id === id).view];
       for (const v of targets) {
         if (input.control) v.webContents.session.clearCache().then(() => v.webContents.reloadIgnoringCache());
         else v.webContents.reload();
@@ -387,7 +399,8 @@ function makeShortcutHandler(id) {
   };
 }
 
-function createSlot(id) {
+// View do jogo de uma conta (ainda não adicionada à janela nem carregada)
+function buildGameView(id) {
   // "persist:" mantém cookies/localStorage em disco, separados por conta
   const view = new WebContentsView({
     webPreferences: {
@@ -407,10 +420,43 @@ function createSlot(id) {
   view.webContents.on('did-finish-load', () => view.webContents.setZoomFactor(slotZoom(id)));
   view.webContents.on('before-input-event', makeShortcutHandler(id));
   exts.forEach((x) => x.onSlotCreated?.(id, view));
+  return view;
+}
+
+function createSlot(id) {
+  const off = power.isOff(id);
+  const view = off ? power.placeholder(id) : buildGameView(id);
   mainWin.contentView.addChildView(view);
   tbs?.addSlot(id);
-  view.webContents.loadURL(URL);
+  if (!off) {
+    power.markRunning(id);
+    view.webContents.loadURL(URL);
+  }
   slots.push({ id, view });
+}
+
+// Liga ou desliga uma conta. Desligar destrói o jogo dela (libera CPU e memória); ligar cria o jogo de novo e
+// recarrega a página. A entrada em `slots` continua a mesma, então grade, ordem e foco não mudam.
+function setAccountPower(id, on) {
+  const idx = slots.findIndex((s) => s.id === id);
+  if (idx < 0 || power.isOff(id) === !on) return; // já está nesse estado
+  const slot = slots[idx];
+  if (!on) exts.forEach((x) => x.onSlotRemoved?.(id));
+  mainWin.contentView.removeChildView(slot.view);
+  slot.view.webContents.close();
+  power.setOff(id, !on);
+  slot.view = on ? buildGameView(id) : power.placeholder(id);
+  mainWin.contentView.addChildView(slot.view);
+  if (on) {
+    power.markRunning(id);
+    slot.view.webContents.loadURL(URL);
+  }
+  // o avisos e a ajuda continuam por cima, como em setAccountCount
+  toastsCtl?.raise();
+  if (helpOpen) mainWin.contentView.addChildView(helpView);
+  if (focused === idx) slot.view.webContents.focus();
+  layout();
+  tbs?.push();
 }
 
 // Ajusta quantas contas ficam abertas (1..MAX). Remover uma conta só fecha o quadrante:
@@ -420,7 +466,7 @@ function setAccountCount(count) {
   for (let i = slots.length - 1; i >= 0; i--) {
     if (slots[i].id > count) {
       const { id, view } = slots[i];
-      exts.forEach((x) => x.onSlotRemoved?.(id));
+      if (!power.isOff(id)) exts.forEach((x) => x.onSlotRemoved?.(id));
       tbs?.removeSlot(id);
       mainWin.contentView.removeChildView(view);
       view.webContents.close();
@@ -489,7 +535,7 @@ function createWindow() {
     getFeatures: () => exts.flatMap((x) => x.features?.() ?? []),
     getAccountInfo: () => ({ count: slots.length, max: MAX_ACCOUNTS, focused, lives: livesCtl?.state() ?? { kind: 'none', text: '' },
       version: releaseVersion(), update: updater?.state() ?? null }),
-    getSlotState: (id) => ({ zoom: slotZoom(id), muted: slotPrefs(id).muted }),
+    getSlotState: (id) => ({ zoom: slotZoom(id), muted: slotPrefs(id).muted, ...power.stateOf(id) }),
     actions: {
       accounts: () => setAccountCount(slots.length >= MAX_ACCOUNTS ? 2 : MAX_ACCOUNTS),
       grid: () => setFocus(null),
@@ -509,14 +555,15 @@ function createWindow() {
       zoomOut: (id) => setSlotZoom(id, slotZoom(id) - ZOOM_STEP),
       zoomReset: (id) => setSlotZoom(id, ZOOM_DEFAULTS[viewMode()]),
       mute: (id) => setSlotMuted(id, !slotPrefs(id).muted),
-      reload: (id) => slots.find((s) => s.id === id)?.view.webContents.reload(),
+      reload: (id) => { if (!power.isOff(id)) slots.find((s) => s.id === id)?.view.webContents.reload(); },
+      power: (id) => setAccountPower(id, power.isOff(id)),
       refocus: (id) => slots.find((s) => s.id === id)?.view.webContents.focus(),
     },
   });
   for (const id of loadOrder(loadAccountCount())) createSlot(id);
   const lastFocus = slots.findIndex((x) => x.id === loadConfig().focusedId); // volta ao quadrante que estava em foco
   if (lastFocus >= 0) focused = lastFocus;
-  livesCtl = createLives({ mainWin, getSlots: () => slots });
+  livesCtl = createLives({ mainWin, getSlots: () => liveSlots() });
   toastsCtl = createToasts({ mainWin, getTop: () => tbs.appBarH });
   updater = createUpdater({
     currentVersion: releaseVersion(),
