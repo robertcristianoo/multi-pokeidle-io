@@ -6,8 +6,5 @@ dist-release/
 # gerado pelo workflow de Release (e, por instantes, pelo `npm run dist` local)
 release-info.json
 
-# extensões e testes locais (não vão para o repositório)
-local/
-
 # lixo de depuração
 err.txt

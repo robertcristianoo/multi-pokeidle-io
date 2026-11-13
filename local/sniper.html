@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Sniper do mercado</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 16px 20px; font: 14px "Segoe UI", sans-serif; background: #1b1b22; color: #eee; }
+  h1 { margin: 0 0 4px; font-size: 18px; }
+  h2 { margin: 18px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: #8ab4ff; }
+  .note { color: #aaa; font-size: 12px; line-height: 1.5; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 11px; color: #888; font-weight: normal; padding: 2px 4px; }
+  td { padding: 4px; border-bottom: 1px solid #2a2a33; vertical-align: middle; }
+  input[type=text], input[type=number], select { background: #000; color: #eee; border: 1px solid #555; border-radius: 4px; padding: 4px 6px; font: 13px "Segoe UI", sans-serif; }
+  input[type=number] { width: 120px; }
+  button { background: #2c2c38; color: #eee; border: 1px solid #555; border-radius: 4px; padding: 5px 12px; cursor: pointer; }
+  button.primary { background: #2f6fed; border-color: #2f6fed; }
+  .live { color: #ff8a8a; font-weight: bold; }
+  .hint { font-size: 11px; color: #8ab4ff; min-height: 14px; }
+  .ok { color: #98c379; } .bad { color: #ff8a8a; } .dim { color: #888; }
+  .row { display: flex; gap: 10px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+  .warn { background: #3a2222; border: 1px solid #7a3a3a; border-radius: 6px; padding: 8px 10px; margin: 10px 0; font-size: 12px; line-height: 1.5; }
+</style>
+</head>
+<body>
+<h1>Sniper do mercado</h1>
+<div class="note">Consulta os anúncios mais baratos de cada regra e compra o que estiver até o preço máximo. Começa sempre em <b>simulação</b> (só registra no log, <kbd>Ctrl</kbd>+<kbd>L</kbd>).</div>
+<div class="warn">Comprar automaticamente gasta moeda do jogo e não dá para desfazer, e automação pode ser contra os termos do jogo (risco de punição da conta). Use o teto de gasto.</div>
+
+<h2>Contas</h2>
+<table id="accs"><tr><th>Conta</th><th>Ligado (pela barra)</th><th>Compra real</th><th>Estado</th><th>Gasto na sessão</th></tr></table>
+
+<h2>Regras (valem para as contas ligadas)</h2>
+<table id="rules"><tr><th>On</th><th>Tipo</th><th>Nome (item exato ou busca do pokémon)</th><th>Moeda</th><th>Preço máx. (unid.)</th><th>Qtd/compra</th><th>Shiny</th><th></th></tr></table>
+<div class="row"><button id="add">+ Regra</button></div>
+
+<h2>Limites</h2>
+<div class="row">
+  <label>Intervalo (s, mín. 5) <input type="number" id="interval" min="5" max="600"></label>
+  <label>Teto de gasto em coins <input id="capGold"> <span class="hint" id="capGoldHint"></span></label>
+  <label>Teto em gemas <input id="capOrb"> <span class="hint" id="capOrbHint"></span></label>
+</div>
+<div class="note">Teto <b>0 = compra real bloqueada</b> naquela moeda (só simulação). O gasto é contado desde que o app abriu.</div>
+
+<div class="row"><button class="primary" id="save">Salvar</button><span id="msg" class="note"></span></div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  let cfg = null, slots = [];
+  const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); e.append(...kids); return e; };
+
+  // Máscara de valores: separador de milhar enquanto digita (14205740 -> 14.205.740) e o valor por extenso
+  // abreviado embaixo ("≈ 14,2 mi coins"), para não errar a quantidade de zeros.
+  const fmtN = (n) => (Number(n) > 0 ? Number(n).toLocaleString('pt-BR') : '');
+  const parseN = (s) => Number(String(s).replace(/\D/g, '')) || 0;
+  const abrev = (n) => {
+    const f = (v, suf) => `≈ ${v.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${suf}`;
+    if (n >= 1e9) return f(n / 1e9, 'bi');
+    if (n >= 1e6) return f(n / 1e6, 'mi');
+    if (n >= 1e3) return f(n / 1e3, 'mil');
+    return '';
+  };
+  // `unit()` devolve 'coins'/'gemas' (a moeda atual); `onValue(n)` recebe o número limpo
+  function money(input, hint, unit, onValue) {
+    input.type = 'text';
+    input.inputMode = 'numeric';
+    input.autocomplete = 'off';
+    input.style.width = '130px';
+    const refresh = () => { hint.textContent = abrev(parseN(input.value)) ? `${abrev(parseN(input.value))} ${unit()}` : ''; };
+    input.addEventListener('input', () => {
+      const n = parseN(input.value);
+      input.value = fmtN(n);
+      onValue(n);
+      refresh();
+    });
+    input.value = fmtN(parseN(input.value));
+    refresh();
+    return refresh;
+  }
+
+  function drawRules() {
+    const t = $('rules');
+    [...t.querySelectorAll('tr.r')].forEach((r) => r.remove());
+    cfg.rules.forEach((r, i) => {
+      const tr = el('tr', { className: 'r' });
+      const cell = (n) => { const td = el('td'); td.append(n); tr.append(td); return n; };
+      cell(el('input', { type: 'checkbox', checked: r.ativo, onchange: (e) => (r.ativo = e.target.checked) }));
+      const tipo = cell(el('select', { onchange: (e) => (r.tipo = e.target.value) }, el('option', { value: 'item', textContent: 'Item' }), el('option', { value: 'pokemon', textContent: 'Pokémon' })));
+      tipo.value = r.tipo;
+      cell(el('input', { type: 'text', value: r.nome, size: 22, oninput: (e) => (r.nome = e.target.value) }));
+      let refreshPreco = () => {};
+      const moeda = cell(el('select', { onchange: (e) => { r.moeda = e.target.value; refreshPreco(); } }, el('option', { value: 'gold', textContent: 'Coins' }), el('option', { value: 'orb', textContent: 'Gemas' })));
+      moeda.value = r.moeda;
+      const preco = el('input', { value: fmtN(r.maxPreco), className: 'preco' });
+      const hint = el('div', { className: 'hint' });
+      refreshPreco = money(preco, hint, () => (r.moeda === 'orb' ? 'gemas' : 'coins'), (n) => (r.maxPreco = n));
+      cell(el('div', {}, preco, hint));
+      const q = cell(el('input', { type: 'number', value: r.qtd, min: 1, oninput: (e) => (r.qtd = Number(e.target.value)) })); q.style.width = '70px';
+      cell(el('input', { type: 'checkbox', checked: r.soShiny, onchange: (e) => (r.soShiny = e.target.checked) }));
+      cell(el('button', { textContent: '✕', onclick: () => { cfg.rules.splice(i, 1); drawRules(); } }));
+      t.append(tr);
+    });
+  }
+
+  function drawAccounts(status = {}, spent = {}) {
+    const t = $('accs');
+    [...t.querySelectorAll('tr.a')].forEach((r) => r.remove());
+    for (const id of slots) {
+      const a = cfg.accounts[id], s = status[id], g = spent[id];
+      const tr = el('tr', { className: 'a' });
+      const cell = (n) => { const td = el('td'); td.append(n); tr.append(td); };
+      cell(`Conta ${id}`);
+      cell(el('input', { type: 'checkbox', checked: a.on, disabled: true, title: 'Liga/desliga pelo botão Sniper na barra de cada conta' }));
+      cell(el('input', { type: 'checkbox', checked: a.live, disabled: !a.on, onchange: (e) => { a.live = e.target.checked; drawAccounts(status, spent); } }));
+      cell(el('span', { className: !s?.hook ? 'dim' : s.socket ? 'ok' : 'bad', textContent: !s?.hook ? 'carregando…' : s.socket ? `conectada · ${s.catalogo} itens${a.on ? (a.live ? ' · COMPRA REAL' : ' · simulação') : ''}` : 'sem socket (faça login)' }));
+      cell(g ? `${g.gold.toLocaleString('pt-BR')} coins · ${g.orb.toLocaleString('pt-BR')} gemas` : '—');
+      if (a.live) tr.querySelectorAll('td')[2].className = 'live';
+      t.append(tr);
+    }
+  }
+
+  async function init() {
+    const d = await window.snp.get();
+    cfg = d.cfg; slots = d.slots;
+    $('interval').value = cfg.intervalSec;
+    $('capGold').value = fmtN(cfg.cap.gold); $('capOrb').value = fmtN(cfg.cap.orb);
+    money($('capGold'), $('capGoldHint'), () => 'coins', () => {});
+    money($('capOrb'), $('capOrbHint'), () => 'gemas', () => {});
+    drawAccounts(d.status, d.spent); drawRules();
+    setInterval(async () => { const x = await window.snp.get(); drawAccountsStatusOnly(x); }, 2000);
+  }
+  // Atualiza só a coluna de estado/gasto, sem apagar o que o usuário está mexendo
+  function drawAccountsStatusOnly({ status, spent, cfg: server }) {
+    const serverAccounts = server.accounts;
+    [...document.querySelectorAll('#accs tr.a')].forEach((tr, i) => {
+      const id = slots[i], s = status[id], a = cfg.accounts[id], g = spent[id];
+      a.on = !!serverAccounts[id]?.on; // o liga/desliga vem da barra
+      if (!a.on) a.live = false;
+      const tds = tr.querySelectorAll('td');
+      tds[1].firstChild.checked = a.on;
+      tds[2].firstChild.disabled = !a.on;
+      tds[2].firstChild.checked = a.live;
+      tds[2].className = a.live ? 'live' : '';
+      tds[3].firstChild.className = !s?.hook ? 'dim' : s.socket ? 'ok' : 'bad';
+      tds[3].firstChild.textContent = !s?.hook ? 'carregando…' : s.socket ? `conectada · ${s.catalogo} itens${a.on ? (a.live ? ' · COMPRA REAL' : ' · simulação') : ''}` : 'sem socket (faça login)';
+      tds[4].textContent = g ? `${g.gold.toLocaleString('pt-BR')} coins · ${g.orb.toLocaleString('pt-BR')} gemas` : '—';
+    });
+  }
+
+  $('add').onclick = () => { cfg.rules.push({ id: 'r' + Date.now(), ativo: true, tipo: 'item', nome: '', moeda: 'gold', maxPreco: 0, qtd: 1, soShiny: false, soP5: false }); drawRules(); };
+  $('save').onclick = async () => {
+    cfg.intervalSec = Number($('interval').value); cfg.cap = { gold: parseN($('capGold').value), orb: parseN($('capOrb').value) };
+    cfg = await window.snp.save(cfg);
+    drawAccounts(); drawRules();
+    $('msg').textContent = 'Salvo (' + new Date().toLocaleTimeString('pt-BR') + ')';
+  };
+  init();
+</script>
+</body>
+</html>

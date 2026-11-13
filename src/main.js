@@ -303,13 +303,13 @@ async function resetAccount(index) {
 }
 
 // ---- Extensões locais (opcional) ----
-// Se existirem arquivos na pasta `local/` (ignorada pelo git), são carregados com
+// Os arquivos da pasta `local/` são carregados com
 // acesso às contas abertas. Contrato:
 //   `module.exports = ({ getSlots, sendLog, notify }) => ({ onShortcut?, onSlotCreated?, onSlotRemoved?, features? })`
 // `features()` devolve [{ id, label, title, isOn(contaId), set(contaId, on), settings?() }]: viram botões
 // liga/desliga na barra de cada conta (ver toolbar.js).
 // `onSlotCreated(id, view)` roda antes de a conta carregar a página (dá para registrar preloads).
-const LOCAL_EXTENSIONS = ['../local/autoball.js', '../local/sniper.js', '../local/autocatch.js'];
+const LOCAL_EXTENSIONS = ['../local/autoball.js', '../local/sniper.js', '../local/autocatch.js', '../local/autopvp.js'];
 const exts = [];
 function loadExtensions() {
   for (const file of LOCAL_EXTENSIONS) {
