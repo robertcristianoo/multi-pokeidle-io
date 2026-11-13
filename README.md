@@ -64,6 +64,7 @@ O app abre em tela cheia com **2 contas** lado a lado. Faça login uma vez em ca
 | `Ctrl+Shift+F5` | Força a atualização de todas as contas |
 | `Ctrl+T` | Abre no navegador as lives que dão bônus de XP (Twitch com bônus + 2 da Kick); o botão **Lives** da barra superior faz o mesmo e avisa quando uma live abre ou fecha |
 | `Ctrl+L` | Mostra/esconde a janela de logs (console, rede e erros de carregamento) |
+| `Ctrl+M` | Mostra/esconde a barra de RAM do rodapé |
 | `F11` | Tela cheia liga/desliga |
 | `F1` | Mostra/esconde a ajuda |
 
@@ -72,6 +73,16 @@ Os números se referem à **posição** na grade (esquerda→direita, cima→bai
 ## Barras de botões e avisos
 
 Cada conta tem uma barra de botões no topo do próprio quadrante (liga/desliga só daquela conta, mais o **Foco**), e há uma barra do app no topo da janela (Contas 2/4, Logs, Lives, Ajuda). Cada funcionalidade extra que o app carrega aparece como um botão sozinha. Os avisos (`src/toasts.js`) são pequenos, ficam no canto superior direito e somem em até 5 s.
+
+### Barra de RAM
+
+Uma faixa fina no rodapé da janela mostra a memória que o app está usando: o **total** e, separados, o **app/outros** (processo principal, GPU e as próprias barras) e **cada conta** (o processo da página do jogo). Os valores são a memória de trabalho (RAM física ocupada) de cada processo do Electron, atualizados a cada 5 s. Quando o total ou uma conta passam de um limite, o número fica laranja (aviso) ou vermelho (alto). Os limites estão em `src/ram.js`.
+
+- `Ctrl+M` mostra/esconde a barra; a escolha fica salva em `config.json` (`"ramBar": false` oculta).
+- Com a barra escondida, nada é medido nem criado: ela só ocupa recursos enquanto está visível.
+- A soma dos processos pode contar um mesmo trecho de memória mais de uma vez, então o total é uma estimativa, não o número exato do Gerenciador de Tarefas.
+
+A lógica está em `src/ram.js` (e `src/ui/ram.html`, `src/preload/ram.js`).
 
 ## Testes
 
@@ -94,7 +105,7 @@ O app só lê os dados de lives que o servidor do jogo já envia para a página;
 - Isolamento: cada conta usa uma partição própria (`persist:conta1` … `persist:conta4`), com cookies e `localStorage` separados e salvos em disco.
 - `backgroundThrottling` desligado para o jogo não pausar nos quadrantes sem foco.
 - O User-Agent não inclui "Electron", porque sites com captcha costumam recusar isso.
-- Preferências (número de contas, 2 ou 4, e ordem da grade; a última escolha é lembrada) ficam em `config.json` e `order.json`, na pasta de dados do app (`%APPDATA%\multi-pokeidle-io`).
+- Preferências (número de contas, 2 ou 4, e ordem da grade; a última escolha é lembrada, inclusive se a barra de RAM está oculta) ficam em `config.json` e `order.json`, na pasta de dados do app (`%APPDATA%\multi-pokeidle-io`).
 - Nenhum dado do jogo é enviado a terceiros pelo app. A janela de logs mostra só método, status e URL das requisições, nunca o corpo (portanto sem senhas).
 
 ## Gerar os executáveis
