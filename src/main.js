@@ -10,6 +10,7 @@ const { createUltra } = require('./ultra');
 const { createRamBar } = require('./ram');
 const { createPower } = require('./power');
 const { app, BaseWindow, BrowserWindow, WebContentsView, dialog, ipcMain, nativeImage, screen, session, shell } = require('electron');
+const { createPoints } = require('./points');
 
 // Evita o Chromium tratar views como "ocultas/oclusas" (afeta captcha e timers do jogo)
 app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
@@ -188,6 +189,7 @@ const power = createPower({
 // View própria, por cima das contas e isolada das páginas do jogo (o site não enxerga nem altera).
 let livesCtl = null;
 let topidle = null; // voto no TopIdle (botão 🗳 de cada conta)
+let pointsCtl = null; // painel de pontos Twitch/Kick e resgate automático (src/points)
 let toastsCtl = null; // avisos no canto superior direito
 let updater = null; // aviso de versão nova (só em pacote de Release)
 let ultraCtl = null; // Modo ULTRA do jogo em todas as contas (ver src/ultra.js)
@@ -246,11 +248,14 @@ function layout() {
   }
   const { width, height: fullH } = mainWin.getContentBounds();
   const top = tbs ? tbs.appBarH : 0;
-  const height = fullH - top - (ramCtl ? ramCtl.height() : 0); // o rodapé da barra de RAM sai da área das contas
+  const ramH = ramCtl ? ramCtl.height() : 0; // o rodapé da barra de RAM sai da área das contas
+  const panelH = pointsCtl?.panelHeight(fullH - ramH) ?? 0; // painel de pontos aberto ocupa a parte de baixo, acima da barra de RAM
+  const height = fullH - top - ramH - panelH;
   if (helpView) helpView.setBounds({ x: 0, y: 0, width, height: fullH });
   tbs?.placeApp(width);
   toastsCtl?.place(width, fullH);
   ramCtl?.place(width, fullH);
+  pointsCtl?.place(width, fullH - ramH);
   const barH = tbs ? tbs.slotBarH : 0;
   // cada conta ganha uma barra de botões no topo do quadrante; a página do jogo ocupa o resto
   const put = ({ id, view }, x, y, w, h, visible) => {
@@ -556,7 +561,7 @@ function createWindow() {
     getSlots: () => slots,
     getFeatures: () => exts.flatMap((x) => x.features?.() ?? []),
     getAccountInfo: () => ({ count: slots.length, max: MAX_ACCOUNTS, focused, lives: livesCtl?.state() ?? { kind: 'none', text: '' }, ultra: !!ultraCtl?.isOn(),
-      version: releaseVersion(), update: updater?.state() ?? null, reduceMotion: motion.isOn(), votes: topidle?.summary() ?? null }),
+      version: releaseVersion(), update: updater?.state() ?? null, reduceMotion: motion.isOn(), votes: topidle?.summary() ?? null, points: pointsCtl?.state() ?? { open: null } }),
     getSlotState: (id) => ({ zoom: slotZoom(id), muted: slotPrefs(id).muted, ...power.stateOf(id), vote: topidle?.info(id) ?? null }),
     actions: {
       accounts: () => setAccountCount(slots.length >= MAX_ACCOUNTS ? 2 : MAX_ACCOUNTS),
@@ -568,6 +573,10 @@ function createWindow() {
       logs: toggleLogWindow,
       lives: () => livesCtl?.open(),
       vote: (id) => topidle?.open(id),
+      pointsTwitch: () => pointsCtl?.toggle('twitch'),
+      pointsKick: () => pointsCtl?.toggle('kick'),
+      redeemConfig: () => pointsCtl?.showConfig(),
+      redeemLog: () => pointsCtl?.showLog(),
       update: async () => {
         // reconsulta antes de abrir: o botão pode estar mostrando uma versão já superada por outra
         const u = (await updater?.check()) ?? updater?.state();
@@ -611,6 +620,19 @@ function createWindow() {
     onAvailable: (u) => toastsCtl?.show({ kind: 'info', title: `Versão nova: v${u.latest}`, text: 'Use o botão Atualizar na barra para baixar', ms: 10000 }),
   });
   createHelpView();
+  pointsCtl = createPoints({
+    mainWin,
+    getAccounts: () => livesCtl?.accounts() ?? [],
+    config: {
+      get: () => loadConfig().points ?? {},
+      set: (patch) => saveConfig({ points: { ...(loadConfig().points ?? {}), ...patch } }),
+    },
+    userDataDir: app.getPath('userData'),
+    notify: (n) => toastsCtl?.show(n),
+    raise: () => { toastsCtl?.raise(); if (helpOpen) mainWin.contentView.addChildView(helpView); },
+    relayout: () => layout(),
+    maxAccounts: MAX_ACCOUNTS,
+  });
   win.on('focus', () => updater?.check({ force: false })); // voltou à janela: confere se saiu versão nova
 
   layout();

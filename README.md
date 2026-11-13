@@ -130,6 +130,25 @@ O jogo dá recompensa a quem vota no pokeidle pelo [TopIdle](https://topidle.com
 Ao clicar, abre uma janela com a página de voto do TopIdle, com o nick do personagem já preenchido. O captcha e o voto são concluídos por você nessa janela; o app não resolve captcha nem vota sozinho. Quando o TopIdle registra o voto, o app percebe e reinicia o contador. O mesmo acontece com o "votar" de dentro do jogo.
 
 O login do TopIdle fica salvo por conta, numa área separada da sessão do jogo. Para saber o estado, o app consulta `topidle.com` com os cookies dessa conta (`/api/me` e `/api/games`) e não envia nada além disso.
+## Pontos da Twitch e da Kick
+
+Os botões **Pontos da Twitch** e **Pontos da Kick** (barra superior) abrem um painel embaixo da janela com o chat de cada live que está no ar nas suas contas, mostrando só o rodapé (o botão dos pontos e o popup de escolher o bônus), para você resgatar à mão:
+
+- **Próxima conta ▶** passa para a live da conta seguinte; **Página completa** mostra a página toda; a borda superior do painel muda a altura (o app guarda).
+- Cada conta tem a sua sessão para a Twitch e para a Kick (partição própria, separada do jogo). O login é feito uma vez, direto na página do painel.
+- As páginas só existem enquanto o painel está aberto; fechar o painel libera a memória.
+
+### Resgate automático (opcional, desligado de fábrica)
+
+Em **Resgate auto**, escolha por conta e por site o bônus que pode ser resgatado com os pontos do canal: **+15% XP** (300 pontos), **Captura** (500) ou **Shiny** (1.000). Com a configuração salva, o app confere o saldo de cada live no ar (a cada 5 min na Kick e 2 min na Twitch), resgata um bônus por canal quando houver saldo e, se o site recusar, tenta de novo no mesmo canal depois de 30 min.
+
+- Para a conta e o site quando os pontos voltam logo após um resgate (site não vinculado no jogo) ou quando zeram sem resgate, e avisa. Salvar a configuração de novo volta a resgatar.
+- O app **não** pega o baú de bônus da Twitch e **não** contorna verificações anti-robô: se o site desafiar o pedido, o resgate para e fica registrado.
+- Use por sua conta e risco e conforme os termos da Twitch e da Kick.
+
+### Log de resgates
+
+O botão **Log de resgates** mostra cada resgate, recusa e parada, com hora, conta, site e canal, do mais recente para o mais antigo. O registro fica em `%APPDATA%\multi-pokeidle-io\resgates.log` (últimas 2.000 linhas).
 
 ## Como funciona
 
