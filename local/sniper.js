@@ -1,4 +1,4 @@
-// Sniper do mercado Carregado por main.js junto com as outras extensões.
+// Sniper do mercado. Carregado por main.js junto com as outras extensões.
 // Por conta: liga/desliga e escolhe "simulação" (só loga) ou "compra real". As regras
 // (item/pokémon, moeda, preço máximo) valem para todas as contas ligadas. Atalho: Ctrl+Alt+S.
 //

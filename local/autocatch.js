@@ -1,4 +1,4 @@
-// Auto-captura pelo mapa Carregado por main.js junto com as outras extensões.
+// Auto-captura pelo mapa. Carregado por main.js junto com as outras extensões.
 // Usa a LISTA do Mapa do jogo: filtro Pokédex = "Não capturados" e, região por região (Kanto, Johto, Outland,
 // Hoenn... só as liberadas, sem cadeado), caça a área liberada de MENOR nível que ainda tem pokémon faltando.
 // Para trocar de área, sai da hunt pelo atalho "Ir para o Centro Pokémon" (espera destravar: ele fica 3 s bloqueado

@@ -1,4 +1,4 @@
-// Preload do sniper Roda antes dos scripts do jogo e injeta, no mundo
+// Preload do sniper. Roda antes dos scripts do jogo e injeta, no mundo
 // principal da página, um gancho em WebSocket.prototype.send. Com ele o sniper "empresta" o socket
 // que o próprio jogo já abriu (mesma sessão, nenhuma conexão nova) e lê/pede o mercado por ele.
 // A configuração e o liga/desliga chegam depois, pelo main, via executeJavaScript -> window.__snp.
