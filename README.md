@@ -71,7 +71,7 @@ Os números se referem à **posição** na grade (esquerda→direita, cima→bai
 
 ## Barras de botões e avisos
 
-Cada conta tem uma barra de botões no topo do próprio quadrante (liga/desliga só daquela conta, mais o **Foco**), e há uma barra do app no topo da janela (Contas 2/4, Logs, Lives, Ajuda). Cada funcionalidade extra que o app carrega aparece como um botão sozinha. Os avisos (`src/toasts.js`) são pequenos, ficam no canto superior direito e somem em até 5 s.
+Cada conta tem uma barra de botões no topo do próprio quadrante (liga/desliga só daquela conta, mais o **Foco**), e há uma barra do app no topo da janela (Contas 2/4, Logs, Lives, Ajuda). Cada funcionalidade extra que o app carrega aparece como um botão sozinha. O botão **Animações** da barra do app liga/desliga as animações reduzidas do jogo em todas as contas (ligado por padrão): é o mesmo pedido de "menos movimento" que o navegador faz com `prefers-reduced-motion`, o que diminui o uso de CPU sem mudar o que está escrito na tela. Os avisos (`src/toasts.js`) são pequenos, ficam no canto superior direito e somem em até 5 s.
 
 ## Testes
 
@@ -93,6 +93,7 @@ O app só lê os dados de lives que o servidor do jogo já envia para a página;
 - Janela principal: `BaseWindow` do Electron com uma `WebContentsView` por conta.
 - Isolamento: cada conta usa uma partição própria (`persist:conta1` … `persist:conta4`), com cookies e `localStorage` separados e salvos em disco.
 - `backgroundThrottling` desligado para o jogo não pausar nos quadrantes sem foco.
+- Animações reduzidas (`src/reduce-motion.js`): a preferência `reduceMotion` do `config.json` (padrão ligada) faz cada conta receber `prefers-reduced-motion: reduce` por emulação do DevTools (sem CSS injetado), reaplicada a cada carga e alterada na hora pelo botão **Animações**. Só reduz o que o próprio site trata como movimento; animações feitas em canvas ou por script continuam.
 - O User-Agent não inclui "Electron", porque sites com captcha costumam recusar isso.
 - Preferências (número de contas, 2 ou 4, e ordem da grade; a última escolha é lembrada) ficam em `config.json` e `order.json`, na pasta de dados do app (`%APPDATA%\multi-pokeidle-io`).
 - Nenhum dado do jogo é enviado a terceiros pelo app. A janela de logs mostra só método, status e URL das requisições, nunca o corpo (portanto sem senhas).

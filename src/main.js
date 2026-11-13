@@ -4,6 +4,7 @@ const { createLives } = require('./lives');
 const { createToolbars } = require('./toolbar');
 const { createToasts } = require('./toasts');
 const { createUpdater } = require('./updates');
+const { createReduceMotion } = require('./reduce-motion');
 const { app, BaseWindow, BrowserWindow, WebContentsView, dialog, ipcMain, nativeImage, screen, shell } = require('electron');
 
 // Evita o Chromium tratar views como "ocultas/oclusas" (afeta captcha e timers do jogo)
@@ -108,6 +109,12 @@ function loadAccountCount() {
 function saveAccountCount(n) {
   saveConfig({ accounts: n });
 }
+
+// Reduzir animações (ligado por padrão; alternado pelo botão da barra do app)
+const motion = createReduceMotion({
+  read: () => loadConfig().reduceMotion,
+  write: (on) => saveConfig({ reduceMotion: on }),
+});
 
 // Zoom e som por conta (persistidos): { [id]: { zooms: { [modo]: fator }, muted } }.
 // O zoom vale por modo de exibição: em foco volta a 100%; na grade de 4 contas o padrão é 60%.
@@ -407,6 +414,7 @@ function createSlot(id) {
   view.webContents.on('did-finish-load', () => view.webContents.setZoomFactor(slotZoom(id)));
   view.webContents.on('before-input-event', makeShortcutHandler(id));
   exts.forEach((x) => x.onSlotCreated?.(id, view));
+  motion.attach(view);
   mainWin.contentView.addChildView(view);
   tbs?.addSlot(id);
   view.webContents.loadURL(URL);
@@ -488,7 +496,7 @@ function createWindow() {
     getSlots: () => slots,
     getFeatures: () => exts.flatMap((x) => x.features?.() ?? []),
     getAccountInfo: () => ({ count: slots.length, max: MAX_ACCOUNTS, focused, lives: livesCtl?.state() ?? { kind: 'none', text: '' },
-      version: releaseVersion(), update: updater?.state() ?? null }),
+      version: releaseVersion(), update: updater?.state() ?? null, reduceMotion: motion.isOn() }),
     getSlotState: (id) => ({ zoom: slotZoom(id), muted: slotPrefs(id).muted }),
     actions: {
       accounts: () => setAccountCount(slots.length >= MAX_ACCOUNTS ? 2 : MAX_ACCOUNTS),
@@ -505,6 +513,7 @@ function createWindow() {
         if (u?.kind === 'available') shell.openExternal(u.url); // página do Release: de lá se baixa o instalador
       },
       help: () => toggleHelp(),
+      reduceMotion: () => motion.toggle(),
       zoomIn: (id) => setSlotZoom(id, slotZoom(id) + ZOOM_STEP),
       zoomOut: (id) => setSlotZoom(id, slotZoom(id) - ZOOM_STEP),
       zoomReset: (id) => setSlotZoom(id, ZOOM_DEFAULTS[viewMode()]),
