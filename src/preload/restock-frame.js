@@ -3,6 +3,9 @@
 // módulo dele, fora do alcance da página), lê o `welcome` e os `estado`, e compra o que falta no Mercado do NPC pelo
 // mesmo pedido do botão Comprar (`shop.buy`). A configuração e o resumo chegam/saem pelo main (src/restock.js).
 //
+// Adaptado da reposição do PokeIdleMulti (recompra.js, MIT, © artbruno35): https://github.com/artbruno35/PokeIdleMulti
+// A lógica foi reescrita em JavaScript para o Electron, com ajustes (limites, pausa persistente e ordem de prioridade).
+//
 // O preload roda em sandbox, então só pode fazer `require('electron')`: a lógica inteira está dentro da função.
 // Nada de variáveis de fora dela, porque ela é convertida em texto e executada na página.
 const { webFrame } = require('electron');
