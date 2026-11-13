@@ -4,6 +4,7 @@ const { createLives } = require('./lives');
 const { createToolbars } = require('./toolbar');
 const { createToasts } = require('./toasts');
 const { createUpdater } = require('./updates');
+const { createUltra } = require('./ultra');
 const { app, BaseWindow, BrowserWindow, WebContentsView, dialog, ipcMain, nativeImage, screen, shell } = require('electron');
 
 // Evita o Chromium tratar views como "ocultas/oclusas" (afeta captcha e timers do jogo)
@@ -169,6 +170,7 @@ const slots = []; // [{ id, view }] na ordem da grade
 let livesCtl = null;
 let toastsCtl = null; // avisos no canto superior direito
 let updater = null; // aviso de versão nova (só em pacote de Release)
+let ultraCtl = null; // Modo ULTRA do jogo em todas as contas (ver src/ultra.js)
 
 // Versão do Release que gerou este pacote (o workflow grava release-info.json); nula em desenvolvimento/build local
 // Pacote sem release-info.json (build local de `npm run dist`) usa a versão do package.json, para o aviso também funcionar nele.
@@ -355,6 +357,7 @@ function makeShortcutHandler(id) {
     }
     if (input.type !== 'keyDown' || !input.control) return;
     if (exts.some((x) => x.onShortcut?.(event, input))) return;
+    if (ultraCtl?.onKey(event, input)) return; // Ctrl+U
     const digit = /^Digit([0-9])$/.exec(input.code);
     const n = digit ? Number(digit[1]) : null;
     const pos = slots.findIndex((s) => s.id === id);
@@ -402,6 +405,7 @@ function createSlot(id) {
     return { action: 'deny' };
   });
   attachLogging(id, view);
+  ultraCtl?.attach(id, view);
   // o zoom é reaplicado a cada carga (a navegação pode zerá-lo)
   view.webContents.setAudioMuted(slotPrefs(id).muted);
   view.webContents.on('did-finish-load', () => view.webContents.setZoomFactor(slotZoom(id)));
@@ -487,7 +491,7 @@ function createWindow() {
     mainWin,
     getSlots: () => slots,
     getFeatures: () => exts.flatMap((x) => x.features?.() ?? []),
-    getAccountInfo: () => ({ count: slots.length, max: MAX_ACCOUNTS, focused, lives: livesCtl?.state() ?? { kind: 'none', text: '' },
+    getAccountInfo: () => ({ count: slots.length, max: MAX_ACCOUNTS, focused, lives: livesCtl?.state() ?? { kind: 'none', text: '' }, ultra: !!ultraCtl?.isOn(),
       version: releaseVersion(), update: updater?.state() ?? null }),
     getSlotState: (id) => ({ zoom: slotZoom(id), muted: slotPrefs(id).muted }),
     actions: {
@@ -505,6 +509,7 @@ function createWindow() {
         if (u?.kind === 'available') shell.openExternal(u.url); // página do Release: de lá se baixa o instalador
       },
       help: () => toggleHelp(),
+      ultra: () => ultraCtl?.toggle(),
       zoomIn: (id) => setSlotZoom(id, slotZoom(id) + ZOOM_STEP),
       zoomOut: (id) => setSlotZoom(id, slotZoom(id) - ZOOM_STEP),
       zoomReset: (id) => setSlotZoom(id, ZOOM_DEFAULTS[viewMode()]),
@@ -512,6 +517,12 @@ function createWindow() {
       reload: (id) => slots.find((s) => s.id === id)?.view.webContents.reload(),
       refocus: (id) => slots.find((s) => s.id === id)?.view.webContents.focus(),
     },
+  });
+  ultraCtl = createUltra({
+    getSlots: () => slots,
+    sendLog,
+    notify: (n) => toastsCtl?.show(n),
+    store: { get: () => loadConfig().ultra === true, set: (on) => saveConfig({ ultra: on }) },
   });
   for (const id of loadOrder(loadAccountCount())) createSlot(id);
   const lastFocus = slots.findIndex((x) => x.id === loadConfig().focusedId); // volta ao quadrante que estava em foco
