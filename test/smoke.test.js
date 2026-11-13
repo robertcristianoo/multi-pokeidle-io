@@ -53,7 +53,7 @@ app.whenReady().then(async () => {
     // botões em drop ("Grupo ▾") abrem um menu nativo em vez de ligar direto: ficam fora do liga/desliga abaixo
     const dropBtns = l0.filter((x) => x.endsWith(' ▾'));
     // controles fixos da barra (zoom, som, recarregar) não são funcionalidades liga/desliga
-    const fixos = (x) => ['Foco', '⚙', '−', '+', '🔊', '🔇', '⟳'].includes(x) || /^[0-9]+%$/.test(x);
+    const fixos = (x) => ['Foco', '⚙', '−', '+', '🔊', '🔇', '⟳'].includes(x) || /^[0-9]+%$/.test(x) || /^🗳/.test(x);
     const featureBtns = l0.filter((x) => !fixos(x) && !dropBtns.includes(x));
     if (slotBars[0]) check(['−', '+', '⟳'].every((x) => l0.includes(x)) && l0.some((x) => /^[0-9]+%$/.test(x)), `barra da conta tem zoom, som e recarregar: ${JSON.stringify(l0)}`);
     console.log(`  funcionalidades vistas na barra: ${featureBtns.join(', ') || '(nenhuma)'}${dropBtns.length ? ` | drops: ${dropBtns.join(', ')}` : ''}`);

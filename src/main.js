@@ -3,6 +3,7 @@ const path = require('path');
 const { createLives } = require('./lives');
 const { createToolbars } = require('./toolbar');
 const { createToasts } = require('./toasts');
+const { createTopIdle } = require('./topidle');
 const { createUpdater } = require('./updates');
 const { app, BaseWindow, BrowserWindow, WebContentsView, dialog, ipcMain, nativeImage, screen, shell } = require('electron');
 
@@ -167,6 +168,7 @@ const slots = []; // [{ id, view }] na ordem da grade
 // ---- Ajuda (sobreposição) ----
 // View própria, por cima das contas e isolada das páginas do jogo (o site não enxerga nem altera).
 let livesCtl = null;
+let topidle = null; // voto no TopIdle (botão 🗳 de cada conta)
 let toastsCtl = null; // avisos no canto superior direito
 let updater = null; // aviso de versão nova (só em pacote de Release)
 
@@ -397,6 +399,7 @@ function createSlot(id) {
     },
   });
   view.webContents.setWindowOpenHandler(({ url }) => {
+    if (topidle?.handleLink(id, url)) return { action: 'deny' }; // o "votar" do jogo abre a janela de voto
     // links/popups abrem no navegador padrão do sistema (nova aba)
     if (/^(https?|mailto):/i.test(url)) shell.openExternal(url).catch(() => {});
     return { action: 'deny' };
@@ -488,8 +491,8 @@ function createWindow() {
     getSlots: () => slots,
     getFeatures: () => exts.flatMap((x) => x.features?.() ?? []),
     getAccountInfo: () => ({ count: slots.length, max: MAX_ACCOUNTS, focused, lives: livesCtl?.state() ?? { kind: 'none', text: '' },
-      version: releaseVersion(), update: updater?.state() ?? null }),
-    getSlotState: (id) => ({ zoom: slotZoom(id), muted: slotPrefs(id).muted }),
+      version: releaseVersion(), update: updater?.state() ?? null, votes: topidle?.summary() ?? null }),
+    getSlotState: (id) => ({ zoom: slotZoom(id), muted: slotPrefs(id).muted, vote: topidle?.info(id) ?? null }),
     actions: {
       accounts: () => setAccountCount(slots.length >= MAX_ACCOUNTS ? 2 : MAX_ACCOUNTS),
       grid: () => setFocus(null),
@@ -499,6 +502,7 @@ function createWindow() {
       },
       logs: toggleLogWindow,
       lives: () => livesCtl?.open(),
+      vote: (id) => topidle?.open(id),
       update: async () => {
         // reconsulta antes de abrir: o botão pode estar mostrando uma versão já superada por outra
         const u = (await updater?.check()) ?? updater?.state();
@@ -517,6 +521,7 @@ function createWindow() {
   const lastFocus = slots.findIndex((x) => x.id === loadConfig().focusedId); // volta ao quadrante que estava em foco
   if (lastFocus >= 0) focused = lastFocus;
   livesCtl = createLives({ mainWin, getSlots: () => slots });
+  topidle = createTopIdle({ getSlots: () => slots, notify: (n) => toastsCtl?.show(n), timers: !process.env.PKMULTI_TEST });
   toastsCtl = createToasts({ mainWin, getTop: () => tbs.appBarH });
   updater = createUpdater({
     currentVersion: releaseVersion(),
