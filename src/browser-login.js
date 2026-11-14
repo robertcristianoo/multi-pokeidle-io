@@ -11,7 +11,7 @@ const os = require('os');
 const path = require('path');
 
 const POLL_MS = 2000;
-const START_TIMEOUT_MS = 20000;
+const START_TIMEOUT_MS = 45000; // a primeira abertura de um perfil novo pode demorar
 const SESSION_COOKIE_DAYS = 30; // cookies de sessão do navegador viram cookies de 30 dias na sessão da conta
 
 // Caminhos usuais do Chrome e do Edge no Windows (o Edge vem com o sistema, então quase sempre existe um).
@@ -84,14 +84,22 @@ function connectCdp(wsUrl, WS = WebSocket) {
   });
 }
 
-async function waitForWsUrl(port, fetchImpl, sleep, timeoutMs) {
+// O Chrome/Edge, iniciado com --remote-debugging-port=0, escolhe uma porta livre e a grava em <perfil>/DevToolsActivePort
+// (linha 1: porta; linha 2: caminho do WebSocket). Isso evita colisão de porta e não depende de adivinhar o endereço.
+function readActivePort(profile, readFile = (f) => fs.readFileSync(f, 'utf8')) {
+  try {
+    const [port, wsPath] = readFile(path.join(profile, 'DevToolsActivePort')).split(/\r?\n/);
+    if (/^\d+$/.test(port) && wsPath?.startsWith('/')) return `ws://127.0.0.1:${port}${wsPath}`;
+  } catch { /* o arquivo ainda não existe */ }
+  return null;
+}
+
+async function waitForWsUrl(profile, readPort, isExited, sleep, timeoutMs) {
   const t0 = Date.now();
   for (;;) {
-    try {
-      const r = await fetchImpl(`http://127.0.0.1:${port}/json/version`);
-      const j = await r.json();
-      if (j.webSocketDebuggerUrl) return j.webSocketDebuggerUrl;
-    } catch { /* o navegador ainda está abrindo */ }
+    const url = readPort(profile);
+    if (url) return url;
+    if (isExited()) throw new Error('o navegador fechou antes de iniciar (feche outras janelas dele e tente de novo)');
     if (Date.now() - t0 > timeoutMs) throw new Error('o navegador não respondeu a tempo');
     await sleep(300);
   }
@@ -105,9 +113,8 @@ async function loginViaBrowser({
   session,
   browserPath = findBrowser(),
   spawnImpl = spawn,
-  fetchImpl = (...a) => fetch(...a),
+  readPort = readActivePort,
   connect = connectCdp,
-  pickPort = () => 40000 + Math.floor(Math.random() * 20000),
   mkTmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'pkmulti-login-')),
   rmTmp = (d) => fs.rmSync(d, { recursive: true, force: true }),
   sleep = (ms) => new Promise((r) => setTimeout(r, ms)),
@@ -115,10 +122,9 @@ async function loginViaBrowser({
 }) {
   if (!browserPath) return { ok: false, count: 0, reason: 'Chrome ou Edge não encontrados' };
   const wanted = domains.map(hostOf);
-  const port = pickPort();
   const profile = mkTmp();
   const child = spawnImpl(browserPath, [
-    `--remote-debugging-port=${port}`,
+    '--remote-debugging-port=0',
     '--remote-debugging-address=127.0.0.1',
     `--user-data-dir=${profile}`,
     '--no-first-run',
@@ -133,7 +139,7 @@ async function loginViaBrowser({
   let cdp = null;
   let snapshot = [];
   try {
-    const wsUrl = await waitForWsUrl(port, fetchImpl, sleep, START_TIMEOUT_MS);
+    const wsUrl = await waitForWsUrl(profile, readPort, () => exited, sleep, START_TIMEOUT_MS);
     cdp = await connect(wsUrl);
     // Guarda o último conjunto de cookies visto: quando a janela fecha já não dá para perguntar ao navegador.
     while (!exited) {
@@ -160,4 +166,4 @@ async function loginViaBrowser({
   return { ok: count > 0, count, reason: count > 0 ? '' : 'a sessão recusou os cookies' };
 }
 
-module.exports = { loginViaBrowser, findBrowser, wantedCookie, toElectronCookie };
+module.exports = { loginViaBrowser, findBrowser, readActivePort, wantedCookie, toElectronCookie };

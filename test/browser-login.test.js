@@ -23,6 +23,10 @@ check(c2.expirationDate === 1700000000 + 30 * 86400 && c2.sameSite === 'no_restr
 const c3 = B.toElectronCookie({ name: '__Host-x', value: 'v', domain: 'topidle.com', path: '/', secure: true, expires: -1 }, 1);
 check(!('domain' in c3), '__Host- vai sem domain');
 
+// --- porta de depuração escolhida pelo navegador
+check(B.readActivePort('P', () => '51234\n/devtools/browser/abc-123\n') === 'ws://127.0.0.1:51234/devtools/browser/abc-123', 'lê porta e caminho do DevToolsActivePort');
+check(B.readActivePort('P', () => '') === null && B.readActivePort('P', () => 'x\n/y') === null && B.readActivePort('P', () => { throw new Error('ENOENT'); }) === null, 'arquivo vazio, inválido ou ausente: nulo');
+
 // --- fluxo completo com navegador de mentira
 function fakeSpawn(log, closeAfterPolls) {
   return (exe, args) => {
@@ -44,7 +48,7 @@ async function fluxo({ cookies, browserPath = 'C:\\x\\chrome.exe', fail = false 
     session,
     browserPath,
     spawnImpl: fakeSpawn(log),
-    fetchImpl: async () => ({ json: async () => ({ webSocketDebuggerUrl: 'ws://127.0.0.1:1/x' }) }),
+    readPort: () => 'ws://127.0.0.1:1/x',
     connect: async () => ({
       send: async (m) => {
         check(m === 'Storage.getCookies', 'pergunta só os cookies');
@@ -55,7 +59,6 @@ async function fluxo({ cookies, browserPath = 'C:\\x\\chrome.exe', fail = false 
       },
       close: () => { log.closed = true; },
     }),
-    pickPort: () => 41234,
     mkTmp: () => 'C:\\tmp\\perfil',
     rmTmp: (d) => log.removed.push(d),
     sleep: () => new Promise((res) => setImmediate(res)),
@@ -73,7 +76,7 @@ async function fluxo({ cookies, browserPath = 'C:\\x\\chrome.exe', fail = false 
   let { r, log } = await fluxo({ cookies });
   check(r.ok && r.count === 1, `grava só o cookie válido do TopIdle (${r.count})`);
   check(log.cookiesSet.length === 1 && log.cookiesSet[0].name === 'sid', 'o cookie do Google não é copiado');
-  check(log.spawn.args.includes('--remote-debugging-port=41234') && log.spawn.args.includes('--user-data-dir=C:\\tmp\\perfil') && log.spawn.args.includes('--remote-debugging-address=127.0.0.1') && log.spawn.args.at(-1) === 'https://topidle.com/', 'navegador abre com perfil próprio, depuração só em 127.0.0.1 e a página do site');
+  check(log.spawn.args.includes('--remote-debugging-port=0') && log.spawn.args.includes('--user-data-dir=C:\\tmp\\perfil') && log.spawn.args.includes('--remote-debugging-address=127.0.0.1') && log.spawn.args.at(-1) === 'https://topidle.com/', 'navegador abre com perfil próprio, depuração só em 127.0.0.1 e a página do site');
   check(log.removed.length === 1 && log.removed[0] === 'C:\\tmp\\perfil' && log.closed, 'perfil temporário apagado e conexão fechada');
 
   ({ r } = await fluxo({ cookies: [{ name: 'g', value: '1', domain: '.google.com', path: '/' }] }));
@@ -81,6 +84,15 @@ async function fluxo({ cookies, browserPath = 'C:\\x\\chrome.exe', fail = false 
 
   ({ r } = await fluxo({ cookies, browserPath: null }));
   check(!r.ok && /Chrome ou Edge/.test(r.reason), 'sem navegador instalado: avisa');
+
+  // o navegador fecha antes de abrir a depuração: falha rápido, com a razão
+  const log2 = {};
+  const r2 = await B.loginViaBrowser({
+    url: 'https://topidle.com/', domains: dom, session: { cookies: { set: async () => {} } }, browserPath: '/x/chrome.exe',
+    spawnImpl: (exe, args) => { const c = new EventEmitter(); c.kill = () => {}; setImmediate(() => c.emit('exit', 1)); log2.c = c; return c; },
+    readPort: () => null, mkTmp: () => '/tmp/p2', rmTmp: () => {}, sleep: () => new Promise((res) => setImmediate(res)),
+  });
+  check(!r2.ok && /fechou antes de iniciar/.test(r2.reason), `navegador que fecha cedo: ${r2.reason}`);
 
   finish();
 })();

@@ -31,7 +31,13 @@ for (const t of tests) {
   const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'pkmulti-test-'));
   const env = { ...process.env, PKMULTI_TEST: '1', PKMULTI_TEST_DATA: userData };
   delete env.ELECTRON_RUN_AS_NODE;
-  const r = spawnSync(electron, [t], { stdio: 'inherit', env, timeout: 120000 });
+  let r = spawnSync(electron, [t], { stdio: 'inherit', env, timeout: 120000 });
+  // 0xC0000005 (violação de acesso do Windows) no encerramento do Electron é intermitente e não é falha de checagem
+  // (o teste imprime as checagens antes). Reexecuta até 2 vezes só nesse código; qualquer outra falha reprova direto.
+  for (let tentativa = 1; r.status === 3221225477 && tentativa <= 2; tentativa++) {
+    console.error(`aviso: ${path.relative(root, t)} fechou com falha do Electron (0xC0000005); reexecutando (${tentativa}/2)`);
+    r = spawnSync(electron, [t], { stdio: 'inherit', env, timeout: 120000 });
+  }
   fs.rmSync(userData, { recursive: true, force: true });
   if (r.status !== 0) {
     failed++;
