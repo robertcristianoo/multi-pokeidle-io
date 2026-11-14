@@ -6,7 +6,7 @@ const MIN_MS = 500;
 const MAX_MS = 1500;
 const TICK_MS = 250;
 
-module.exports = function init({ getSlots, sendLog }) {
+module.exports = function init({ getSlots, sendLog, onUserToggle = () => {} }) {
   const autoBall = new Set();
   const state = new Map(); // id -> { next: timestamp do próximo clique (0 = sem alvo), busy }
   const randomDelay = () => MIN_MS + Math.random() * (MAX_MS - MIN_MS);
@@ -207,12 +207,16 @@ module.exports = function init({ getSlots, sendLog }) {
     const slots = getSlots();
     if (index === null) {
       const allOn = slots.every((s) => autoBall.has(s.id));
-      slots.forEach((s) => (allOn ? autoBall.delete(s.id) : autoBall.add(s.id)));
+      slots.forEach((s) => {
+        allOn ? autoBall.delete(s.id) : autoBall.add(s.id);
+        onUserToggle(s.id, !allOn);
+      });
       sendLog({ acc: 'app', kind: 'load', level: 'info', text: `auto-bola ${allOn ? 'DESLIGADA' : 'LIGADA'} em todas` });
     } else {
       const { id } = slots[index];
       const on = !autoBall.has(id);
       on ? autoBall.add(id) : autoBall.delete(id);
+      onUserToggle(id, on);
       sendLog({ acc: `conta${id}`, kind: 'load', level: 'info', text: `auto-bola ${on ? 'LIGADA' : 'DESLIGADA'}` });
     }
     tick();
@@ -228,10 +232,19 @@ module.exports = function init({ getSlots, sendLog }) {
       isOn: (id) => autoBall.has(id),
       set: (id, on) => {
         on ? autoBall.add(id) : autoBall.delete(id);
+        onUserToggle(id, on);
         sendLog({ acc: `conta${id}`, kind: 'load', level: 'info', text: `auto-bola ${on ? 'LIGADA' : 'DESLIGADA'}` });
         tick();
       },
     }],
+    // API para o app (src/capture-watch.js): liga sozinho numa conta sem VIP. Não é escolha do usuário: não passa por onUserToggle.
+    setAuto(id, on, motivo = '') {
+      on ? autoBall.add(id) : autoBall.delete(id);
+      sendLog({ acc: `conta${id}`, kind: 'load', level: 'info', text: `auto-bola ${on ? 'LIGADA' : 'DESLIGADA'}${motivo ? ` (${motivo})` : ''}` });
+      tick();
+      return autoBall.has(id);
+    },
+    isOn: (id) => autoBall.has(id),
     // Retorna true se tratou o atalho
     onShortcut(event, input) {
       const m = /^Digit([0-9])$/.exec(input.code);

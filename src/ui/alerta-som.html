@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Alerta</title>
+</head>
+<body>
+<script>
+  // Página sem nada visível: só toca o alerta (três bipes) quando o app pede. Fica numa view própria do app,
+  // então o mudo de cada conta do jogo não a afeta. Retorna o estado do áudio ('running' = tocou).
+  let ctx = null;
+  window.tocar = async () => {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return 'sem-audio';
+    ctx ??= new AC();
+    await ctx.resume();
+    const t0 = ctx.currentTime + 0.05;
+    for (let i = 0; i < 3; i++) {
+      const ini = t0 + i * 0.35;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.0001, ini);
+      gain.gain.exponentialRampToValueAtTime(0.25, ini + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ini + 0.25);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(ini);
+      osc.stop(ini + 0.3);
+    }
+    return ctx.state;
+  };
+</script>
+</body>
+</html>

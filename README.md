@@ -166,6 +166,15 @@ Limites de segurança fixos: no máximo 9.999 unidades por pedido; uma compra a 
 
 > **Atenção:** a reposição **gasta ouro real do jogo**. Confira as regras antes de ligar, e use por sua conta e risco. Os [termos do PokeIdle](https://pokeidle.io/termos) permitem automações (seção 5, "Automação") desde que sigam as mesmas regras de quem joga na mão, não explorem falhas, não burlem limites do jogo e não sobrecarreguem o servidor. Quem publica este projeto não se responsabiliza por perdas de ouro ou por penalidades aplicadas pelo jogo.
 
+## Vigia de captura e Auto-bola sem VIP
+
+Duas funções, ambas com botão na barra superior (e ligadas por padrão):
+
+- **Vigia**: se uma conta fica cerca de 45 s sem capturar com Ultra ou Beast Ball, havendo alvo na lista, mostra um aviso vermelho na tela dela e toca um som (o som sai mesmo com a conta silenciada). O aviso some quando ela volta a capturar; enquanto persistir, o som se repete a cada 60 s.
+- **Auto-bola s/ VIP**: nas contas sem VIP, liga o Auto-bola sozinho ao entrar no jogo. Contas VIP não ligam sozinhas. Se você desligar o Auto-bola de uma conta, o app não o religa até ser fechado. A bola de arremesso é a mesma que o jogo usaria (a primeira que a conta tem), lida do estado do jogo; a economia não é alterada, e a conta recarrega uma vez para o Auto-bola acompanhar a conexão. Um aviso do app mostra se o Auto-bola ligou ou por que não ligou.
+
+Os dois só leem o que o próprio jogo já manda pelo socket (o estado VIP e os eventos de arremesso e de selvagem caído). Nada é enviado ao servidor.
+
 ## Como funciona
 
 - Janela principal: `BaseWindow` do Electron com uma `WebContentsView` por conta.
