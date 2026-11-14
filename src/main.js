@@ -9,6 +9,7 @@ const { createReduceMotion } = require('./reduce-motion');
 const { createUltra } = require('./ultra');
 const { createRamBar } = require('./ram');
 const { createPower } = require('./power');
+const { createCaptureWatch } = require('./capture-watch');
 const { app, BaseWindow, BrowserWindow, WebContentsView, dialog, ipcMain, nativeImage, screen, session, shell } = require('electron');
 const { createPoints } = require('./points');
 
@@ -194,6 +195,8 @@ let toastsCtl = null; // avisos no canto superior direito
 let updater = null; // aviso de versão nova (só em pacote de Release)
 let ultraCtl = null; // Modo ULTRA do jogo em todas as contas (ver src/ultra.js)
 let ramCtl = null; // barra de RAM no rodapé (src/ram.js)
+let captureCtl = null; // vigia de captura e Auto-bola sem VIP (src/capture-watch.js)
+let autoBallExt = null; // API do Auto-bola (extensão local), usada pelo vigia
 
 // Versão do Release que gerou este pacote (o workflow grava release-info.json); nula em desenvolvimento/build local
 // Pacote sem release-info.json (build local de `npm run dist`) usa a versão do package.json, para o aviso também funcionar nele.
@@ -344,7 +347,14 @@ const exts = [];
 function loadExtensions() {
   for (const file of LOCAL_EXTENSIONS) {
     try {
-      exts.push(require(file)({ getSlots: () => liveSlots(), sendLog, notify: (n) => toastsCtl?.show(n) }));
+      const ext = require(file)({
+        getSlots: () => liveSlots(),
+        sendLog,
+        notify: (n) => toastsCtl?.show(n),
+        onUserToggle: (id, on) => captureCtl?.autoBallToggled(id, on), // escolha manual do Auto-bola (o vigia não o religa à força)
+      });
+      if (file === '../local/autoball.js') autoBallExt = ext;
+      exts.push(ext);
     } catch (err) {
       if (err.code !== 'MODULE_NOT_FOUND' || !String(err.message).includes(file.slice(3))) console.error(`falha ao carregar ${file}:`, err);
     }
@@ -447,6 +457,7 @@ function buildGameView(id) {
   });
   attachLogging(id, view);
   ultraCtl?.attach(id, view);
+  captureCtl?.attach(id, view); // antes de carregar: pega o `welcome` do jogo (estado VIP e contagem de captura)
   // o zoom é reaplicado a cada carga (a navegação pode zerá-lo)
   view.webContents.setAudioMuted(slotPrefs(id).muted);
   view.webContents.on('did-finish-load', () => view.webContents.setZoomFactor(slotZoom(id)));
@@ -567,7 +578,8 @@ function createWindow() {
     getSlots: () => slots,
     getFeatures: () => exts.flatMap((x) => x.features?.() ?? []),
     getAccountInfo: () => ({ count: slots.length, max: MAX_ACCOUNTS, focused, lives: livesCtl?.state() ?? { kind: 'none', text: '' }, ultra: !!ultraCtl?.isOn(),
-      version: releaseVersion(), update: updater?.state() ?? null, reduceMotion: motion.isOn(), votes: topidle?.summary() ?? null, points: pointsCtl?.state() ?? { open: null } }),
+      version: releaseVersion(), update: updater?.state() ?? null, reduceMotion: motion.isOn(), votes: topidle?.summary() ?? null, points: pointsCtl?.state() ?? { open: null },
+      capture: captureCtl?.state() ?? { watch: true, autoNoVip: true } }),
     getSlotState: (id) => ({ zoom: slotZoom(id), muted: slotPrefs(id).muted, ...power.stateOf(id), vote: topidle?.info(id) ?? null }),
     actions: {
       accounts: () => setAccountCount(slots.length >= MAX_ACCOUNTS ? 2 : MAX_ACCOUNTS),
@@ -591,6 +603,8 @@ function createWindow() {
       help: () => toggleHelp(),
       reduceMotion: () => motion.toggle(),
       ultra: () => ultraCtl?.toggle(),
+      vigia: () => captureCtl?.toggleWatch(),
+      autoNoVip: () => captureCtl?.toggleAutoNoVip(),
       zoomIn: (id) => setSlotZoom(id, slotZoom(id) + ZOOM_STEP),
       zoomOut: (id) => setSlotZoom(id, slotZoom(id) - ZOOM_STEP),
       zoomReset: (id) => setSlotZoom(id, ZOOM_DEFAULTS[viewMode()]),
@@ -605,6 +619,15 @@ function createWindow() {
     sendLog,
     notify: (n) => toastsCtl?.show(n),
     store: { get: () => loadConfig().ultra === true, set: (on) => saveConfig({ ultra: on }) },
+  });
+  captureCtl = createCaptureWatch({
+    mainWin,
+    getSlots: () => liveSlots(),
+    getAutoBall: () => autoBallExt,
+    sendLog,
+    notify: (n) => toastsCtl?.show(n),
+    store: { get: () => loadConfig().captureWatch !== false, set: (on) => saveConfig({ captureWatch: on }) },
+    storeAuto: { get: () => loadConfig().autoBallNoVip !== false, set: (on) => saveConfig({ autoBallNoVip: on }) },
   });
   for (const id of loadOrder(loadAccountCount())) createSlot(id);
   const lastFocus = slots.findIndex((x) => x.id === loadConfig().focusedId); // volta ao quadrante que estava em foco
