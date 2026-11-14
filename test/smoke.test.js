@@ -2,6 +2,7 @@
 // conta colada no topo do jogo dela, nada sobreposto, botões das extensões e liga/desliga por conta.
 const { app, sleep, check, finish, waitFor } = require('./helpers');
 const { BaseWindow } = require('electron');
+const { BAR_H } = require('../src/ram');
 
 require('../src/main.js');
 
@@ -16,7 +17,7 @@ app.whenReady().then(async () => {
     const bars = views.filter((v) => /toolbar\.html/.test(urlOf(v)));
     const appBar = bars.find((v) => /kind=app/.test(urlOf(v)));
     const slotBars = bars.filter((v) => /kind=slot/.test(urlOf(v)));
-    const games = views.filter((v) => !/(toolbar|lives|help|logs)\.html/.test(urlOf(v)) && v.getBounds().height > 100);
+    const games = views.filter((v) => !/(toolbar|lives|help|logs|ram|offline)\.html/.test(urlOf(v)) && v.getBounds().height > 100);
 
     check(!!appBar, 'barra do app existe');
     check(slotBars.length === 2, `uma barra por conta (2 contas por padrão): ${slotBars.length}`);
@@ -42,6 +43,10 @@ app.whenReady().then(async () => {
       }
     }
     check(!overlap, 'sem sobreposição e tudo dentro da janela');
+    // barra de RAM (se ligada) no rodapé, e as contas terminam acima dela
+    const ramB = views.map((v) => v.getBounds()).find((b) => b.height === BAR_H);
+    check(!ramB || (ramB.y + ramB.height === content.height && games.every((g) => g.getBounds().y + g.getBounds().height <= ramB.y)),
+      `barra de RAM no rodapé, sem cobrir as contas${ramB ? '' : ' (oculta)'}`);
 
     // botões das barras por conta
     const labels = async (v) => v.webContents.executeJavaScript('[...document.querySelectorAll("button")].map(b => b.textContent)');
@@ -53,7 +58,7 @@ app.whenReady().then(async () => {
     // botões em drop ("Grupo ▾") abrem um menu nativo em vez de ligar direto: ficam fora do liga/desliga abaixo
     const dropBtns = l0.filter((x) => x.endsWith(' ▾'));
     // controles fixos da barra (zoom, som, recarregar) não são funcionalidades liga/desliga
-    const fixos = (x) => ['Foco', '⚙', '−', '+', '🔊', '🔇', '⟳'].includes(x) || /^[0-9]+%$/.test(x);
+    const fixos = (x) => ['Foco', '⚙', '−', '+', '🔊', '🔇', '⟳', '⏻', '⏻ Ligar'].includes(x) || /^[0-9]+%$/.test(x) || /^🗳/.test(x);
     const featureBtns = l0.filter((x) => !fixos(x) && !dropBtns.includes(x));
     if (slotBars[0]) check(['−', '+', '⟳'].every((x) => l0.includes(x)) && l0.some((x) => /^[0-9]+%$/.test(x)), `barra da conta tem zoom, som e recarregar: ${JSON.stringify(l0)}`);
     console.log(`  funcionalidades vistas na barra: ${featureBtns.join(', ') || '(nenhuma)'}${dropBtns.length ? ` | drops: ${dropBtns.join(', ')}` : ''}`);
@@ -61,6 +66,7 @@ app.whenReady().then(async () => {
     if (appBar) {
       const l = await labels(appBar);
       check(l.some((x) => x.startsWith('Lives')), `botão Lives na barra do app: ${JSON.stringify(l)}`);
+      check(l.some((x) => x.includes('ULTRA')), `botão ULTRA na barra do app: ${JSON.stringify(l)}`);
     }
     check(!win.contentView.children.some((v) => /lives.html/.test(v.webContents?.getURL() ?? '')), 'sem view flutuante de lives');
 
@@ -95,7 +101,7 @@ app.whenReady().then(async () => {
       await slotBars[0].webContents.executeJavaScript('[...document.querySelectorAll("button")].find(b => b.textContent === "Foco").click()');
       await sleep(600);
       check(/posição 1/.test(win.getTitle()), `modo foco ativo (título: "${win.getTitle()}")`);
-      const isGame = (v) => v.webContents && !/(toolbar|lives|help|logs).html/.test(v.webContents.getURL());
+      const isGame = (v) => v.webContents && !/(toolbar|lives|help|logs|ram|offline).html/.test(v.webContents.getURL());
       check(!!win.contentView.children.find((v) => isGame(v) && v.getBounds().width === content.width), 'a conta em foco ocupa a largura inteira da janela');
       const appb = win.contentView.children.find((v) => /kind=app/.test(v.webContents?.getURL() ?? ''));
       await appb.webContents.executeJavaScript('[...document.querySelectorAll("button")].find(b => b.textContent === "Voltar à grade").click()');

@@ -18,11 +18,15 @@
   .pct { min-width: 44px; }
   .gear { padding: 3px 5px; background: transparent; border-color: transparent; }
   button.upd { background: #b45309; border-color: #f59e0b; color: #fff; animation: pulse 1s ease-in-out infinite; }
+  button.pw-off { background: #1b8f3a; border-color: #2fd160; color: #fff; }
   button.lives-idle { background: #2f6fed; border-color: #6c9bff; color: #fff; }
   button.lives-ok { background: #1b8f3a; border-color: #2fd160; color: #fff; }
   button.lives-changed { background: #d9342b; border-color: #ff7a72; color: #fff; animation: pulse 1s ease-in-out infinite; }
   @keyframes pulse { 50% { box-shadow: 0 0 0 5px #d9342b66; } }
+  button.vote-ready { background: #1b8f3a; border-color: #2fd160; color: #fff; }
+  button.vote-login { background: #2f6fed; border-color: #6c9bff; color: #fff; }
   .tag { color: #a99bb8; font-weight: 700; margin-right: 2px; }
+  .tag.vote-ok { color: #2fd160; }
 </style>
 </head>
 <body>
@@ -39,7 +43,22 @@
 
   function renderSlot(s) {
     bar.textContent = '';
-    bar.append(el('span', 'tag', `Conta ${s.id}`, `Posição ${s.pos + 1} na grade`));
+    // liga/desliga da conta: desligada não usa CPU nem memória (o jogo é descarregado); o login fica salvo
+    const tempo = s.uptime == null ? '' : ` · ${s.uptime} min`;
+    bar.append(el('span', 'tag', s.off ? `Conta ${s.id} · desligada` : `Conta ${s.id}${tempo}`,
+      s.off ? `Posição ${s.pos + 1} na grade · desligada` : `Posição ${s.pos + 1} na grade · rodando há ${s.uptime} min`));
+    const pw = s.off
+      ? el('button', 'ic pw-off', '⏻ Ligar', 'Ligar esta conta (recarrega o jogo)')
+      : el('button', 'ic', '⏻', 'Desligar esta conta (libera CPU e memória; o login continua salvo)');
+    pw.onclick = () => tb.action('power');
+    bar.append(pw);
+    if (s.off) {
+      bar.append(el('div', 'sp'));
+      const foco = el('button', 'plain', 'Foco', 'Mostra só esta conta em tela cheia (de novo: volta à grade)');
+      foco.onclick = () => tb.action('focus');
+      bar.append(foco);
+      return;
+    }
     // Funcionalidades com `group` ficam juntas num botão em drop (menu nativo); as demais seguem como botões
     for (const g of [...new Set(s.features.filter((f) => f.group).map((f) => f.group))]) {
       const fs = s.features.filter((f) => f.group === g);
@@ -61,6 +80,13 @@
         bar.append(g);
       }
     }
+    // Voto no TopIdle (🗳): verde = liberado; azul = precisa entrar no TopIdle; o resto mostra quanto falta
+    if (s.vote) {
+      const cls = s.vote.kind === 'ready' ? 'vote-ready' : s.vote.kind === 'login' ? 'vote-login' : '';
+      const bv = el('button', cls, s.vote.label, s.vote.hint);
+      bv.onclick = () => tb.action('vote');
+      bar.append(bv);
+    }
     bar.append(el('div', 'sp'));
     // zoom da página da conta, som e recarregar
     const ic = (text, title, name, cls = '') => { const b = el('button', 'plain ic ' + cls, text, title); b.onclick = () => tb.action(name); bar.append(b); };
@@ -78,6 +104,8 @@
     bar.textContent = '';
     const a = s.accounts;
     if (a.version) bar.append(el('span', 'tag', 'v' + a.version, 'Versão do app'));
+    // quem pode votar no TopIdle agora (ou quanto falta para o próximo voto)
+    if (a.votes?.text) bar.append(el('span', 'tag' + (a.votes.ready?.length ? ' vote-ok' : ''), a.votes.text, 'Voto no TopIdle: clique no 🗳 de cada conta'));
     bar.append(el('div', 'sp'));
     const mk = (text, title, name, on) => {
       const b = el('button', 'plain' + (on ? ' on' : ''), text, title);
@@ -93,7 +121,23 @@
     }
     mk(`Contas: ${a.count}/${a.max}`, `Alterna entre 2 e ${a.max} contas na janela`, 'accounts');
     if (a.focused !== null) mk('Voltar à grade', 'Sai do foco e mostra todas as contas', 'grid', true);
+    mk(a.reduceMotion ? 'Animações: reduzidas' : 'Animações: normais',
+      'Reduz as animações do jogo em todas as contas (menos CPU). Clique para alternar; vale na hora, sem recarregar', 'reduceMotion', a.reduceMotion);
+    // Vigia de captura: avisa na tela da conta e com som quando ela fica parada (com alvo e Ultra ou Beast Ball); Auto-bola sem VIP
+    const cp = a.capture || { watch: true, autoNoVip: true };
+    mk(cp.watch ? 'Vigia: ligado' : 'Vigia: desligado',
+      'Avisa na tela da conta e com som quando ela fica cerca de 45 s sem capturar com Ultra ou Beast Ball, havendo alvo. Clique para alternar', 'vigia', cp.watch);
+    mk(cp.autoNoVip ? 'Auto-bola s/ VIP: ligado' : 'Auto-bola s/ VIP: desligado',
+      'Liga o Auto-bola sozinho nas contas sem VIP, ao entrar no jogo (contas VIP não ligam sozinhas). Clique para alternar', 'autoNoVip', cp.autoNoVip);
     mk('Logs', 'Mostra/esconde os logs', 'logs');
+    // ULTRA: liga/desliga o modo ULTRA Economia do próprio jogo em todas as contas (Ctrl+U)
+    mk(a.ultra ? '⚡ ULTRA ligado' : '⚡ ULTRA', a.ultra ? 'Modo ULTRA do jogo ligado em todas as contas. Clique para desligar (Ctrl+U)' : 'Liga o modo ULTRA Economia do jogo em todas as contas (Ctrl+U)', 'ultra', a.ultra);
+    // Pontos: painel com o rodapé do chat de cada live (para resgatar à mão); o log e a config do resgate automático
+    const pOpen = a.points?.open ?? null;
+    mk('Pontos da Twitch', 'Abre/fecha o painel com o chat das lives da Twitch (botão dos pontos)', 'pointsTwitch', pOpen === 'twitch');
+    mk('Pontos da Kick', 'Abre/fecha o painel com o chat das lives da Kick (botão dos pontos)', 'pointsKick', pOpen === 'kick');
+    mk('Resgate auto', 'Resgate automático dos bônus, por conta e por site (desligado de fábrica)', 'redeemConfig');
+    mk('Log de resgates', 'Registro de cada resgate, recusa e parada', 'redeemLog');
     // Lives: cinza = nenhuma com bônus no ar; azul = há lives para abrir; verde = abertas e em dia;
     // vermelho piscando = o conjunto mudou desde a última vez (clique para abrir as novas)
     const lv = a.lives || { kind: 'none', text: '' };

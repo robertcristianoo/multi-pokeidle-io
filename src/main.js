@@ -3,8 +3,15 @@ const path = require('path');
 const { createLives } = require('./lives');
 const { createToolbars } = require('./toolbar');
 const { createToasts } = require('./toasts');
+const { createTopIdle } = require('./topidle');
 const { createUpdater } = require('./updates');
-const { app, BaseWindow, BrowserWindow, WebContentsView, dialog, ipcMain, nativeImage, screen, shell } = require('electron');
+const { createReduceMotion } = require('./reduce-motion');
+const { createUltra } = require('./ultra');
+const { createRamBar } = require('./ram');
+const { createPower } = require('./power');
+const { createCaptureWatch } = require('./capture-watch');
+const { app, BaseWindow, BrowserWindow, WebContentsView, dialog, ipcMain, nativeImage, screen, session, shell } = require('electron');
+const { createPoints } = require('./points');
 
 // Evita o Chromium tratar views como "ocultas/oclusas" (afeta captcha e timers do jogo)
 app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
@@ -109,6 +116,12 @@ function saveAccountCount(n) {
   saveConfig({ accounts: n });
 }
 
+// Reduzir animações (ligado por padrão; alternado pelo botão da barra do app)
+const motion = createReduceMotion({
+  read: () => loadConfig().reduceMotion,
+  write: (on) => saveConfig({ reduceMotion: on }),
+});
+
 // Zoom e som por conta (persistidos): { [id]: { zooms: { [modo]: fator }, muted } }.
 // O zoom vale por modo de exibição: em foco volta a 100%; na grade de 4 contas o padrão é 60%.
 const ZOOM_MIN = 0.25;
@@ -130,7 +143,7 @@ function setSlotZoom(id, factor) {
   saveSlotPrefs(id, { zooms: { ...slotPrefs(id).zooms, [viewMode()]: z } });
 }
 function applyZooms() {
-  for (const { id, view } of slots) if (!view.webContents.isDestroyed()) view.webContents.setZoomFactor(slotZoom(id));
+  for (const { id, view } of liveSlots()) if (!view.webContents.isDestroyed()) view.webContents.setZoomFactor(slotZoom(id));
 }
 function setSlotMuted(id, muted) {
   const slot = slots.find((s) => s.id === id);
@@ -162,13 +175,28 @@ function saveOrder() {
 // null = grade com todas; 0..N-1 = só a conta dessa posição, em tela cheia
 let focused = null;
 let mainWin = null;
-const slots = []; // [{ id, view }] na ordem da grade
+const slots = []; // [{ id, view }] na ordem da grade; view = a do jogo (ligada) ou a página de desligada
+// Contas ligadas (com o jogo carregado): para o que mexe no jogo (zoom, F5, extensões, lives)
+const liveSlots = () => slots.filter((s) => !power.isOff(s.id));
+// Liga/desliga por conta (src/power.js); a troca de view é feita em setAccountPower
+const power = createPower({
+  loadConfig,
+  saveConfig,
+  shortcut: (id) => makeShortcutHandler(id),
+  setPower: (id, on) => setAccountPower(id, on),
+});
 
 // ---- Ajuda (sobreposição) ----
 // View própria, por cima das contas e isolada das páginas do jogo (o site não enxerga nem altera).
 let livesCtl = null;
+let topidle = null; // voto no TopIdle (botão 🗳 de cada conta)
+let pointsCtl = null; // painel de pontos Twitch/Kick e resgate automático (src/points)
 let toastsCtl = null; // avisos no canto superior direito
 let updater = null; // aviso de versão nova (só em pacote de Release)
+let ultraCtl = null; // Modo ULTRA do jogo em todas as contas (ver src/ultra.js)
+let ramCtl = null; // barra de RAM no rodapé (src/ram.js)
+let captureCtl = null; // vigia de captura e Auto-bola sem VIP (src/capture-watch.js)
+let autoBallExt = null; // API do Auto-bola (extensão local), usada pelo vigia
 
 // Versão do Release que gerou este pacote (o workflow grava release-info.json); nula em desenvolvimento/build local
 // Pacote sem release-info.json (build local de `npm run dist`) usa a versão do package.json, para o aviso também funcionar nele.
@@ -223,10 +251,14 @@ function layout() {
   }
   const { width, height: fullH } = mainWin.getContentBounds();
   const top = tbs ? tbs.appBarH : 0;
-  const height = fullH - top;
+  const ramH = ramCtl ? ramCtl.height() : 0; // o rodapé da barra de RAM sai da área das contas
+  const panelH = pointsCtl?.panelHeight(fullH - ramH) ?? 0; // painel de pontos aberto ocupa a parte de baixo, acima da barra de RAM
+  const height = fullH - top - ramH - panelH;
   if (helpView) helpView.setBounds({ x: 0, y: 0, width, height: fullH });
   tbs?.placeApp(width);
   toastsCtl?.place(width, fullH);
+  ramCtl?.place(width, fullH);
+  pointsCtl?.place(width, fullH - ramH);
   const barH = tbs ? tbs.slotBarH : 0;
   // cada conta ganha uma barra de botões no topo do quadrante; a página do jogo ocupa o resto
   const put = ({ id, view }, x, y, w, h, visible) => {
@@ -295,11 +327,12 @@ async function resetAccount(index) {
       'A conta criada no jogo continua existindo no servidor.',
   });
   if (response !== 1) return;
-  const ses = view.webContents.session;
+  // a sessão é a da partição da conta (a página de desligada não tem uma própria)
+  const ses = session.fromPartition(`persist:conta${id}`);
   await ses.clearStorageData();
   await ses.clearCache();
   await ses.clearAuthCache();
-  view.webContents.loadURL(URL);
+  if (!power.isOff(id) && !view.webContents.isDestroyed()) view.webContents.loadURL(URL);
 }
 
 // ---- Extensões locais (opcional) ----
@@ -314,10 +347,23 @@ const exts = [];
 function loadExtensions() {
   for (const file of LOCAL_EXTENSIONS) {
     try {
-      exts.push(require(file)({ getSlots: () => slots, sendLog, notify: (n) => toastsCtl?.show(n) }));
+      const ext = require(file)({
+        getSlots: () => liveSlots(),
+        sendLog,
+        notify: (n) => toastsCtl?.show(n),
+        onUserToggle: (id, on) => captureCtl?.autoBallToggled(id, on), // escolha manual do Auto-bola (o vigia não o religa à força)
+      });
+      if (file === '../local/autoball.js') autoBallExt = ext;
+      exts.push(ext);
     } catch (err) {
       if (err.code !== 'MODULE_NOT_FOUND' || !String(err.message).includes(file.slice(3))) console.error(`falha ao carregar ${file}:`, err);
     }
+  }
+  // Auto-reposição (🛒): à parte, para um erro nela não derrubar as demais extensões
+  try {
+    exts.push(require('./restock')({ getSlots: () => slots, sendLog }));
+  } catch (err) {
+    console.error('falha ao carregar a auto-reposição:', err);
   }
 }
 
@@ -330,6 +376,7 @@ function loadExtensions() {
 //   Ctrl+Shift+1..4    reseta a sessão da conta da posição (com confirmação)
 //   Ctrl+Alt+←/→       move a conta atual na grade (a em foco, ou a que tem o teclado)
 //   Ctrl+Shift+0 ou Ctrl+Alt+Shift+0   alterna entre 2 e 4 contas na janela
+//   Ctrl+M             mostra/esconde a barra de RAM do rodapé
 function makeShortcutHandler(id) {
   return (event, input) => {
     if (input.type === 'keyDown' && input.code === 'F1') {
@@ -346,7 +393,8 @@ function makeShortcutHandler(id) {
       // F5 não recarrega sozinho (não há menu). F5 = recarrega a conta com o teclado;
       // Ctrl+F5 = ignora o cache; Ctrl+Shift+F5 = todas as contas, ignorando o cache.
       event.preventDefault();
-      const targets = input.control && input.shift ? slots.map((s) => s.view) : [slots.find((s) => s.id === id).view];
+      // contas desligadas não recarregam (não têm jogo); só a de foco do teclado conta, se estiver ligada
+      const targets = input.control && input.shift ? liveSlots().map((s) => s.view) : power.isOff(id) ? [] : [slots.find((s) => s.id === id).view];
       for (const v of targets) {
         if (input.control) v.webContents.session.clearCache().then(() => v.webContents.reloadIgnoringCache());
         else v.webContents.reload();
@@ -355,6 +403,7 @@ function makeShortcutHandler(id) {
     }
     if (input.type !== 'keyDown' || !input.control) return;
     if (exts.some((x) => x.onShortcut?.(event, input))) return;
+    if (ultraCtl?.onKey(event, input)) return; // Ctrl+U
     const digit = /^Digit([0-9])$/.exec(input.code);
     const n = digit ? Number(digit[1]) : null;
     const pos = slots.findIndex((s) => s.id === id);
@@ -383,11 +432,15 @@ function makeShortcutHandler(id) {
     } else if (!input.alt && !input.shift && input.code === 'KeyT') {
       event.preventDefault();
       livesCtl?.open();
+    } else if (!input.alt && !input.shift && input.code === 'KeyM') {
+      event.preventDefault();
+      ramCtl?.toggle();
     }
   };
 }
 
-function createSlot(id) {
+// View do jogo de uma conta (ainda não adicionada à janela nem carregada)
+function buildGameView(id) {
   // "persist:" mantém cookies/localStorage em disco, separados por conta
   const view = new WebContentsView({
     webPreferences: {
@@ -397,20 +450,57 @@ function createSlot(id) {
     },
   });
   view.webContents.setWindowOpenHandler(({ url }) => {
+    if (topidle?.handleLink(id, url)) return { action: 'deny' }; // o "votar" do jogo abre a janela de voto
     // links/popups abrem no navegador padrão do sistema (nova aba)
     if (/^(https?|mailto):/i.test(url)) shell.openExternal(url).catch(() => {});
     return { action: 'deny' };
   });
   attachLogging(id, view);
+  ultraCtl?.attach(id, view);
+  captureCtl?.attach(id, view); // antes de carregar: pega o `welcome` do jogo (estado VIP e contagem de captura)
   // o zoom é reaplicado a cada carga (a navegação pode zerá-lo)
   view.webContents.setAudioMuted(slotPrefs(id).muted);
   view.webContents.on('did-finish-load', () => view.webContents.setZoomFactor(slotZoom(id)));
   view.webContents.on('before-input-event', makeShortcutHandler(id));
   exts.forEach((x) => x.onSlotCreated?.(id, view));
+  motion.attach(view);
+  return view;
+}
+
+function createSlot(id) {
+  const off = power.isOff(id);
+  const view = off ? power.placeholder(id) : buildGameView(id);
   mainWin.contentView.addChildView(view);
   tbs?.addSlot(id);
-  view.webContents.loadURL(URL);
+  if (!off) {
+    power.markRunning(id);
+    view.webContents.loadURL(URL);
+  }
   slots.push({ id, view });
+}
+
+// Liga ou desliga uma conta. Desligar destrói o jogo dela (libera CPU e memória); ligar cria o jogo de novo e
+// recarrega a página. A entrada em `slots` continua a mesma, então grade, ordem e foco não mudam.
+function setAccountPower(id, on) {
+  const idx = slots.findIndex((s) => s.id === id);
+  if (idx < 0 || power.isOff(id) === !on) return; // já está nesse estado
+  const slot = slots[idx];
+  if (!on) exts.forEach((x) => x.onSlotRemoved?.(id));
+  mainWin.contentView.removeChildView(slot.view);
+  slot.view.webContents.close();
+  power.setOff(id, !on);
+  slot.view = on ? buildGameView(id) : power.placeholder(id);
+  mainWin.contentView.addChildView(slot.view);
+  if (on) {
+    power.markRunning(id);
+    slot.view.webContents.loadURL(URL);
+  }
+  // o avisos e a ajuda continuam por cima, como em setAccountCount
+  toastsCtl?.raise();
+  if (helpOpen) mainWin.contentView.addChildView(helpView);
+  if (focused === idx) slot.view.webContents.focus();
+  layout();
+  tbs?.push();
 }
 
 // Ajusta quantas contas ficam abertas (1..MAX). Remover uma conta só fecha o quadrante:
@@ -420,7 +510,7 @@ function setAccountCount(count) {
   for (let i = slots.length - 1; i >= 0; i--) {
     if (slots[i].id > count) {
       const { id, view } = slots[i];
-      exts.forEach((x) => x.onSlotRemoved?.(id));
+      if (!power.isOff(id)) exts.forEach((x) => x.onSlotRemoved?.(id));
       tbs?.removeSlot(id);
       mainWin.contentView.removeChildView(view);
       view.webContents.close();
@@ -487,9 +577,10 @@ function createWindow() {
     mainWin,
     getSlots: () => slots,
     getFeatures: () => exts.flatMap((x) => x.features?.() ?? []),
-    getAccountInfo: () => ({ count: slots.length, max: MAX_ACCOUNTS, focused, lives: livesCtl?.state() ?? { kind: 'none', text: '' },
-      version: releaseVersion(), update: updater?.state() ?? null }),
-    getSlotState: (id) => ({ zoom: slotZoom(id), muted: slotPrefs(id).muted }),
+    getAccountInfo: () => ({ count: slots.length, max: MAX_ACCOUNTS, focused, lives: livesCtl?.state() ?? { kind: 'none', text: '' }, ultra: !!ultraCtl?.isOn(),
+      version: releaseVersion(), update: updater?.state() ?? null, reduceMotion: motion.isOn(), votes: topidle?.summary() ?? null, points: pointsCtl?.state() ?? { open: null },
+      capture: captureCtl?.state() ?? { watch: true, autoNoVip: true } }),
+    getSlotState: (id) => ({ zoom: slotZoom(id), muted: slotPrefs(id).muted, ...power.stateOf(id), vote: topidle?.info(id) ?? null }),
     actions: {
       accounts: () => setAccountCount(slots.length >= MAX_ACCOUNTS ? 2 : MAX_ACCOUNTS),
       grid: () => setFocus(null),
@@ -499,30 +590,78 @@ function createWindow() {
       },
       logs: toggleLogWindow,
       lives: () => livesCtl?.open(),
+      vote: (id) => topidle?.open(id),
+      pointsTwitch: () => pointsCtl?.toggle('twitch'),
+      pointsKick: () => pointsCtl?.toggle('kick'),
+      redeemConfig: () => pointsCtl?.showConfig(),
+      redeemLog: () => pointsCtl?.showLog(),
       update: async () => {
         // reconsulta antes de abrir: o botão pode estar mostrando uma versão já superada por outra
         const u = (await updater?.check()) ?? updater?.state();
         if (u?.kind === 'available') shell.openExternal(u.url); // página do Release: de lá se baixa o instalador
       },
       help: () => toggleHelp(),
+      reduceMotion: () => motion.toggle(),
+      ultra: () => ultraCtl?.toggle(),
+      vigia: () => captureCtl?.toggleWatch(),
+      autoNoVip: () => captureCtl?.toggleAutoNoVip(),
       zoomIn: (id) => setSlotZoom(id, slotZoom(id) + ZOOM_STEP),
       zoomOut: (id) => setSlotZoom(id, slotZoom(id) - ZOOM_STEP),
       zoomReset: (id) => setSlotZoom(id, ZOOM_DEFAULTS[viewMode()]),
       mute: (id) => setSlotMuted(id, !slotPrefs(id).muted),
-      reload: (id) => slots.find((s) => s.id === id)?.view.webContents.reload(),
+      reload: (id) => { if (!power.isOff(id)) slots.find((s) => s.id === id)?.view.webContents.reload(); },
+      power: (id) => setAccountPower(id, power.isOff(id)),
       refocus: (id) => slots.find((s) => s.id === id)?.view.webContents.focus(),
     },
+  });
+  ultraCtl = createUltra({
+    getSlots: () => slots,
+    sendLog,
+    notify: (n) => toastsCtl?.show(n),
+    store: { get: () => loadConfig().ultra === true, set: (on) => saveConfig({ ultra: on }) },
+  });
+  captureCtl = createCaptureWatch({
+    mainWin,
+    getSlots: () => liveSlots(),
+    getAutoBall: () => autoBallExt,
+    sendLog,
+    notify: (n) => toastsCtl?.show(n),
+    store: { get: () => loadConfig().captureWatch !== false, set: (on) => saveConfig({ captureWatch: on }) },
+    storeAuto: { get: () => loadConfig().autoBallNoVip !== false, set: (on) => saveConfig({ autoBallNoVip: on }) },
   });
   for (const id of loadOrder(loadAccountCount())) createSlot(id);
   const lastFocus = slots.findIndex((x) => x.id === loadConfig().focusedId); // volta ao quadrante que estava em foco
   if (lastFocus >= 0) focused = lastFocus;
-  livesCtl = createLives({ mainWin, getSlots: () => slots });
+  livesCtl = createLives({ mainWin, getSlots: () => liveSlots() });
+  topidle = createTopIdle({ getSlots: () => liveSlots(), notify: (n) => toastsCtl?.show(n), timers: !process.env.PKMULTI_TEST });
   toastsCtl = createToasts({ mainWin, getTop: () => tbs.appBarH });
+  ramCtl = createRamBar({
+    mainWin,
+    getSlots: () => slots,
+    visible: loadConfig().ramBar !== false, // ligada por padrão; a escolha de ocultar fica salva em config.json
+    onToggle: (shown) => {
+      saveConfig({ ramBar: shown });
+      layout();
+    },
+  });
   updater = createUpdater({
     currentVersion: releaseVersion(),
     onAvailable: (u) => toastsCtl?.show({ kind: 'info', title: `Versão nova: v${u.latest}`, text: 'Use o botão Atualizar na barra para baixar', ms: 10000 }),
   });
   createHelpView();
+  pointsCtl = createPoints({
+    mainWin,
+    getAccounts: () => livesCtl?.accounts() ?? [],
+    config: {
+      get: () => loadConfig().points ?? {},
+      set: (patch) => saveConfig({ points: { ...(loadConfig().points ?? {}), ...patch } }),
+    },
+    userDataDir: app.getPath('userData'),
+    notify: (n) => toastsCtl?.show(n),
+    raise: () => { toastsCtl?.raise(); if (helpOpen) mainWin.contentView.addChildView(helpView); },
+    relayout: () => layout(),
+    maxAccounts: MAX_ACCOUNTS,
+  });
   win.on('focus', () => updater?.check({ force: false })); // voltou à janela: confere se saiu versão nova
 
   layout();

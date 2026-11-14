@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Jogo de teste (ULTRA)</title>
+</head>
+<body>
+<!-- Imita só os controles do jogo usados pelo modo ULTRA (nomes de id do PokeIdle, conferidos no projeto de referência).
+     ?login=1 começa na tela de login (#app escondido); window.entrar() abre o jogo. -->
+<div id="app"></div>
+<button id="btn-config">Config</button>
+<div id="modal"></div>
+<div id="ultra"></div>
+<script>
+(() => {
+  const app = document.querySelector('#app');
+  window.cliques = { cfg: 0, sair: 0 };
+  const liga = (on) => {
+    document.documentElement.classList.toggle('modo-ultra', on);
+    const box = document.querySelector('#ultra');
+    box.innerHTML = on ? '<button id="ultra-sair">Voltar ao jogo</button>' : '';
+    const sair = document.querySelector('#ultra-sair');
+    if (sair) sair.onclick = () => {
+      window.cliques.sair++;
+      document.documentElement.classList.remove('modo-ultra');
+      box.innerHTML = ''; // a escolha salva continua (como no teste de caso difícil)
+    };
+  };
+  // ao entrar no jogo, se a escolha estiver salva, o ULTRA liga sozinho
+  window.entrar = () => {
+    app.classList.remove('hidden');
+    if (localStorage.getItem('cfg-ultra') === '1') liga(true);
+  };
+  if (new URLSearchParams(location.search).has('login')) app.classList.add('hidden');
+  else window.entrar();
+  document.getElementById('btn-config').onclick = () => {
+    document.querySelector('#modal').innerHTML = '<button id="cfg-ultra">ULTRA</button>';
+    document.querySelector('#cfg-ultra').onclick = () => {
+      window.cliques.cfg++;
+      const on = localStorage.getItem('cfg-ultra') !== '1';
+      localStorage.setItem('cfg-ultra', on ? '1' : '0');
+      liga(on);
+      document.querySelector('#modal').innerHTML = ''; // o jogo fecha a janela sozinho
+    };
+  };
+})();
+</script>
+</body>
+</html>

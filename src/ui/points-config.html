@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Resgate automático</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 13px "Segoe UI", sans-serif; background: #161118; color: #e6e0ea; padding: 14px 18px; }
+  h1 { font-size: 16px; margin: 0 0 6px; }
+  p { color: #a99bb8; line-height: 1.45; margin: 0 0 12px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 6px 4px; border-bottom: 1px solid #2a2030; }
+  th { color: #8ab4ff; font-weight: 600; font-size: 12px; }
+  select { background: #000; color: #e6e0ea; border: 1px solid #444; border-radius: 4px; padding: 3px 6px; font: inherit; }
+  .acts { display: flex; gap: 10px; align-items: center; justify-content: flex-end; margin-top: 14px; }
+  button { background: #2f6fed; color: #fff; border: 0; border-radius: 6px; padding: 6px 14px; font: inherit; font-weight: 600; cursor: pointer; }
+  button.sec { background: #333; }
+  #msg { color: #8ab4ff; margin-right: auto; font-size: 12px; }
+</style>
+</head>
+<body>
+<h1>Resgate automático</h1>
+<p>Desligado de fábrica. Para cada conta e site, escolha o bônus que o app pode resgatar quando houver saldo no canal
+  da live que está no ar. O app confere o saldo a cada 5 min (Kick) ou 2 min (Twitch), resgata 1 bônus por canal, e
+  espera 30 min se o site recusar. Se os pontos voltarem ou zerarem, ele para naquela conta e avisa.</p>
+<table>
+  <thead><tr><th>Conta</th><th>Kick</th><th>Twitch</th></tr></thead>
+  <tbody id="rows"></tbody>
+</table>
+<div class="acts">
+  <span id="msg"></span>
+  <button class="sec" id="cancel">Fechar</button>
+  <button id="save">Salvar</button>
+</div>
+<script>
+  const rows = document.getElementById('rows');
+  const msg = document.getElementById('msg');
+  let bonuses = {};
+  const opcoes = (atual) => {
+    const sel = document.createElement('select');
+    sel.append(new Option('Nenhum', ''));
+    for (const [k, b] of Object.entries(bonuses)) sel.append(new Option(`${b.label} (${b.cost} pts)`, k));
+    sel.value = atual || '';
+    return sel;
+  };
+
+  pc.get().then((cfg) => {
+    bonuses = cfg.bonuses;
+    for (const acc of cfg.accounts) {
+      const tr = document.createElement('tr');
+      const td0 = document.createElement('td');
+      td0.textContent = `Conta ${acc}`;
+      tr.append(td0);
+      const linha = cfg.auto[acc] || {};
+      for (const site of ['kick', 'twitch']) {
+        const td = document.createElement('td');
+        const sel = opcoes(linha[site]);
+        sel.dataset.acc = acc;
+        sel.dataset.site = site;
+        td.append(sel);
+        tr.append(td);
+      }
+      rows.append(tr);
+    }
+  });
+
+  document.getElementById('cancel').onclick = () => window.close();
+  document.getElementById('save').onclick = async () => {
+    const auto = {};
+    for (const sel of rows.querySelectorAll('select')) {
+      if (!sel.value) continue;
+      (auto[sel.dataset.acc] ??= {})[sel.dataset.site] = sel.value;
+    }
+    await pc.save(auto);
+    msg.textContent = 'Salvo. Os resgates voltam a conferir em instantes.';
+  };
+</script>
+</body>
+</html>

@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Log de resgates</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 12px Consolas, monospace; background: #111; color: #ddd; display: flex; flex-direction: column; height: 100vh; }
+  #bar { display: flex; gap: 12px; align-items: center; padding: 6px 10px; background: #1c1c1c; border-bottom: 1px solid #333; flex-wrap: wrap; }
+  #bar input[type=text] { background: #000; color: #ddd; border: 1px solid #444; padding: 3px 6px; width: 240px; }
+  #file { color: #666; font-size: 11px; margin-left: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%; }
+  button { background: #333; color: #ddd; border: 1px solid #555; padding: 3px 10px; cursor: pointer; }
+  #log { flex: 1; overflow: auto; padding: 4px 10px; }
+  .row { white-space: pre-wrap; word-break: break-all; padding: 2px 0; border-bottom: 1px solid #1a1a1a; }
+  .resgatou { color: #98c379; }
+  .recusado, .erro { color: #e5c07b; }
+  .parou { color: #ff6b6b; }
+  .t { display: inline-block; width: 150px; color: #666; }
+  .acc { display: inline-block; width: 74px; font-weight: bold; color: #61afef; }
+  .site { display: inline-block; width: 56px; color: #c678dd; }
+  .canal { display: inline-block; width: 150px; }
+  .ev { display: inline-block; width: 92px; font-weight: bold; }
+  #vazio { color: #666; padding: 20px 4px; }
+</style>
+</head>
+<body>
+<div id="bar">
+  <strong>Registro dos resgates</strong>
+  <input type="text" id="q" placeholder="filtrar (ex.: Captura, parou, conta 2)">
+  <button id="reload">Atualizar</button>
+  <span id="file"></span>
+</div>
+<div id="log"></div>
+<script>
+  const logEl = document.getElementById('log');
+  let rows = [];
+  const hora = (iso) => { const d = new Date(iso); return isNaN(d) ? iso : d.toLocaleString('pt-BR'); };
+
+  function visible(r) {
+    const q = document.getElementById('q').value.trim().toLowerCase();
+    if (!q) return true;
+    return [r.acc, r.site, r.channel, r.evento, r.detalhe].join(' ').toLowerCase().includes(q);
+  }
+
+  function render() {
+    logEl.textContent = '';
+    const lista = rows.filter(visible);
+    if (!lista.length) {
+      const v = document.createElement('div');
+      v.id = 'vazio';
+      v.textContent = rows.length ? 'Nada com esse filtro.' : 'Nenhum resgate registrado ainda.';
+      logEl.append(v);
+      return;
+    }
+    for (const r of lista) {
+      const d = document.createElement('div');
+      d.className = 'row ' + r.evento;
+      const cells = [
+        ['t', hora(r.t)], ['acc', `Conta ${r.acc}`], ['site', r.site === 'kick' ? 'Kick' : 'Twitch'],
+        ['canal', r.channel], ['ev', r.evento], ['det', r.detalhe],
+      ];
+      for (const [cls, txt] of cells) {
+        const s = document.createElement('span');
+        s.className = cls;
+        s.textContent = txt;
+        d.append(s, ' ');
+      }
+      logEl.append(d);
+    }
+  }
+
+  async function load() {
+    const { file, rows: lidas } = await rl.read();
+    rows = lidas;
+    document.getElementById('file').textContent = file;
+    render();
+  }
+
+  document.getElementById('q').addEventListener('input', render);
+  document.getElementById('reload').onclick = load;
+  load();
+</script>
+</body>
+</html>
