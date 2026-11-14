@@ -130,6 +130,8 @@ O jogo dá recompensa a quem vota no pokeidle pelo [TopIdle](https://topidle.com
 Ao clicar, abre uma janela com a página de voto do TopIdle, com o nick do personagem já preenchido. O captcha e o voto são concluídos por você nessa janela; o app não resolve captcha nem vota sozinho. Quando o TopIdle registra o voto, o app percebe e reinicia o contador. O mesmo acontece com o "votar" de dentro do jogo.
 
 O login do TopIdle fica salvo por conta, numa área separada da sessão do jogo. Para saber o estado, o app consulta `topidle.com` com os cookies dessa conta (`/api/me` e `/api/games`) e não envia nada além disso.
+
+**Login com Google.** O Google recusa login dentro de janelas de aplicativos ("Esse navegador ou app pode não ser seguro"). Ao escolher o Google na janela do TopIdle, o app oferece **entrar pelo navegador**: abre o Chrome (ou o Edge) instalado, com um perfil temporário, para você entrar normalmente e fechar a janela. Só os cookies do TopIdle são copiados para a conta (o Google e o resto do navegador ficam de fora), e o perfil temporário é apagado. Durante o login, o navegador fica com a porta de depuração aberta apenas em `127.0.0.1`. Discord e e-mail e senha continuam funcionando direto na janela.
 ## Pontos da Twitch e da Kick
 
 Os botões **Pontos da Twitch** e **Pontos da Kick** (barra superior) abrem um painel embaixo da janela com o chat de cada live que está no ar nas suas contas, mostrando só o rodapé (o botão dos pontos e o popup de escolher o bônus), para você resgatar à mão:

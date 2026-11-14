@@ -6,7 +6,9 @@
 // Login do TopIdle: fica numa partição própria por conta (`persist:topidle{id}`), separada da sessão do jogo.
 // Assim, a janela de voto e a leitura de estado usam os mesmos cookies, e o `webRequest` dessa partição não
 // disputa o listener de logs das contas (o Electron aceita só um por evento e sessão).
-const { app, BrowserWindow, session, shell } = require('electron');
+const { app, BrowserWindow, dialog, session, shell } = require('electron');
+const { EventEmitter } = require('events');
+const { loginViaBrowser } = require('./browser-login');
 
 const BASE = 'https://topidle.com';
 const TOPIDLE_HOSTS = ['topidle.com', 'www.topidle.com'];
@@ -142,6 +144,71 @@ function voteInfo(s, now) {
   return { kind: 'voted', label: '🗳 ✓ Votou', hint: 'Esta conta já votou. Conferindo no TopIdle quando libera o próximo voto…' };
 }
 
+// O Google recusa login dentro de janelas de apps ("Esse navegador ou app pode não ser seguro"). Em vez da tela de erro,
+// o login pode ser feito pelo Chrome/Edge instalado, trazendo a sessão do TopIdle de volta para a conta (src/browser-login.js).
+const isGoogleLogin = (url) => /^https:\/\/accounts\.google\.com(\/|$)/i.test(url);
+const loginsRunning = new Set(); // partições com login pelo navegador em andamento (um por conta)
+const loginEvents = new EventEmitter(); // 'done' com { id, ok, count, reason }
+const idOfPartition = (p) => Number(String(p).replace('persist:topidle', ''));
+
+async function runBrowserLogin(parent, partition) {
+  if (loginsRunning.has(partition)) {
+    dialog.showMessageBox(parent ?? undefined, {
+      type: 'info',
+      title: 'Login pelo navegador',
+      message: 'Já há um login em andamento para esta conta.',
+      detail: 'Conclua o login na janela do Chrome (ou Edge) e feche-a: é ao fechar que o login volta para o app.',
+      buttons: ['Entendi'],
+    }).catch(() => {});
+    return null;
+  }
+  loginsRunning.add(partition);
+  try {
+    const r = await loginViaBrowser({ url: `${BASE}/`, domains: TOPIDLE_HOSTS, session: session.fromPartition(partition) });
+    loginEvents.emit('done', { id: idOfPartition(partition), ...r });
+    if (!r.ok) {
+      dialog.showMessageBox(parent ?? undefined, { type: 'warning', title: 'Login pelo navegador', message: 'Não foi possível trazer o login.', detail: (r.reason || 'Tente de novo') + '. Se preferir, entre com Discord ou e-mail e senha na janela do app.', buttons: ['Entendi'] }).catch(() => {});
+    }
+    return r;
+  } finally {
+    loginsRunning.delete(partition);
+  }
+}
+
+// Confirmação antes de abrir o navegador (o clique no botão do Google dentro da janela do TopIdle cai aqui)
+async function offerBrowserLogin(win, partition) {
+  if (loginsRunning.has(partition)) { runBrowserLogin(win, partition); return; }
+  const { response } = await dialog.showMessageBox(win, {
+    type: 'info',
+    title: 'Login com Google',
+    message: 'O Google não permite login dentro deste app.',
+    detail: 'Posso abrir o Chrome (ou o Edge) só para você entrar no TopIdle e trazer o login para esta conta. '
+      + 'Entre normalmente, depois feche a janela do navegador. Só os cookies do TopIdle são copiados.',
+    buttons: ['Entrar pelo navegador', 'Cancelar'],
+    defaultId: 0,
+    cancelId: 1,
+  });
+  if (response !== 0) return;
+  const r = await runBrowserLogin(win, partition);
+  if (r?.ok && !win.isDestroyed()) win.webContents.reload();
+}
+
+// Como entrar numa conta que ainda não está logada no TopIdle: 'window' (Discord/e-mail na janela do app),
+// 'browser' (Google pelo navegador instalado) ou null (cancelar). Nos testes segue direto para a janela.
+async function defaultChooseLogin(id) {
+  if (process.env.PKMULTI_TEST) return 'window';
+  const { response } = await dialog.showMessageBox({
+    type: 'question',
+    title: `TopIdle · conta ${id}`,
+    message: 'Esta conta ainda não entrou no TopIdle.',
+    detail: 'Escolha como entrar. O login com Google só funciona pelo navegador instalado, porque o Google recusa login dentro de apps.',
+    buttons: ['Discord ou e-mail (janela do app)', 'Google (pelo navegador)', 'Cancelar'],
+    defaultId: 0,
+    cancelId: 2,
+  });
+  return ['window', 'browser', null][response];
+}
+
 const defaultSession = (id) => session.fromPartition(`persist:topidle${id}`);
 
 function defaultWindow(id) {
@@ -156,10 +223,22 @@ function defaultWindow(id) {
   // O site pode manter o título; o aviso de quem vota fica no título da janela
   win.on('page-title-updated', (e) => e.preventDefault());
   win.webContents.setWindowOpenHandler(({ url }) => {
+    // O Google recusa login dentro de apps embutidos ("Esse navegador ou app pode não ser seguro"): avisa em vez de mostrar o erro
+    if (isGoogleLogin(url)) { offerBrowserLogin(win, partition); return { action: 'deny' }; }
     // Login (Discord/Google) abre popup: fica na mesma partição, senão o login cairia no navegador do sistema
     if (/^https:/i.test(url)) return { action: 'allow', overrideBrowserWindowOptions: { autoHideMenuBar: true, webPreferences: { partition } } };
     if (/^mailto:/i.test(url)) shell.openExternal(url).catch(() => {});
     return { action: 'deny' };
+  });
+  const guardGoogle = (e, url) => {
+    if (isGoogleLogin(url)) { e.preventDefault(); offerBrowserLogin(win, partition); }
+  };
+  win.webContents.on('will-navigate', guardGoogle);
+  win.webContents.on('will-redirect', guardGoogle);
+  // popups (login do site) também não podem ir para o Google: o redirecionamento deles é interceptado igual
+  win.webContents.on('did-create-window', (popup) => {
+    popup.webContents.on('will-navigate', guardGoogle);
+    popup.webContents.on('will-redirect', guardGoogle);
   });
   return win;
 }
@@ -172,6 +251,7 @@ function createTopIdle({
   fetchImpl = (...a) => fetch(...a),
   getSession = defaultSession,
   makeWindow = defaultWindow,
+  chooseLogin = defaultChooseLogin,
   now = () => Date.now(),
   timers = true,
 }) {
@@ -280,6 +360,11 @@ function createTopIdle({
       existing.focus();
       return;
     }
+    if (rec(id).state && !rec(id).state.loggedIn) {
+      const choice = await chooseLogin(id);
+      if (!choice) return;
+      if (choice === 'browser') { runBrowserLogin(null, `persist:topidle${id}`); return; }
+    }
     if (!gameId) await lookupGame();
     if (!gameId) {
       notify({ kind: 'fail', title: 'TopIdle indisponível', text: 'Confira a internet e tente de novo', ms: 5000 });
@@ -295,6 +380,16 @@ function createTopIdle({
     });
     win.loadURL(target);
   }
+
+  // Login trazido pelo navegador: confere o estado da conta na hora e avisa o resultado
+  loginEvents.on('done', (r) => {
+    if (!getSlots().some((s) => s.id === r.id)) return;
+    if (r.ok) {
+      rec(r.id).refreshAt = 0;
+      refresh(r.id);
+      notify({ kind: 'ok', title: `Conta ${r.id}: login do TopIdle trazido`, text: 'Clique em 🗳 para votar', ms: 5000 });
+    }
+  });
 
   if (timers) setInterval(tick, TICK_MS).unref?.();
 
