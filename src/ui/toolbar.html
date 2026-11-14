@@ -123,10 +123,10 @@
     if (a.focused !== null) mk('Voltar à grade', 'Sai do foco e mostra todas as contas', 'grid', true);
     mk(a.reduceMotion ? 'Animações: reduzidas' : 'Animações: normais',
       'Reduz as animações do jogo em todas as contas (menos CPU). Clique para alternar; vale na hora, sem recarregar', 'reduceMotion', a.reduceMotion);
-    // Vigia de captura: avisa na tela da conta e com som quando ela fica parada (com alvo e Ultra Balls); Auto-bola sem VIP
+    // Vigia de captura: avisa na tela da conta e com som quando ela fica parada (com alvo e Ultra ou Beast Ball); Auto-bola sem VIP
     const cp = a.capture || { watch: true, autoNoVip: true };
     mk(cp.watch ? 'Vigia: ligado' : 'Vigia: desligado',
-      'Avisa na tela da conta e com som quando ela fica cerca de 45 s sem capturar com Ultra Ball, havendo alvo. Clique para alternar', 'vigia', cp.watch);
+      'Avisa na tela da conta e com som quando ela fica cerca de 45 s sem capturar com Ultra ou Beast Ball, havendo alvo. Clique para alternar', 'vigia', cp.watch);
     mk(cp.autoNoVip ? 'Auto-bola s/ VIP: ligado' : 'Auto-bola s/ VIP: desligado',
       'Liga o Auto-bola sozinho nas contas sem VIP, ao entrar no jogo (contas VIP não ligam sozinhas). Clique para alternar', 'autoNoVip', cp.autoNoVip);
     mk('Logs', 'Mostra/esconde os logs', 'logs');

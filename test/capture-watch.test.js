@@ -1,5 +1,5 @@
 // Vigia de captura e Auto-bola sem VIP. Duas partes:
-//  1. a lógica pura (createMonitor) com relógio falso: sem dados, com alvo, sem alvo, sem Ultra Balls, sons, VIP;
+//  1. a lógica pura (createMonitor) com relógio falso: sem dados, com alvo, sem alvo, sem Ultra/Beast Ball, bola comum, sons, VIP;
 //  2. o caminho real: um servidor WebSocket local (mesmo host da página, como o jogo), duas contas (uma VIP e uma não),
 //     o protocolo de rede do DevTools que o app usa para ler o socket, o aviso injetado na página e o Auto-bola.
 const { app, sleep, check, finish, waitFor } = require('./helpers');
@@ -58,7 +58,7 @@ function testaMonitor() {
   for (t = 0; t <= 200000; t += 1000) if (m.tick(t).acao === 'alerta') alertou = true;
   check(!alertou, 'sem alvo na lista (um selvagem só), não alerta');
 
-  // arremesso de outra bola não zera; Ultra Ball zera e some com o alerta
+  // arremesso de bola comum não zera; Ultra Ball zera e some com o alerta
   m = novo();
   t = 0;
   m.onSocketOpen();
@@ -74,8 +74,20 @@ function testaMonitor() {
   m.onFrame(bola(4)); // Ultra Ball
   const r = m.tick(t += 1000);
   check(r.acao === 'limpa' && !m.alertando(), 'arremesso de Ultra Ball some com o alerta');
+  // Beast Ball (5) também conta como captura
+  let t2 = 0;
+  const b = novo();
+  b.onSocketOpen();
+  b.onFrame(welcome(loja, { 5: 2 }));
+  for (t2 = 0; t2 <= 50000; t2 += 1000) {
+    if (t2 % 10000 === 0) b.onFrame(morte());
+    b.tick(t2);
+  }
+  check(b.alertando(), 'sem arremesso, conta só com Beast Ball alerta');
+  b.onFrame(bola(5));
+  check(b.tick(t2 += 1000).acao === 'limpa', 'arremesso de Beast Ball some com o alerta');
 
-  // sem Ultra Balls: nada a capturar com elas, não cobra
+  // sem Ultra nem Beast Ball: nada a capturar com elas, não cobra
   m = novo();
   t = 0;
   m.onSocketOpen();
@@ -85,7 +97,7 @@ function testaMonitor() {
     if (t % 10000 === 0) m.onFrame(morte());
     if (m.tick(t).acao === 'alerta') semBolas = true;
   }
-  check(!semBolas, 'sem Ultra Balls na conta, não alerta');
+  check(!semBolas, 'sem Ultra nem Beast Ball na conta, não alerta');
 
   // fechar o socket (reconexão) limpa o estado e devolve se havia alerta
   m = novo();

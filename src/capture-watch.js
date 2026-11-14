@@ -4,8 +4,9 @@
 // socket dele, pelo protocolo de rede do DevTools (Network.webSocketFrameReceived). O vigia é ligado antes de a
 // página carregar, então pega o `welcome` mesmo quando a conta entra sozinha ao abrir o app.
 //   - VIP: `loja.vip` do estado do jogador (o próprio jogo trava o auto-fila PvP VIP com esse campo).
-//   - Ultra Balls jogadas: eventos `bola` com ballId 4 (Ultra Ball) no lote `batalha`. O jogo não tem contador
-//     explícito; cada arremesso gera um evento, e o contador é a soma deles.
+//   - Capturas com bola contada: eventos `bola` com ballId de BOLAS_CONTADAS (Ultra Ball e Beast Ball) no lote
+//     `batalha`. O jogo não tem contador explícito; cada arremesso gera um evento, e o contador é a soma deles.
+//     Arremesso de outra bola não conta e não zera o prazo.
 //   - Alvo: evento `morte` de um selvagem (quem cai no chão pode ser capturado; some em ~30 s).
 //   - "Em jogo": `loja.visualOk` e pokémons na conta, o mesmo critério que o jogo usa para liberar o modo ULTRA.
 //
@@ -14,7 +15,9 @@
 const path = require('path');
 const { WebContentsView, shell } = require('electron');
 
-const ULTRA_BALL_ID = 4;
+// Bolas que contam como captura: Ultra Ball (4, id do catálogo de bolas: src/restock.js e a lista de bolas da página)
+// e Beast Ball (5, `BEAST_BALL_ID` no código público do jogo). As demais bolas não contam nem zeram o prazo.
+const BOLAS_CONTADAS = [4, 5];
 const MAX_DT_MS = 2000; // um intervalo longo sem tick (app suspenso) não vira tempo de captura parada
 const SOM_MIN_MS = 5000; // entre dois sons de contas diferentes (4 contas não empilham bipes)
 const BANNER_ID = 'pk-vigia-alerta';
@@ -23,16 +26,17 @@ function createMonitor({ limiteMs, alvoMs, repetirMs, now }) {
   let conn = false; // `welcome` recebido neste socket do jogo
   let campos = null; // `loja` e `balls` do estado do jogador
   let temPokemons = false;
-  let novosBolas = 0; // arremessos de Ultra Ball desde o último tick
+  let novosBolas = 0; // arremessos de bolas contadas desde o último tick
   let alvoEm = null; // último selvagem caído (null = nenhum ainda)
-  let acc = 0; // ms em que havia alvo e nenhum arremesso de Ultra Ball
+  let acc = 0; // ms em que havia alvo e nenhum arremesso de bola contada
   let ultimo = null;
   let antesElegivel = false;
   let alerta = false;
   let somEm = 0;
   let autoTentado = false;
 
-  const ultraBolas = () => Number(campos?.balls?.[ULTRA_BALL_ID]) || 0;
+  // quantas bolas contadas a conta tem (Ultra + Beast): sem nenhuma, não há o que cobrar
+  const bolasContadas = () => BOLAS_CONTADAS.reduce((soma, id) => soma + (Number(campos?.balls?.[id]) || 0), 0);
   const emJogo = () => conn && !!campos?.loja?.visualOk && temPokemons;
   const vip = () => (campos?.loja && 'vip' in campos.loja ? !!campos.loja.vip : null);
 
@@ -66,7 +70,7 @@ function createMonitor({ limiteMs, alvoMs, repetirMs, now }) {
     if (t === 'batalha') {
       for (const e of Array.isArray(m.ev) ? m.ev : []) {
         if (!e) continue;
-        if (e.k === 'bola' && Number(e.ballId) === ULTRA_BALL_ID) novosBolas++;
+        if (e.k === 'bola' && BOLAS_CONTADAS.includes(Number(e.ballId))) novosBolas++;
         else if (e.k === 'morte' && e.quem === 'selvagem' && !e.safari && e.slot != null) alvoEm = now();
       }
       return;
@@ -85,7 +89,7 @@ function createMonitor({ limiteMs, alvoMs, repetirMs, now }) {
   }
 
   function tick(t = now()) {
-    const elegivel = emJogo() && ultraBolas() > 0; // sem Ultra Balls ou fora do jogo: não há o que cobrar
+    const elegivel = emJogo() && bolasContadas() > 0; // sem Ultra/Beast Ball ou fora do jogo: não há o que cobrar
     const dt = elegivel && antesElegivel && ultimo != null ? Math.min(t - ultimo, MAX_DT_MS) : 0;
     ultimo = t;
     antesElegivel = elegivel;
@@ -127,7 +131,7 @@ function createMonitor({ limiteMs, alvoMs, repetirMs, now }) {
     marcaAuto() {
       autoTentado = true;
     },
-    estado: () => ({ conectado: conn, emJogo: emJogo(), ultraBolas: ultraBolas(), vip: vip(), alerta, acc }),
+    estado: () => ({ conectado: conn, emJogo: emJogo(), bolasContadas: bolasContadas(), vip: vip(), alerta, acc }),
   };
 }
 
@@ -347,7 +351,7 @@ function createCaptureWatch({
   function avisa(id, mon, r) {
     const s = Math.round(r.acc / 1000);
     if (r.inicio) {
-      sendLog({ acc: `conta${id}`, kind: 'load', level: 'warn', text: `vigia: não está capturando Ultra Balls há ${s} s` });
+      sendLog({ acc: `conta${id}`, kind: 'load', level: 'warn', text: `vigia: não está capturando com Ultra/Beast Ball há ${s} s` });
       notify({ kind: 'fail', title: `Conta ${id}: sem captura`, text: `não está capturando há ${s} s`, ms: 5000 });
     }
     if (r.soar) tocar();
