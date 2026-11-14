@@ -116,7 +116,10 @@ async function testeControlador() {
     janelas.push(w);
     return w;
   };
-  const ctl = T.createTopIdle({ getSlots: () => slots, notify: (n) => avisos.push(n), fetchImpl, getSession: sessao, makeWindow, now, timers: false });
+  const escolhas = [];
+  let escolha = 'window';
+  const chooseLogin = async (id) => { escolhas.push(id); return escolha; };
+  const ctl = T.createTopIdle({ getSlots: () => slots, notify: (n) => avisos.push(n), fetchImpl, getSession: sessao, makeWindow, chooseLogin, now, timers: false });
 
   check(ctl.info(1).kind === 'checking', 'antes da primeira conferência: "conferindo"');
   await waitFor(async () => {
@@ -132,8 +135,13 @@ async function testeControlador() {
 
   await ctl.open(1);
   check(janelas.length === 1 && janelas[0].url === `${BASE}/jogo/${GAME}?votar=1&playerIdentifier=fulano`, `abre a votação com o nick da conta (${janelas[0]?.url})`);
+  check(escolhas.length === 0, 'conta já logada abre a votação sem perguntar como entrar');
+  escolha = null;
   await ctl.open(3);
-  check(janelas[1]?.url === `${BASE}/jogo/${GAME}?votar=1`, 'sem nick salvo, abre a votação sem o personagem');
+  check(escolhas.join() === '3' && janelas.length === 1, 'conta sem login pergunta como entrar; cancelar não abre janela');
+  escolha = 'window';
+  await ctl.open(3);
+  check(escolhas.join() === '3,3' && janelas[1]?.url === `${BASE}/jogo/${GAME}?votar=1`, 'escolhendo a janela do app, abre a votação sem o personagem (sem nick salvo)');
   check(ctl.handleLink(2, `${BASE}/jogo/${GAME}?votar=1`) === true && ctl.handleLink(2, 'https://outro.com/') === false, 'link do votar dentro do jogo abre a janela de voto; outros sites não');
   await waitFor(() => janelas.length === 3, 2000);
   check(janelas.length === 3 && janelas[2].url.includes('/jogo/' + GAME), 'o link do jogo foi para a janela de voto da conta 2');
