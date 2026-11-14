@@ -67,7 +67,7 @@
     <div class="linha"><span class="rot">Repor abaixo de</span><input id="potionsBelow" type="number" min="0" max="10000000" step="1"></div>
     <div class="linha"><span class="rot">Manter até</span><input id="potionsKeep" type="number" min="0" max="10000000" step="1"></div>
     <div class="linha"><label><input id="potionsOn" type="checkbox"> repor poções</label></div>
-    <div class="dica">Poções são contadas juntas. "Melhor custo-benefício" escolhe a de menor ouro por HP curado no pokémon ativo (a Golden Potion fica de fora).</div>
+    <div class="dica">Poções são contadas juntas. "Melhor custo-benefício" escolhe a de menor ouro por HP curado no pokémon ativo (a Golden Potion cura 50% do HP máximo e entra na conta).</div>
   </fieldset>
 
   <fieldset>
@@ -88,7 +88,7 @@
   const FALLBACK_BALLS = [{ id: 1, name: 'Poke Ball' }, { id: 2, name: 'Great Ball' }, { id: 3, name: 'Super Ball' }, { id: 4, name: 'Ultra Ball' }];
   const POTIONS = [
     { id: 0, name: 'Melhor custo-benefício' }, { id: 200, name: 'Small Potion' }, { id: 201, name: 'Great Potion' },
-    { id: 202, name: 'Ultra Potion' }, { id: 203, name: 'Hyper Potion' }, { id: 204, name: 'Ultimate Potion' },
+    { id: 202, name: 'Ultra Potion' }, { id: 203, name: 'Hyper Potion' }, { id: 204, name: 'Ultimate Potion' }, { id: 70070, name: 'Golden Potion' },
   ];
   const fmt = (n) => Math.round(Number(n) || 0).toLocaleString('pt-BR');
   let ready = false;

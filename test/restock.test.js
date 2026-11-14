@@ -14,7 +14,7 @@ const ITENS = {
     { id: 200, name: 'Small Potion', category: 'heal', npcPrice: 50, healAmount: 60 },
     { id: 201, name: 'Great Potion', category: 'heal', npcPrice: 150, healAmount: 150 },
     { id: 204, name: 'Ultimate Potion', category: 'heal', npcPrice: 1500, healAmount: 3000 },
-    { id: 70070, name: 'Golden Potion', category: 'heal', npcPrice: 1, healAmount: 9999 },
+    { id: 70070, name: 'Golden Potion', category: 'heal', npcPrice: 2500, healPct: 0.5 },
     { id: 205, name: 'Revive', category: 'revive', npcPrice: 600, revivePct: 0.5 },
     { id: 206, name: 'Max Revive', category: 'revive', npcPrice: 2500, revivePct: 1 },
     { id: 300, name: 'Pedra Solar', category: 'stone', npcPrice: 10 },
@@ -148,7 +148,7 @@ app.whenReady().then(async () => {
     c = await compras();
     check(c[3].at - c[2].at >= 2300, `E: a pausa é respeitada (${c[3].at - c[2].at} ms; 2 s configurados)`);
 
-    // F: "melhor custo-benefício" escolhe a de menor ouro por HP curado; a Golden Potion fica de fora
+    // F: "melhor custo-benefício" escolhe a de menor ouro por HP curado; a Golden Potion entra na conta
     await nova({ gapMs: 300 });
     await configurar({ on: true, balls: { on: false }, revives: { on: false }, potions: { on: true, id: 0, below: 3, keep: 6 }, goldFloor: 1000000 });
     await emitir(welcome({ gold: 2000000 }));
@@ -156,7 +156,17 @@ app.whenReady().then(async () => {
     c = await compras();
     check(igual(c[0]?.msg, { t: 'shop.buy', kind: 'item', id: 200, qty: 6 }), `F: melhor custo-benefício é a Small Potion: ${JSON.stringify(c[0]?.msg)}`);
     const rf = await resumo();
-    check(rf.potionId === 200 && !rf.potions.some((p) => p.id === 70070), 'F: a Golden Potion nem entra na conta');
+    check(rf.potionId === 200 && rf.potions.some((p) => p.id === 70070), 'F: a Golden Potion entra na conta, mas a Small continua a de melhor custo-benefício');
+
+    // H: a Golden Potion (padrão da reposição) é comprada pelo id 70070, ao preço de 2.500
+    await nova({ gapMs: 300 });
+    await configurar({ on: true, balls: { on: false }, revives: { on: false }, potions: { on: true, id: 70070, below: 3, keep: 6 }, goldFloor: 1000000 });
+    await emitir(welcome({ gold: 2000000 }));
+    check(await waitFor(async () => (await compras()).length >= 1, 4000), 'H: primeiro pedido com a Golden Potion');
+    c = await compras();
+    check(igual(c[0]?.msg, { t: 'shop.buy', kind: 'item', id: 70070, qty: 6 }), `H: compra a Golden Potion pelo id 70070: ${JSON.stringify(c[0]?.msg)}`);
+    const rh = await resumo();
+    check(rh.potionId === 70070 && rh.potions.find((p) => p.id === 70070)?.price === 2500, 'H: resumo mostra a Golden Potion escolhida, a 2.500 de ouro');
 
     // G: desligada não compra
     await nova({ gapMs: 300 });
@@ -200,7 +210,7 @@ app.whenReady().then(async () => {
       check(salvo.on === true, 'janela: salvar não mexe no liga/desliga (é da barra)');
       check(salvo.balls.id === 1 && salvo.balls.below === 0 && salvo.balls.keep === 10, `janela: valores fora da faixa são corrigidos (bolas ${JSON.stringify(salvo.balls)})`);
       check(salvo.revives.keep === 5, `janela: "manter" nunca fica abaixo de "repor abaixo de" (${salvo.revives.keep})`);
-      check(salvo.potions.id === 9999 && salvo.goldFloor === 0, 'janela: id e ouro mínimo dentro da faixa');
+      check(salvo.potions.id === 99999 && salvo.goldFloor === 0, 'janela: id e ouro mínimo dentro da faixa');
       const lido = await ipcMain._invokeHandlers.get('rst:get')({ sender: jan.webContents });
       check(lido && lido.id === 1 && lido.cfg.on === true, 'janela: rst:get devolve a conta da janela');
       jan.close();

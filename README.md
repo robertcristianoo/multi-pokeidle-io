@@ -157,7 +157,7 @@ Quando o estoque de um item cai abaixo de **Repor abaixo de**, o app compra no M
 
 - **Pokébolas:** o tipo é escolhível (padrão: Ultra Ball).
 - **Revives:** contados juntos; compra sempre o mais barato.
-- **Poções:** contadas juntas. O padrão é a Ultimate Potion, mas dá para escolher a de **melhor custo-benefício** (menor ouro por HP efetivamente curado no pokémon ativo). A Golden Potion fica de fora.
+- **Poções:** contadas juntas. O padrão é a Golden Potion (2.500 de ouro, cura 50% do HP máximo), mas dá para escolher outra poção ou a de **melhor custo-benefício** (menor ouro por HP efetivamente curado no pokémon ativo).
 - **Ouro mínimo:** nunca compra a ponto de o ouro ficar abaixo desse valor. Se o ouro não alcança o item prioritário, a ordem é poções, depois revives, depois bolas: os de menor prioridade só são comprados quando o item prioritário está em dia.
 
 Limites de segurança fixos: no máximo 9.999 unidades por pedido; uma compra a cada 4 s por conta; se o jogo recusar um pedido, o app espera 30 s; depois de 3 falhas seguidas, pausa por 2 min. O pedido é o mesmo do botão **Comprar** do jogo.

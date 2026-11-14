@@ -21,7 +21,9 @@ function restockPage(opts) {
   const PAUSE_MS = o.pauseMs ?? 120000; // 3 falhas seguidas: pausa de 2 min
   const MAX_FAILS = 3;
   const MAX_STOCK = 10000000;
-  const GOLDEN_POTION = 70070; // cura por % do HP, com outra fórmula: fica de fora (nem conta, nem compra)
+  // Golden Potion: não vem no catálogo público de itens; preço e efeito conferidos no Market do jogo (2.500 ouro, cura 50% do HP máximo).
+  // Entra como reserva e é substituída pelos dados que o próprio jogo mandar (itensNossos ou catálogo), se existirem.
+  const GOLDEN_POTION = { id: 70070, name: 'Golden Potion', category: 'heal', npcPrice: 2500, healPct: 0.5 };
   const KEYS = ['gold', 'balls', 'items', 'automation', 'activeId', 'nick'];
   const WANTED = new Set(['welcome', 'estado', 'batalha', 'erro']);
   // Pausa, espera e falhas ficam no sessionStorage: um F5 na conta não zera os limites.
@@ -140,8 +142,8 @@ function restockPage(opts) {
   // As poções (heal) ou os revives que o NPC vende, do mais barato ao mais caro.
   function shop(categoria) {
     const itens = new Map();
-    for (const i of [...(mirror ?? []), ...ours]) {
-      if (i?.category !== categoria || !(i.npcPrice > 0) || i.id === GOLDEN_POTION) continue;
+    for (const i of [GOLDEN_POTION, ...(mirror ?? []), ...ours]) {
+      if (i?.category !== categoria || !(i.npcPrice > 0)) continue;
       itens.set(i.id, {
         id: i.id,
         name: i.name,
@@ -290,9 +292,9 @@ function restockPage(opts) {
     cfg = {
       on: !!c.on,
       goldFloor: clampInt(c.goldFloor, 1e12),
-      balls: { ...regra(c.balls), id: clampInt(c.balls?.id, 9999) },
+      balls: { ...regra(c.balls), id: clampInt(c.balls?.id, 99999) },
       revives: regra(c.revives),
-      potions: { ...regra(c.potions), id: clampInt(c.potions?.id, 9999) },
+      potions: { ...regra(c.potions), id: clampInt(c.potions?.id, 99999) },
     };
     for (const kind of Object.keys(filling)) if (!cfg[kind].on) filling[kind] = false;
     once.clear();
