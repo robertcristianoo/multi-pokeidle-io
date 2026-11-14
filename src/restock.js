@@ -9,10 +9,11 @@ const { app, BrowserWindow, ipcMain } = require('electron');
 const TICK_MS = 1000;
 const MAX_ACCOUNTS = 4;
 const MAX_STOCK = 10000000;
+const MAX_ID = 99999; // maior id de item aceito na configuração (a Golden Potion é 70070)
 const DEFAULTS = {
   balls: { id: 4, below: 5000, keep: 30000 }, // 4 = Ultra Ball
   revives: { below: 100, keep: 500 },
-  potions: { id: 204, below: 2000, keep: 5000 }, // 204 = Ultimate Potion; id 0 = melhor custo-benefício
+  potions: { id: 70070, below: 2000, keep: 5000 }, // 70070 = Golden Potion; 204 = Ultimate Potion; id 0 = melhor custo-benefício
   goldFloor: 1000000, // nunca compra a ponto de o ouro ficar abaixo disto
 };
 
@@ -29,9 +30,9 @@ function sanitize(raw) {
   };
   return {
     on: !!c.on,
-    balls: { ...estoque(c.balls, DEFAULTS.balls), id: int(c.balls?.id, 1, 9999, DEFAULTS.balls.id) },
+    balls: { ...estoque(c.balls, DEFAULTS.balls), id: int(c.balls?.id, 1, MAX_ID, DEFAULTS.balls.id) },
     revives: estoque(c.revives, DEFAULTS.revives),
-    potions: { ...estoque(c.potions, DEFAULTS.potions), id: int(c.potions?.id, 0, 9999, DEFAULTS.potions.id) },
+    potions: { ...estoque(c.potions, DEFAULTS.potions), id: int(c.potions?.id, 0, MAX_ID, DEFAULTS.potions.id) },
     goldFloor: int(c.goldFloor, 0, 1e12, DEFAULTS.goldFloor),
   };
 }
