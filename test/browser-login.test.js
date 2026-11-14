@@ -49,6 +49,7 @@ async function fluxo({ cookies, browserPath = 'C:\\x\\chrome.exe', fail = false 
     browserPath,
     spawnImpl: fakeSpawn(log),
     readPort: () => 'ws://127.0.0.1:1/x',
+    pickPort: async () => 41234,
     connect: async () => ({
       send: async (m) => {
         check(m === 'Storage.getCookies', 'pergunta só os cookies');
@@ -76,7 +77,7 @@ async function fluxo({ cookies, browserPath = 'C:\\x\\chrome.exe', fail = false 
   let { r, log } = await fluxo({ cookies });
   check(r.ok && r.count === 1, `grava só o cookie válido do TopIdle (${r.count})`);
   check(log.cookiesSet.length === 1 && log.cookiesSet[0].name === 'sid', 'o cookie do Google não é copiado');
-  check(log.spawn.args.includes('--remote-debugging-port=0') && log.spawn.args.includes('--user-data-dir=C:\\tmp\\perfil') && log.spawn.args.includes('--remote-debugging-address=127.0.0.1') && log.spawn.args.at(-1) === 'https://topidle.com/', 'navegador abre com perfil próprio, depuração só em 127.0.0.1 e a página do site');
+  check(log.spawn.args.includes('--remote-debugging-port=41234') && log.spawn.args.includes('--user-data-dir=C:\\tmp\\perfil') && log.spawn.args.includes('--remote-debugging-address=127.0.0.1') && log.spawn.args.at(-1) === 'https://topidle.com/', 'navegador abre com perfil próprio, depuração só em 127.0.0.1 e a página do site');
   check(log.removed.length === 1 && log.removed[0] === 'C:\\tmp\\perfil' && log.closed, 'perfil temporário apagado e conexão fechada');
 
   ({ r } = await fluxo({ cookies: [{ name: 'g', value: '1', domain: '.google.com', path: '/' }] }));

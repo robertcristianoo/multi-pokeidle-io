@@ -6,6 +6,7 @@
 // do site que você pediu e, ao fechar, grava esses cookies na sessão da conta. Nenhum outro site é copiado (o Google
 // e os demais cookies do navegador ficam de fora), e o perfil temporário é apagado ao final.
 const { spawn } = require('child_process');
+const net = require('net');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -84,8 +85,17 @@ function connectCdp(wsUrl, WS = WebSocket) {
   });
 }
 
-// O Chrome/Edge, iniciado com --remote-debugging-port=0, escolhe uma porta livre e a grava em <perfil>/DevToolsActivePort
-// (linha 1: porta; linha 2: caminho do WebSocket). Isso evita colisão de porta e não depende de adivinhar o endereço.
+// O navegador grava a porta de depuração e o caminho do WebSocket em <perfil>/DevToolsActivePort (linha 1: porta; linha 2: caminho).
+// A porta é uma porta livre sorteada pelo próprio sistema e passada explicitamente, sem adivinhar endereços.
+// Porta livre: abre um servidor na porta 0, vê qual o sistema deu e o fecha.
+function freePort() {
+  return new Promise((resolve, reject) => {
+    const srv = net.createServer();
+    srv.once('error', reject);
+    srv.listen(0, '127.0.0.1', () => { const { port } = srv.address(); srv.close(() => resolve(port)); });
+  });
+}
+
 function readActivePort(profile, readFile = (f) => fs.readFileSync(f, 'utf8')) {
   try {
     const [port, wsPath] = readFile(path.join(profile, 'DevToolsActivePort')).split(/\r?\n/);
@@ -94,10 +104,23 @@ function readActivePort(profile, readFile = (f) => fs.readFileSync(f, 'utf8')) {
   return null;
 }
 
-async function waitForWsUrl(profile, readPort, isExited, sleep, timeoutMs) {
+// Endereço do WebSocket de depuração: o navegador só grava o DevToolsActivePort quando a porta é 0; com porta explícita,
+// o caminho vem de http://127.0.0.1:<porta>/json/version. Tenta o arquivo e, na falta dele, o endereço HTTP.
+async function findWsUrl(profile, port, fetchImpl = (...a) => fetch(...a)) {
+  const fromFile = readActivePort(profile);
+  if (fromFile) return fromFile;
+  try {
+    const r = await fetchImpl(`http://127.0.0.1:${port}/json/version`);
+    const j = await r.json();
+    if (j.webSocketDebuggerUrl) return j.webSocketDebuggerUrl;
+  } catch { /* o navegador ainda está abrindo */ }
+  return null;
+}
+
+async function waitForWsUrl(profile, port, readPort, isExited, sleep, timeoutMs) {
   const t0 = Date.now();
   for (;;) {
-    const url = readPort(profile);
+    const url = await readPort(profile, port);
     if (url) return url;
     if (isExited()) throw new Error('o navegador fechou antes de iniciar (feche outras janelas dele e tente de novo)');
     if (Date.now() - t0 > timeoutMs) throw new Error('o navegador não respondeu a tempo');
@@ -113,7 +136,8 @@ async function loginViaBrowser({
   session,
   browserPath = findBrowser(),
   spawnImpl = spawn,
-  readPort = readActivePort,
+  readPort = findWsUrl,
+  pickPort = freePort,
   connect = connectCdp,
   mkTmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'pkmulti-login-')),
   rmTmp = (d) => fs.rmSync(d, { recursive: true, force: true }),
@@ -122,9 +146,10 @@ async function loginViaBrowser({
 }) {
   if (!browserPath) return { ok: false, count: 0, reason: 'Chrome ou Edge não encontrados' };
   const wanted = domains.map(hostOf);
+  const port = await pickPort();
   const profile = mkTmp();
   const child = spawnImpl(browserPath, [
-    '--remote-debugging-port=0',
+    `--remote-debugging-port=${port}`,
     '--remote-debugging-address=127.0.0.1',
     `--user-data-dir=${profile}`,
     '--no-first-run',
@@ -139,7 +164,7 @@ async function loginViaBrowser({
   let cdp = null;
   let snapshot = [];
   try {
-    const wsUrl = await waitForWsUrl(profile, readPort, () => exited, sleep, START_TIMEOUT_MS);
+    const wsUrl = await waitForWsUrl(profile, port, readPort, () => exited, sleep, START_TIMEOUT_MS);
     cdp = await connect(wsUrl);
     // Guarda o último conjunto de cookies visto: quando a janela fecha já não dá para perguntar ao navegador.
     while (!exited) {
