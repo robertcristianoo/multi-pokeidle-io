@@ -59,7 +59,7 @@ jobs:
               ? `Sem versão nova: ${plan.reason} (atual ${plan.current}).`
               : `Nova versão **${plan.tag}** (${plan.reason}, anterior ${plan.current}).`).write();
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: steps.plan.outputs.skip == 'false'
         with:
           node-version: 22 # o Electron 44 exige Node >= 22.12
