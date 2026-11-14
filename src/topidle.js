@@ -7,6 +7,7 @@
 // Assim, a janela de voto e a leitura de estado usam os mesmos cookies, e o `webRequest` dessa partição não
 // disputa o listener de logs das contas (o Electron aceita só um por evento e sessão).
 const { app, BrowserWindow, dialog, session, shell } = require('electron');
+const { loginViaBrowser } = require('./browser-login');
 
 const BASE = 'https://topidle.com';
 const TOPIDLE_HOSTS = ['topidle.com', 'www.topidle.com'];
@@ -142,16 +143,31 @@ function voteInfo(s, now) {
   return { kind: 'voted', label: '🗳 ✓ Votou', hint: 'Esta conta já votou. Conferindo no TopIdle quando libera o próximo voto…' };
 }
 
-// O login do Google não funciona em janelas de apps como este; o TopIdle também aceita Discord e e-mail.
+// O Google recusa login dentro de janelas de apps ("Esse navegador ou app pode não ser seguro"). Em vez da tela de erro,
+// oferece entrar pelo Chrome/Edge instalado e traz a sessão do TopIdle de volta para esta conta (src/browser-login.js).
 const isGoogleLogin = (url) => /^https:\/\/accounts\.google\.com(\/|$)/i.test(url);
-function warnGoogleLogin(win) {
-  dialog.showMessageBox(win, {
-    type: 'info',
-    title: 'Login com Google indisponível',
-    message: 'O Google não permite login dentro deste app.',
-    detail: 'Entre no TopIdle com Discord ou com e-mail e senha. O login fica salvo para esta conta.',
-    buttons: ['Entendi'],
-  }).catch(() => {});
+let loginBusy = false;
+async function offerBrowserLogin(win, partition) {
+  if (loginBusy) return;
+  loginBusy = true;
+  try {
+    const { response } = await dialog.showMessageBox(win, {
+      type: 'info',
+      title: 'Login com Google',
+      message: 'O Google não permite login dentro deste app.',
+      detail: 'Posso abrir o Chrome (ou o Edge) só para você entrar no TopIdle e trazer o login para esta conta. '
+        + 'Entre normalmente, depois feche a janela do navegador. Só os cookies do TopIdle são copiados.',
+      buttons: ['Entrar pelo navegador', 'Cancelar'],
+      defaultId: 0,
+      cancelId: 1,
+    });
+    if (response !== 0) return;
+    const r = await loginViaBrowser({ url: `${BASE}/`, domains: TOPIDLE_HOSTS, session: session.fromPartition(partition) });
+    if (r.ok) win.webContents.reload();
+    else dialog.showMessageBox(win, { type: 'warning', title: 'Login com Google', message: 'Não foi possível trazer o login.', detail: r.reason || 'Tente de novo, ou entre com Discord ou e-mail e senha.', buttons: ['Entendi'] }).catch(() => {});
+  } finally {
+    loginBusy = false;
+  }
 }
 
 const defaultSession = (id) => session.fromPartition(`persist:topidle${id}`);
@@ -169,14 +185,14 @@ function defaultWindow(id) {
   win.on('page-title-updated', (e) => e.preventDefault());
   win.webContents.setWindowOpenHandler(({ url }) => {
     // O Google recusa login dentro de apps embutidos ("Esse navegador ou app pode não ser seguro"): avisa em vez de mostrar o erro
-    if (isGoogleLogin(url)) { warnGoogleLogin(win); return { action: 'deny' }; }
+    if (isGoogleLogin(url)) { offerBrowserLogin(win, partition); return { action: 'deny' }; }
     // Login (Discord/Google) abre popup: fica na mesma partição, senão o login cairia no navegador do sistema
     if (/^https:/i.test(url)) return { action: 'allow', overrideBrowserWindowOptions: { autoHideMenuBar: true, webPreferences: { partition } } };
     if (/^mailto:/i.test(url)) shell.openExternal(url).catch(() => {});
     return { action: 'deny' };
   });
   win.webContents.on('will-navigate', (e, url) => {
-    if (isGoogleLogin(url)) { e.preventDefault(); warnGoogleLogin(win); }
+    if (isGoogleLogin(url)) { e.preventDefault(); offerBrowserLogin(win, partition); }
   });
   return win;
 }
