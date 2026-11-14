@@ -9,8 +9,10 @@ const path = require('path');
 const { BaseWindow, WebContentsView } = require('electron');
 const { createCaptureWatch, createMonitor } = require('../src/capture-watch');
 
-const welcome = (loja, balls = { 4: 5 }) => JSON.stringify({
-  t: 'welcome', estado: { cheio: true, loja, balls, pokemons: [{ id: 1, maxHp: 50 }] },
+// catálogo de bolas na ordem do jogo (welcome.catalogoBolas): o jogo arremessa com a primeira que a conta tem
+const CATALOGO = [{ id: 1, nome: 'Poké Ball' }, { id: 4, nome: 'Ultra Ball' }, { id: 5, nome: 'Beast Ball' }];
+const welcome = (loja, balls = { 4: 5 }, catalogo = CATALOGO) => JSON.stringify({
+  t: 'welcome', catalogoBolas: catalogo, estado: { cheio: true, loja, balls, pokemons: [{ id: 1, maxHp: 50 }] },
 });
 const morte = () => JSON.stringify({ t: 'batalha', ev: [{ k: 'morte', quem: 'selvagem', slot: 3, nome: 'X' }] });
 const bola = (ballId) => JSON.stringify({ t: 'batalha', ev: [{ k: 'bola', ballId, slot: 3, sucesso: false, chance: 0.1 }] });
@@ -121,6 +123,20 @@ function testaMonitor() {
   check(m.precisaAuto() && m.estado().vip === false, 'conta sem VIP: pede para ligar o Auto-bola');
   m.marcaAuto();
   check(!m.precisaAuto(), 'pede só uma vez por conexão');
+
+  // bola de arremesso:a primeira bola do catálogo que a conta tem (a mesma escolha do jogo), sem nenhuma, nada
+  m = novo();
+  m.onSocketOpen();
+  m.onFrame(welcome(loja, { 4: 0, 5: 2 }));
+  check(m.bolaArremesso()?.id === 5, 'bola de arremesso: sem Ultra Ball, a primeira que a conta tem (Beast Ball)');
+  m = novo();
+  m.onSocketOpen();
+  m.onFrame(welcome(loja, { 1: 3, 4: 1 }));
+  check(m.bolaArremesso()?.id === 1, 'bola de arremesso: a primeira do catálogo (Poké Ball), mesmo com Ultra Ball');
+  m = novo();
+  m.onSocketOpen();
+  m.onFrame(welcome(loja, {}));
+  check(m.bolaArremesso() === null, 'bola de arremesso: conta sem nenhuma bola, nenhuma escolhida');
 }
 
 // ---- 2. caminho real ----
@@ -273,8 +289,8 @@ async function testaCaminhoReal() {
   cw.toggleWatch();
   check(cw.state().watch === true, 'vigia religado pela alternância');
 
-  // abertura em modo economia: sem VIP, desliga a economia pelo interruptor do jogo, espera a lista, liga o Auto-bola
-  // e religa a economia; a escolha volta a ser a de antes (ligada)
+  // abertura em modo economia (sem VIP): a bola de arremesso vem do estado do jogo, o Auto-bola liga e a economia
+  // NÃO é mexida (nenhum clique no interruptor, a escolha salva continua a mesma)
   const v3 = novaConta(3);
   cw.attach(3, v3);
   v3.webContents.loadURL(`${srv.base}/?c=3&eco=1`);
@@ -287,17 +303,36 @@ async function testaCaminhoReal() {
   const ecoOn = (v) => v.webContents.executeJavaScript("document.documentElement.classList.contains('modo-economia')").catch(() => null);
   check((await ecoOn(v3)) === true, 'conta 3 abre em modo economia (jogo falso)');
   await v3.webContents.executeJavaScript('window.eventos = []');
+  // balls {4: 5}: o jogo arremessaria com a Ultra Ball (4)
+  const socket3 = srv.get('3');
   srv.send('3', welcome({ vip: false, visualOk: true }));
-  check(await waitFor(async () => (await eventos(v3)).length >= 4, 25000), 'economia na abertura: sequência completa');
-  check(JSON.stringify(await eventos(v3)) === '["economia:off","lista","auto","economia:on"]', `economia desligada, lista, Auto-bola, economia religada (${JSON.stringify(await eventos(v3))})`);
-  check((await ecoOn(v3)) === true && autoBall.on.has(3), 'no fim: economia ligada de novo e Auto-bola ligado');
+  check(await waitFor(() => autoBall.on.has(3), 8000), 'economia na abertura: liga o Auto-bola');
+  // a conta recarrega uma vez (o gancho do Auto-bola pega o socket novo); o jogo então manda o estado de novo
+  check(await waitFor(() => srv.get('3') && srv.get('3') !== socket3, 8000), 'economia na abertura: recarrega a conta uma vez');
+  srv.send('3', welcome({ vip: false, visualOk: true }));
+  check(await waitFor(async () => (await v3.webContents.executeJavaScript('window.__abBall')) === 4, 5000), 'economia na abertura: bola 4 passada à página pelo estado do jogo');
+  await sleep(500);
+  check((await eventos(v3)).every((e) => !String(e).startsWith('economia')), `economia: nenhum clique no interruptor (eventos: ${JSON.stringify(await eventos(v3))})`);
+  check((await ecoOn(v3)) === true, 'economia: continua ligada, como a conta abriu');
+  check(avisos.some((n) => n.title === 'Conta 3: Auto-bola ativo'), 'aviso do app: Auto-bola ativo na conta 3');
 
-  // abertura normal: só liga o Auto-bola, sem mexer na economia (quem não usa economia continua sem usar)
-  await v4.webContents.executeJavaScript('window.eventos = []');
+  // abertura normal: liga o Auto-bola (com a bola passada), sem mexer na economia (quem não usa economia continua sem usar)
+  const socket4 = srv.get('4');
   srv.send('4', welcome({ vip: false, visualOk: true }));
   check(await waitFor(() => autoBall.on.has(4), 8000), 'abertura normal: liga o Auto-bola');
-  await sleep(500);
-  check(JSON.stringify(await eventos(v4)) === '["auto"]' && (await ecoOn(v4)) === false, `abertura normal: não mexe na economia (${JSON.stringify(await eventos(v4))})`);
+  check(await waitFor(() => srv.get('4') && srv.get('4') !== socket4, 8000), 'abertura normal: recarrega a conta uma vez');
+  srv.send('4', welcome({ vip: false, visualOk: true }));
+  check(await waitFor(async () => (await v4.webContents.executeJavaScript('window.__abBall')) === 4, 5000), 'abertura normal: bola 4 passada à página');
+  check((await eventos(v4)).every((e) => !String(e).startsWith('economia')) && (await ecoOn(v4)) === false, 'abertura normal: não mexe na economia');
+
+  // sem nenhuma bola na conta: o Auto-bola não liga e o app avisa o motivo
+  const v5 = novaConta(5);
+  cw.attach(5, v5);
+  v5.webContents.loadURL(`${srv.base}/?c=5&eco=0`);
+  check(await waitFor(() => srv.has('5'), 8000), 'conta 5 abriu o socket do jogo');
+  srv.send('5', welcome({ vip: false, visualOk: true }, {}));
+  check(await waitFor(() => avisos.some((n) => n.title === 'Conta 5: Auto-bola não ligou'), 4000), 'sem bola: aviso do app com o motivo');
+  check(!autoBall.on.has(5), 'sem bola: o Auto-bola não é ligado');
 
   // o som sai de uma página própria, em áudio liberado pelo gesto (não depende do mudo das contas)
   const sv = new WebContentsView({ webPreferences: { backgroundThrottling: false } });

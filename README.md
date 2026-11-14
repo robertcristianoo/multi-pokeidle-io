@@ -169,7 +169,7 @@ Limites de segurança fixos: no máximo 9.999 unidades por pedido; uma compra a 
 Duas funções, ambas com botão na barra superior (e ligadas por padrão):
 
 - **Vigia**: se uma conta fica cerca de 45 s sem capturar com Ultra ou Beast Ball, havendo alvo na lista, mostra um aviso vermelho na tela dela e toca um som (o som sai mesmo com a conta silenciada). O aviso some quando ela volta a capturar; enquanto persistir, o som se repete a cada 60 s.
-- **Auto-bola s/ VIP**: nas contas sem VIP, liga o Auto-bola sozinho ao entrar no jogo. Contas VIP não ligam sozinhas. Se você desligar o Auto-bola de uma conta, o app não o religa até ser fechado. Se o jogo abre em modo economia, o app desliga a economia pelo próprio interruptor, liga o Auto-bola e religa a economia na escolha que estava.
+- **Auto-bola s/ VIP**: nas contas sem VIP, liga o Auto-bola sozinho ao entrar no jogo. Contas VIP não ligam sozinhas. Se você desligar o Auto-bola de uma conta, o app não o religa até ser fechado. A bola de arremesso é a mesma que o jogo usaria (a primeira que a conta tem), lida do estado do jogo; a economia não é alterada, e a conta recarrega uma vez para o Auto-bola acompanhar a conexão. Um aviso do app mostra se o Auto-bola ligou ou por que não ligou.
 
 Os dois só leem o que o próprio jogo já manda pelo socket (o estado VIP e os eventos de arremesso e de selvagem caído). Nada é enviado ao servidor.
 

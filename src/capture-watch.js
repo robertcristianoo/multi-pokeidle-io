@@ -7,6 +7,9 @@
 //   - Capturas com bola contada: eventos `bola` com ballId de BOLAS_CONTADAS (Ultra Ball e Beast Ball) no lote
 //     `batalha`. O jogo não tem contador explícito; cada arremesso gera um evento, e o contador é a soma deles.
 //     Arremesso de outra bola não conta e não zera o prazo.
+//   - Bola de arremesso: a mesma escolha que o jogo faz ao clicar num selvagem caído (`bolaEscolhida` no código
+//     público): a primeira bola do catálogo (`catalogoBolas` do welcome) que a conta tem. Com isso o Auto-bola
+//     já sabe a bola antes de qualquer arremesso, inclusive quando a conta abre em modo economia.
 //   - Alvo: evento `morte` de um selvagem (quem cai no chão pode ser capturado; some em ~30 s).
 //   - "Em jogo": `loja.visualOk` e pokémons na conta, o mesmo critério que o jogo usa para liberar o modo ULTRA.
 //
@@ -25,6 +28,7 @@ const BANNER_ID = 'pk-vigia-alerta';
 function createMonitor({ limiteMs, alvoMs, repetirMs, now }) {
   let conn = false; // `welcome` recebido neste socket do jogo
   let campos = null; // `loja` e `balls` do estado do jogador
+  let catalogo = []; // [{ id, nome }] das bolas do jogo, na ordem do catálogo (welcome)
   let temPokemons = false;
   let novosBolas = 0; // arremessos de bolas contadas desde o último tick
   let alvoEm = null; // último selvagem caído (null = nenhum ainda)
@@ -39,10 +43,13 @@ function createMonitor({ limiteMs, alvoMs, repetirMs, now }) {
   const bolasContadas = () => BOLAS_CONTADAS.reduce((soma, id) => soma + (Number(campos?.balls?.[id]) || 0), 0);
   const emJogo = () => conn && !!campos?.loja?.visualOk && temPokemons;
   const vip = () => (campos?.loja && 'vip' in campos.loja ? !!campos.loja.vip : null);
+  // mesma escolha do jogo para arremessar num selvagem caído: a primeira bola do catálogo que a conta tem
+  const bolaArremesso = () => catalogo.find((b) => (Number(campos?.balls?.[b.id]) || 0) > 0) ?? null;
 
   function zera() {
     conn = false;
     campos = null;
+    catalogo = [];
     temPokemons = false;
     novosBolas = 0;
     alvoEm = null;
@@ -74,6 +81,11 @@ function createMonitor({ limiteMs, alvoMs, repetirMs, now }) {
         else if (e.k === 'morte' && e.quem === 'selvagem' && !e.safari && e.slot != null) alvoEm = now();
       }
       return;
+    }
+    if (t === 'welcome' && Array.isArray(m.catalogoBolas)) {
+      catalogo = m.catalogoBolas
+        .filter((b) => b && Number.isFinite(Number(b.id)))
+        .map((b) => ({ id: Number(b.id), nome: String(b.nome ?? `bola ${b.id}`) }));
     }
     const e = m.estado;
     if (!e || typeof e !== 'object') return;
@@ -131,6 +143,7 @@ function createMonitor({ limiteMs, alvoMs, repetirMs, now }) {
     marcaAuto() {
       autoTentado = true;
     },
+    bolaArremesso,
     estado: () => ({ conectado: conn, emJogo: emJogo(), bolasContadas: bolasContadas(), vip: vip(), alerta, acc }),
   };
 }
@@ -153,30 +166,9 @@ const bannerScript = (on, texto) => `(() => {
   return 1;
 })()`;
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const ESPERA_JOGO_MS = 1500; // tempo para o jogo aplicar a economia salva ao entrar, antes de conferir
-const LISTA_MS = 15000; // tempo máximo para a lista de capturas aparecer
-
-// Trechos que rodam na página do jogo (executeJavaScript). Só usam os controles do próprio jogo, com limite de espera.
-const PAGE_ECO_LE = `document.documentElement.classList.contains('modo-economia')`;
-const PAGE_TEM_LISTA = `!!document.querySelector('#caidos-lista')`;
-const pageEcoSet = (want) => `(async () => {
-  const want = ${want};
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  const eco = () => document.documentElement.classList.contains('modo-economia');
-  if (eco() === want) return 'ok';
-  const cfg = document.querySelector('#btn-config');
-  if (!cfg) return 'sem-config';
-  cfg.click();
-  let sw = null;
-  for (let i = 0; i < 20 && !sw; i++) { await sleep(100); sw = document.querySelector('#cfg-economia'); }
-  if (!sw) return 'sem-interruptor';
-  sw.click();
-  for (let i = 0; i < 20 && eco() !== want; i++) await sleep(100);
-  await sleep(200);
-  if (document.querySelector('#cfg-economia')) document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }));
-  return eco() === want ? 'ok' : 'falhou';
-})()`;
+// Passa ao modo de arremesso da página a bola que o jogo usaria (o Auto-bola no modo economia lança com ela; a página
+// só aprende a bola de um arremesso ou de um evento, e na abertura não há nenhum). Não mexe na economia.
+const bolaScript = (id) => `(() => { window.__abBall = ${Number(id)}; return window.__abBall === ${Number(id)}; })()`;
 
 const vivo = (view) => {
   try {
@@ -205,7 +197,8 @@ function createCaptureWatch({
 }) {
   const monitors = new Map(); // id -> { mon, wc }
   const manual = new Set(); // contas em que o usuário desligou o Auto-bola nesta sessão do app
-  const emCurso = new Set(); // contas com a sequência de ligar o Auto-bola em andamento
+  const semeados = new Map(); // id -> bola já passada à página nesta conexão
+  const emCurso = new Set(); // contas com a ligação do Auto-bola em andamento
   let ultimoSom = 0;
   let somView = null;
   let somPronto = null;
@@ -249,43 +242,51 @@ function createCaptureWatch({
     return !!ab && !ab.isOn(id);
   }
 
-  // Sequência para o Auto-bola agir mesmo quando o jogo abre em modo economia (a lista de capturas só fica montada fora
-  // dela). Se a conta estava em economia: desliga pelo interruptor do próprio jogo, espera a lista, liga o Auto-bola e só
-  // então religa a economia, na escolha que estava. Conta que não usa economia: só liga o Auto-bola. Tudo com limite de tempo.
+  const log = (id, nivel, texto) => sendLog({ acc: `conta${id}`, kind: 'load', level: nivel, text: `auto-bola: ${texto}` });
+
+  // Ligação do Auto-bola em conta sem VIP. Passos (cada um vai para o log):
+  //   1. lê a bola de arremesso do estado do jogo (a que o jogo usaria);
+  //   2. passa essa bola à página (sem mexer na economia: a conta continua do jeito que abriu);
+  //   3. liga o Auto-bola. No fim, um aviso do app diz se ligou ou por que não ligou.
+  // Não há espera: o estado do jogo já chega completo no welcome, e nada aqui depende da lista de capturas.
   async function ligaAuto(id, mon, wc) {
     if (emCurso.has(id) || !precisaLigar(id, mon)) return;
     emCurso.add(id);
-    let eco0 = false;
     try {
-      await sleep(ESPERA_JOGO_MS); // o jogo aplica a economia salva logo ao entrar
-      eco0 = (await wc.executeJavaScript(PAGE_ECO_LE).catch(() => false)) === true;
-      if (eco0) await ecoSet(id, wc, false);
-      await esperaLista(wc, LISTA_MS);
-      if (precisaLigar(id, mon)) getAutoBall()?.setAuto(id, true, 'conta sem VIP');
+      const bola = mon.bolaArremesso();
+      if (!bola) return falha(id, 'a conta não tem nenhuma bola para arremessar');
+      log(id, 'info', `passo 1/3: bola de arremesso ${bola.id} (${bola.nome}) lida do estado do jogo`);
+      if (wc.isDestroyed()) return;
+      const passou = await semeia(id, wc, bola.id);
+      if (!passou) return falha(id, 'não consegui passar a bola à página do jogo');
+      log(id, 'info', 'passo 2/3: bola passada à página (economia não foi alterada)');
+      if (!precisaLigar(id, mon)) return;
+      getAutoBall().setAuto(id, true, `conta sem VIP, bola ${bola.id}`);
+      log(id, 'info', 'passo 3/3: Auto-bola ligado');
+      notify({ kind: 'ok', title: `Conta ${id}: Auto-bola ativo`, text: `arremessando com ${bola.nome}`, ms: 4000 });
+      // O gancho do Auto-bola na página só pega o socket do jogo se estiver instalado antes do `hello`. Conta que já
+      // estava conectada perdeu isso, então recarrega UMA vez: o Auto-bola (ainda ligado) instala o gancho cedo, e a nova
+      // conexão passa a ser a que ele acompanha. A economia não é tocada (a escolha fica salva no próprio jogo).
+      if (mon.estado().conectado && !wc.isDestroyed()) {
+        log(id, 'info', 'passo 4/4: recarregando a conta para o Auto-bola acompanhar o socket do jogo (uma vez)');
+        wc.reload();
+      }
+    } catch (err) {
+      falha(id, String(err?.message ?? err));
     } finally {
-      if (eco0 && !wc.isDestroyed()) await ecoSet(id, wc, true);
       emCurso.delete(id);
     }
   }
 
-  async function ecoSet(id, wc, want) {
-    for (let k = 0; k < 2; k++) {
-      if (wc.isDestroyed()) return false;
-      const r = await wc.executeJavaScript(pageEcoSet(want)).catch(() => 'erro');
-      if (r === 'ok') return true;
-    }
-    sendLog({ acc: `conta${id}`, kind: 'load', level: 'warn', text: `não consegui ${want ? 'ligar' : 'desligar'} a economia pelo jogo (vigia/auto-bola)` });
-    return false;
+  function falha(id, motivo) {
+    log(id, 'error', `não ligou: ${motivo}`);
+    notify({ kind: 'fail', title: `Conta ${id}: Auto-bola não ligou`, text: motivo, ms: 5000 });
   }
 
-  async function esperaLista(wc, ms) {
-    const t0 = Date.now();
-    while (Date.now() - t0 < ms) {
-      if (wc.isDestroyed()) return false;
-      if (await wc.executeJavaScript(PAGE_TEM_LISTA).catch(() => false)) return true;
-      await sleep(500);
-    }
-    return false;
+  async function semeia(id, wc, bola) {
+    const ok = (await wc.executeJavaScript(bolaScript(bola)).catch(() => false)) === true;
+    if (ok) semeados.set(id, bola);
+    return ok;
   }
 
   function onFrameAfter(id) {
@@ -322,6 +323,7 @@ function createCaptureWatch({
     const adota = (rid) => {
       if (reqId === rid || ignorados.has(rid)) return;
       reqId = rid;
+      semeados.delete(id); // conexão nova: a página pode ter recarregado e perdido a bola passada
       if (mon.onSocketOpen() && !wc.isDestroyed()) banner(wc, null);
     };
     dbg.on('message', (_e, method, params) => {
@@ -357,12 +359,21 @@ function createCaptureWatch({
     if (r.soar) tocar();
   }
 
+  // Com o Auto-bola ligado, mantém a bola de arremesso da página igual à do estado (muda quando a conta fica sem a bola)
+  function sincronizaBola(id, e, wc) {
+    const ab = getAutoBall();
+    if (!ab || !ab.isOn(id)) return;
+    const bola = e.mon.bolaArremesso();
+    if (bola && semeados.get(id) !== bola.id) semeia(id, wc, bola.id).then((ok) => ok || semeados.delete(id));
+  }
+
   function tickAll() {
     const ligado = watchOn();
     for (const slot of getSlots()) {
       const e = monitors.get(slot.id);
       const wc = vivo(slot.view);
       if (!e || !wc || wc.isLoading()) continue;
+      sincronizaBola(slot.id, e, wc);
       if (!ligado) {
         if (e.mon.alertando()) {
           e.mon.cancelaAlerta();
