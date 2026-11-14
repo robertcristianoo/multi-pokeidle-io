@@ -33,7 +33,7 @@ jobs:
 
       - name: Planejar a versão
         id: plan
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const { planRelease } = require('./tools/release-plan.js');
