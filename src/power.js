@@ -59,8 +59,10 @@ function createPower({ loadConfig, saveConfig, shortcut, setPower }) {
     view.setBackgroundColor('#15111a');
     view.webContents.loadFile(path.join(__dirname, 'ui', 'offline.html'), { query: { id: String(id) } });
     view.webContents.on('before-input-event', shortcut(id)); // os atalhos (Ctrl+1..4, F1...) valem também aqui
-    placeholders.set(view.webContents.id, id);
-    view.webContents.once('destroyed', () => placeholders.delete(view.webContents.id));
+    // o id é guardado antes: depois do destroyed, view.webContents já não existe
+    const wcId = view.webContents.id;
+    placeholders.set(wcId, id);
+    view.webContents.once('destroyed', () => placeholders.delete(wcId));
     return view;
   }
 
