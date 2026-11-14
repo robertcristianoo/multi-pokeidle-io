@@ -6,7 +6,7 @@
 // Login do TopIdle: fica numa partição própria por conta (`persist:topidle{id}`), separada da sessão do jogo.
 // Assim, a janela de voto e a leitura de estado usam os mesmos cookies, e o `webRequest` dessa partição não
 // disputa o listener de logs das contas (o Electron aceita só um por evento e sessão).
-const { app, BrowserWindow, session, shell } = require('electron');
+const { app, BrowserWindow, dialog, session, shell } = require('electron');
 
 const BASE = 'https://topidle.com';
 const TOPIDLE_HOSTS = ['topidle.com', 'www.topidle.com'];
@@ -142,6 +142,18 @@ function voteInfo(s, now) {
   return { kind: 'voted', label: '🗳 ✓ Votou', hint: 'Esta conta já votou. Conferindo no TopIdle quando libera o próximo voto…' };
 }
 
+// O login do Google não funciona em janelas de apps como este; o TopIdle também aceita Discord e e-mail.
+const isGoogleLogin = (url) => /^https:\/\/accounts\.google\.com(\/|$)/i.test(url);
+function warnGoogleLogin(win) {
+  dialog.showMessageBox(win, {
+    type: 'info',
+    title: 'Login com Google indisponível',
+    message: 'O Google não permite login dentro deste app.',
+    detail: 'Entre no TopIdle com Discord ou com e-mail e senha. O login fica salvo para esta conta.',
+    buttons: ['Entendi'],
+  }).catch(() => {});
+}
+
 const defaultSession = (id) => session.fromPartition(`persist:topidle${id}`);
 
 function defaultWindow(id) {
@@ -156,10 +168,15 @@ function defaultWindow(id) {
   // O site pode manter o título; o aviso de quem vota fica no título da janela
   win.on('page-title-updated', (e) => e.preventDefault());
   win.webContents.setWindowOpenHandler(({ url }) => {
+    // O Google recusa login dentro de apps embutidos ("Esse navegador ou app pode não ser seguro"): avisa em vez de mostrar o erro
+    if (isGoogleLogin(url)) { warnGoogleLogin(win); return { action: 'deny' }; }
     // Login (Discord/Google) abre popup: fica na mesma partição, senão o login cairia no navegador do sistema
     if (/^https:/i.test(url)) return { action: 'allow', overrideBrowserWindowOptions: { autoHideMenuBar: true, webPreferences: { partition } } };
     if (/^mailto:/i.test(url)) shell.openExternal(url).catch(() => {});
     return { action: 'deny' };
+  });
+  win.webContents.on('will-navigate', (e, url) => {
+    if (isGoogleLogin(url)) { e.preventDefault(); warnGoogleLogin(win); }
   });
   return win;
 }
