@@ -10,6 +10,7 @@ const { createUltra } = require('./ultra');
 const { createRamBar } = require('./ram');
 const { createPower } = require('./power');
 const { createCaptureWatch } = require('./capture-watch');
+const { createSettings } = require('./settings');
 const { app, BaseWindow, BrowserWindow, WebContentsView, dialog, ipcMain, nativeImage, screen, session, shell } = require('electron');
 const { createPoints } = require('./points');
 
@@ -195,6 +196,7 @@ let toastsCtl = null; // avisos no canto superior direito
 let updater = null; // aviso de versão nova (só em pacote de Release)
 let ultraCtl = null; // Modo ULTRA do jogo em todas as contas (ver src/ultra.js)
 let ramCtl = null; // barra de RAM no rodapé (src/ram.js)
+let settingsCtl = null; // modal de Configurações (src/settings.js)
 let captureCtl = null; // vigia de captura e Auto-bola sem VIP (src/capture-watch.js)
 let autoBallExt = null; // API do Auto-bola (extensão local), usada pelo vigia
 
@@ -601,10 +603,8 @@ function createWindow() {
         if (u?.kind === 'available') shell.openExternal(u.url); // página do Release: de lá se baixa o instalador
       },
       help: () => toggleHelp(),
-      reduceMotion: () => motion.toggle(),
+      settings: () => settingsCtl?.show(),
       ultra: () => ultraCtl?.toggle(),
-      vigia: () => captureCtl?.toggleWatch(),
-      autoNoVip: () => captureCtl?.toggleAutoNoVip(),
       zoomIn: (id) => setSlotZoom(id, slotZoom(id) + ZOOM_STEP),
       zoomOut: (id) => setSlotZoom(id, slotZoom(id) - ZOOM_STEP),
       zoomReset: (id) => setSlotZoom(id, ZOOM_DEFAULTS[viewMode()]),
@@ -628,6 +628,16 @@ function createWindow() {
     notify: (n) => toastsCtl?.show(n),
     store: { get: () => loadConfig().captureWatch !== false, set: (on) => saveConfig({ captureWatch: on }) },
     storeAuto: { get: () => loadConfig().autoBallNoVip !== false, set: (on) => saveConfig({ autoBallNoVip: on }) },
+  });
+  settingsCtl = createSettings({
+    mainWin,
+    getState: () => ({ reduceMotion: motion.isOn(), ...(captureCtl?.state() ?? { watch: true, autoNoVip: true }) }),
+    toggles: {
+      reduceMotion: () => motion.toggle(),
+      vigia: () => captureCtl?.toggleWatch(),
+      autoNoVip: () => captureCtl?.toggleAutoNoVip(),
+    },
+    open: { redeemConfig: () => pointsCtl?.showConfig(), redeemLog: () => pointsCtl?.showLog() },
   });
   for (const id of loadOrder(loadAccountCount())) createSlot(id);
   const lastFocus = slots.findIndex((x) => x.id === loadConfig().focusedId); // volta ao quadrante que estava em foco
