@@ -178,14 +178,15 @@
 
 /* [multi-pokeidle-io] atalho "espada ?" sobre a arte dos cards e painel aberto por ele */
 .pih-atalho {
-  position: absolute; bottom: 4px; left: 4px; z-index: 5; display: inline-flex; align-items: center; gap: 2px;
+  position: absolute; top: 50%; left: 4px; transform: translateY(-50%); z-index: 5; display: inline-flex; align-items: center; gap: 2px;
   padding: 3px 8px; border-radius: 12px; border: 1px solid #ffffff77; background: #1b1220e6; color: #ffe27a;
   font: 800 15px/1 "Segoe UI", sans-serif; cursor: pointer; opacity: .9; box-shadow: 0 1px 4px #0008;
 }
-.pih-atalho:hover { opacity: 1; background: #3a2f44; transform: scale(1.08); }
+.pih-atalho:hover { opacity: 1; background: #3a2f44; transform: translateY(-50%) scale(1.08); }
 .pih-atalho svg { width: 18px; height: 18px; }
 .pih-atalho b { font-weight: 800; }
 .pih-painel.pih-manual { z-index: 2147483000; }
 
-.pih-atalho.pih-mini { bottom: auto; top: 2px; left: 2px; padding: 1px 5px; font-size: 11px; gap: 1px; }
+.pih-atalho.pih-mini { top: 2px; left: 2px; transform: none; padding: 1px 5px; font-size: 11px; gap: 1px; }
 .pih-atalho.pih-mini svg { width: 12px; height: 12px; }
+.pih-atalho.pih-mini:hover { transform: scale(1.08); }
