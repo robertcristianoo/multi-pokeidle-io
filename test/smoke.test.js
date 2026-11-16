@@ -1,7 +1,7 @@
 // Sobe o app de verdade (janela escondida, dados isolados) e confere a janela: barra do app, uma barra por
 // conta colada no topo do jogo dela, nada sobreposto, botões das extensões e liga/desliga por conta.
 const { app, sleep, check, finish, waitFor } = require('./helpers');
-const { BaseWindow } = require('electron');
+const { BaseWindow, BrowserWindow } = require('electron');
 const { BAR_H } = require('../src/ram');
 
 require('../src/main.js');
@@ -70,16 +70,16 @@ app.whenReady().then(async () => {
     }
     check(!win.contentView.children.some((v) => /lives.html/.test(v.webContents?.getURL() ?? '')), 'sem view flutuante de lives');
 
-    // sem selo na página do jogo (auto-captura) e sniper ligado sem regras avisa na barra
+    // sem selo na página do jogo (auto-captura); o botão Sniper abre o cockpit da extensão na sessão da conta
     if (slotBars[0]) {
       const find = (name) => `[...document.querySelectorAll("button")].find(b => b.textContent.startsWith(${JSON.stringify(name)}))`;
-      const sn = featureBtns.includes('Sniper');
-      if (sn) {
+      if (featureBtns.includes('Sniper')) {
+        const cockpit = () => BrowserWindow.getAllWindows().find((w) => /cockpit\.html/.test(w.webContents.getURL()));
         await slotBars[0].webContents.executeJavaScript(find('Sniper') + '.click()');
-        const ok = await waitFor(async () => /sem regras/.test(await slotBars[0].webContents.executeJavaScript(find('Sniper') + '.textContent')), 4000);
-        check(ok, 'Sniper ligado sem regras mostra "⚠ sem regras" no botão');
-        await slotBars[0].webContents.executeJavaScript(find('Sniper') + '.click()');
-        await waitFor(async () => (await slotBars[0].webContents.executeJavaScript(find('Sniper') + '.textContent')) === 'Sniper', 4000);
+        const ok = await waitFor(() => !!cockpit(), 6000);
+        check(ok, 'Sniper abre o cockpit da extensão');
+        cockpit()?.close();
+        await waitFor(() => !cockpit(), 3000);
       }
     }
 
