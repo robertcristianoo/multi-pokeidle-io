@@ -16,7 +16,7 @@ function createSettings({ mainWin, getState, toggles, open, extensions }) {
     if (win && !win.isDestroyed()) { win.focus(); return; }
     win = new BrowserWindow({
       width: 520,
-      height: Math.min(780, screen.getPrimaryDisplay().workAreaSize.height - 80), // cabe em telas baixas (a página rola)
+      height: Math.min(860, screen.getPrimaryDisplay().workAreaSize.height - 80), // cabe em telas baixas (a página rola)
       useContentSize: true,
       resizable: false,
       parent: mainWin,
