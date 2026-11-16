@@ -107,6 +107,14 @@ O botão **⏻** da barra de cada conta liga ou desliga só aquela conta:
 
 `npm test` roda a checagem de sintaxe e os testes do Electron (`test/`), com a janela escondida e uma pasta de dados temporária (nunca toca nas suas sessões). Ele roda sozinho antes de `npm run dist` e `npm run dist:release`, e a compilação é bloqueada se algo falhar.
 
+## Extensões do Chromium
+
+O app carrega, em cada conta, duas extensões da Chrome Web Store (a pasta `extensions/`): o **Rotom Sniper**
+(compra anúncios do mercado dentro das regras; o botão **Sniper** da conta, ou Ctrl+Alt+S, abre o cockpit dela) e o
+**/hunt for PokeIdle** (mostra acima do pokémon em campo onde caçar, por XP/h e ouro/h). Ambas só atuam em
+`pokeidle.io`. Cada uma pode ser ligada ou desligada **por conta** em **⚙ Configurações › Extensões por conta**
+(tudo ligado de fábrica); a página da conta recarrega para a mudança valer. As regras do sniper também são por conta.
+
 ## Lives de bônus (Twitch e Kick)
 
 O jogo dá XP extra a quem assiste lives dos canais parceiros. O botão **Lives** da barra superior (ou `Ctrl+T`), abre no navegador padrão, com um clique:

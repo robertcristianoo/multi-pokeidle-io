@@ -20,7 +20,7 @@
   "build": {
     "appId": "com.pokeidle.multi",
     "files": ["**/*", "!dist-release/**", "!test/**", "!err.txt"],
-    "asarUnpack": ["local/rotom-sniper/**", "local/hunt-for-pokeidle/**"],
+    "asarUnpack": ["extensions/**"],
     "win": {
       "target": ["portable", "nsis"],
       "icon": "assets/icon.ico"

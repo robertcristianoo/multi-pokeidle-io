@@ -11,6 +11,7 @@ const { createRamBar } = require('./ram');
 const { createPower } = require('./power');
 const { createCaptureWatch } = require('./capture-watch');
 const { createSettings } = require('./settings');
+const { createChromeExt } = require('./chrome-ext');
 const { app, BaseWindow, BrowserWindow, WebContentsView, dialog, ipcMain, nativeImage, screen, session, shell } = require('electron');
 const { createPoints } = require('./points');
 
@@ -196,6 +197,7 @@ let toastsCtl = null; // avisos no canto superior direito
 let updater = null; // aviso de versão nova (só em pacote de Release)
 let ultraCtl = null; // Modo ULTRA do jogo em todas as contas (ver src/ultra.js)
 let ramCtl = null; // barra de RAM no rodapé (src/ram.js)
+let chromeExt = null; // extensões do Chromium por conta (src/chrome-ext.js)
 let settingsCtl = null; // modal de Configurações (src/settings.js)
 let captureCtl = null; // vigia de captura e Auto-bola sem VIP (src/capture-watch.js)
 let autoBallExt = null; // API do Auto-bola (extensão local), usada pelo vigia
@@ -344,15 +346,22 @@ async function resetAccount(index) {
 // `features()` devolve [{ id, label, title, isOn(contaId), set(contaId, on), settings?() }]: viram botões
 // liga/desliga na barra de cada conta (ver toolbar.js).
 // `onSlotCreated(id, view)` roda antes de a conta carregar a página (dá para registrar preloads).
-const LOCAL_EXTENSIONS = ['../local/autoball.js', '../local/sniper.js', '../local/hunt.js', '../local/autocatch.js', '../local/autopvp.js'];
+const LOCAL_EXTENSIONS = ['../local/autoball.js', '../local/sniper.js', '../local/autocatch.js', '../local/autopvp.js'];
 const exts = [];
 function loadExtensions() {
+  chromeExt = createChromeExt({
+    maxAccounts: MAX_ACCOUNTS,
+    config: { get: () => loadConfig().chromeExtOff, set: (v) => saveConfig({ chromeExtOff: v }) },
+    getSlots: () => liveSlots(),
+    sendLog,
+  });
   for (const file of LOCAL_EXTENSIONS) {
     try {
       const ext = require(file)({
         getSlots: () => liveSlots(),
         sendLog,
         notify: (n) => toastsCtl?.show(n),
+        chromeExt,
         onUserToggle: (id, on) => captureCtl?.autoBallToggled(id, on), // escolha manual do Auto-bola (o vigia não o religa à força)
       });
       if (file === '../local/autoball.js') autoBallExt = ext;
@@ -631,12 +640,13 @@ function createWindow() {
   });
   settingsCtl = createSettings({
     mainWin,
-    getState: () => ({ reduceMotion: motion.isOn(), ...(captureCtl?.state() ?? { watch: true, autoNoVip: true }) }),
+    getState: () => ({ extensions: chromeExt.state(), reduceMotion: motion.isOn(), ...(captureCtl?.state() ?? { watch: true, autoNoVip: true }) }),
     toggles: {
       reduceMotion: () => motion.toggle(),
       vigia: () => captureCtl?.toggleWatch(),
       autoNoVip: () => captureCtl?.toggleAutoNoVip(),
     },
+    extensions: { state: () => chromeExt.state(), set: (ext, acc, on) => chromeExt.setEnabled(ext, acc, on) },
     open: { redeemConfig: () => pointsCtl?.showConfig(), redeemLog: () => pointsCtl?.showLog() },
   });
   for (const id of loadOrder(loadAccountCount())) createSlot(id);
@@ -686,7 +696,7 @@ function createWindow() {
 app.whenReady().then(async () => {
   loadExtensions();
   // extensões que precisam estar prontas antes de as contas abrirem o jogo (ex.: as que carregam extensão do Chromium)
-  await Promise.all(exts.map((x) => x.ready?.()));
+  await Promise.all([chromeExt.ready(), ...exts.map((x) => x.ready?.())]);
   createWindow();
   app.on('activate', () => {
     if (BaseWindow.getAllWindows().length === 0) createWindow();
