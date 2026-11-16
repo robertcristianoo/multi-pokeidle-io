@@ -1,36 +1,23 @@
-// Sniper do mercado: carrega a extensão "Rotom Sniper - Assistente PokéIdle" (pasta local/rotom-sniper,
-// versão da Chrome Web Store) dentro de cada conta. Cada conta tem a própria sessão, então a extensão é
-// carregada uma vez por partição `persist:contaN`, ANTES de o jogo abrir (os content scripts só entram
-// em páginas carregadas depois). O motor de compra roda na página do jogo; as regras e o liga/desliga
-// ficam no "cockpit" da extensão, que abre em janela própria por conta (botão Sniper ou Ctrl+Alt+S).
-const path = require('path');
+// Sniper do mercado: botão da barra de cada conta e atalho (Ctrl+Alt+S) que abrem o "cockpit" da extensão
+// Rotom Sniper (regras, radar de Shiny/P5 e liga/desliga do sniper) em janela própria, na sessão da conta.
+// A extensão em si é carregada por conta em src/chrome-ext.js, onde também se liga/desliga por conta
+// (Configurações › Extensões por conta).
 const { BrowserWindow, session } = require('electron');
 
-const MAX_ACCOUNTS = 4;
-// dentro do app empacotado a pasta fica fora do asar (ver asarUnpack no package.json)
-const EXT_DIR = path.join(__dirname, 'rotom-sniper').replace('app.asar', 'app.asar.unpacked');
-
-module.exports = function init({ getSlots, sendLog }) {
-  const extIds = new Map(); // contaId -> id da extensão naquela sessão
+module.exports = function init({ getSlots, notify, chromeExt }) {
   const cockpits = new Map(); // contaId -> janela do cockpit
 
-  async function loadInto(id) {
-    const ses = session.fromPartition(`persist:conta${id}`);
-    const api = ses.extensions ?? ses; // API atual: session.extensions
-    try {
-      const ext = await api.loadExtension(EXT_DIR);
-      extIds.set(id, ext.id);
-    } catch (err) {
-      console.error(`sniper: não consegui carregar a extensão na conta ${id}:`, err);
-      sendLog?.({ acc: `conta${id}`, kind: 'load', level: 'error', text: `[sniper] falha ao carregar a extensão: ${err.message}` });
-    }
-  }
+  // desligar a extensão numa conta fecha o cockpit dela
+  chromeExt.onChange((ext, id, on) => { if (ext === 'rotom' && !on) cockpits.get(id)?.close(); });
 
   function openCockpit(id) {
     const cur = cockpits.get(id);
     if (cur && !cur.isDestroyed()) { cur.show(); cur.focus(); return; }
-    const extId = extIds.get(id);
-    if (!extId) return;
+    const extId = chromeExt.idOf('rotom', id);
+    if (!extId) {
+      notify?.({ kind: 'fail', title: `Sniper desligado na conta ${id}`, text: 'Ligue em Configurações › Extensões por conta', ms: 4000 });
+      return;
+    }
     const win = new BrowserWindow({
       width: 1160,
       height: 760,
@@ -47,13 +34,13 @@ module.exports = function init({ getSlots, sendLog }) {
   const firstLiveId = () => getSlots()[0]?.id;
 
   return {
-    // o main espera isto antes de criar as contas
-    ready: () => Promise.all(Array.from({ length: MAX_ACCOUNTS }, (_v, i) => loadInto(i + 1))),
     features: () => [{
       id: 'sniper',
       label: 'Sniper',
       title: 'Abre o cockpit do Rotom Sniper desta conta (regras, radar de Shiny/P5 e liga/desliga do sniper)',
       isOn: (id) => !!cockpits.get(id) && !cockpits.get(id).isDestroyed(),
+      hint: (id) => (chromeExt.isEnabled('rotom', id) ? '' : 'Extensão desligada nesta conta (Configurações › Extensões por conta)'),
+      badge: (id) => (chromeExt.isEnabled('rotom', id) ? '' : 'off'),
       set: (id, v) => {
         if (v) openCockpit(id);
         else cockpits.get(id)?.close();

@@ -1,7 +1,7 @@
 // Sobe o app de verdade (janela escondida, dados isolados) e confere a janela: barra do app, uma barra por
 // conta colada no topo do jogo dela, nada sobreposto, botões das extensões e liga/desliga por conta.
 const { app, sleep, check, finish, waitFor } = require('./helpers');
-const { BaseWindow, BrowserWindow } = require('electron');
+const { BaseWindow, BrowserWindow, session } = require('electron');
 const { BAR_H } = require('../src/ram');
 
 require('../src/main.js');
@@ -97,6 +97,29 @@ app.whenReady().then(async () => {
         check(ok, 'Sniper abre o cockpit da extensão');
         cockpit()?.close();
         await waitFor(() => !cockpit(), 3000);
+      }
+    }
+
+    // as extensões do Chromium (Rotom Sniper e /hunt) ficam carregadas na sessão de cada conta, antes de o jogo abrir
+    {
+      const nomes = (n) => session.fromPartition(`persist:conta${n}`).extensions.getAllExtensions().map((x) => x.name);
+      for (const n of [1, 2]) check(nomes(n).some((x) => /hunt for PokeIdle/.test(x)), `/hunt for PokeIdle carregada na conta ${n}`);
+      for (const n of [1, 2]) check(nomes(n).some((x) => /Rotom Sniper/.test(x)), `Rotom Sniper carregada na conta ${n}`);
+      // liga/desliga por conta, pelo modal: desligar na conta 1 não mexe na conta 2 e volta a ligar depois
+      const modalExt = () => BrowserWindow.getAllWindows().find((w) => /settings\.html/.test(w.webContents.getURL()));
+      if (appBar) {
+        await appBar.webContents.executeJavaScript('[...document.querySelectorAll("button")].find(b => b.textContent.includes("Configurações")).click()');
+        await waitFor(async () => !!(await modalExt()?.webContents.executeJavaScript('document.querySelector("button[data-ext=hunt][data-acc=\\"1\\"]")').catch(() => null)), 5000);
+        const clica = (acc) => modalExt()?.webContents.executeJavaScript(`document.querySelector('button[data-ext="hunt"][data-acc="${acc}"]').click()`);
+        await clica(1);
+        check(await waitFor(() => !nomes(1).some((x) => /hunt for PokeIdle/.test(x)), 5000), '/hunt desligada na conta 1 sai da sessão dela');
+        check(nomes(2).some((x) => /hunt for PokeIdle/.test(x)), '/hunt continua ligada na conta 2');
+        const rotulo = () => modalExt()?.webContents.executeJavaScript(`document.querySelector('button[data-ext="hunt"][data-acc="1"]').textContent`).catch(() => '');
+        await waitFor(async () => (await rotulo()) === 'Off', 5000);
+        await clica(1);
+        check(await waitFor(() => nomes(1).some((x) => /hunt for PokeIdle/.test(x)), 5000), '/hunt ligada de novo na conta 1');
+        modalExt()?.close();
+        await waitFor(() => !modalExt(), 3000);
       }
     }
 

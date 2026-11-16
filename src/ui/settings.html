@@ -15,6 +15,13 @@
   button { border: 1px solid #ffffff22; background: #2a2030; color: #cfc6d6; border-radius: 6px; padding: 4px 12px; font: inherit; font-weight: 600; cursor: pointer; white-space: nowrap; min-width: 92px; }
   button:hover { background: #3a2f44; }
   button.on { background: #1b8f3a; border-color: #2fd160; color: #fff; }
+  table.ext { width: 100%; border-collapse: separate; border-spacing: 4px 0; }
+  table.ext th { color: #a99bb8; font-weight: 600; font-size: 12px; text-align: center; padding: 4px 0; }
+  table.ext td { padding: 8px 0; border-bottom: 1px solid #2a2030; text-align: center; vertical-align: middle; }
+  table.ext td.nome { text-align: left; }
+  table.ext td.nome b { display: block; font-weight: 600; }
+  table.ext td.nome span { color: #a99bb8; font-size: 12px; line-height: 1.4; }
+  table.ext button { min-width: 56px; padding: 3px 6px; }
   .acts { display: flex; justify-content: flex-end; margin-top: 18px; }
   .acts button { background: #2f6fed; border-color: #6c9bff; color: #fff; }
 </style>
@@ -48,16 +55,48 @@
   <button data-open="redeemLog">Abrir…</button>
 </div>
 
+<h2>Extensões por conta</h2>
+<p class="ajuda" style="color:#a99bb8;font-size:12px;margin:0 0 6px">Liga ou desliga cada extensão em cada conta. Ao mudar, a página daquela conta recarrega para a extensão entrar (ou sair).</p>
+<table class="ext" id="ext"></table>
+
 <div class="acts"><button id="close">Fechar</button></div>
 <script>
   const FLAGS = { reduceMotion: (s) => s.reduceMotion, vigia: (s) => s.watch, autoNoVip: (s) => s.autoNoVip };
   function paint(s) {
     if (!s) return;
+    paintExt(s.extensions);
     for (const [id, get] of Object.entries(FLAGS)) {
       const b = document.getElementById(id);
       const on = !!get(s);
       b.textContent = on ? 'Ligado' : 'Desligado';
       b.classList.toggle('on', on);
+    }
+  }
+  function paintExt(ex) {
+    const t = document.getElementById('ext');
+    if (!ex) return;
+    t.textContent = '';
+    const head = t.insertRow();
+    head.insertCell().outerHTML = '<th></th>';
+    for (let a = 1; a <= ex.max; a++) head.insertCell().outerHTML = `<th>Conta ${a}</th>`;
+    for (const it of ex.items) {
+      const tr = t.insertRow();
+      const c = tr.insertCell();
+      c.className = 'nome';
+      const b = document.createElement('b'); b.textContent = it.name;
+      const sp = document.createElement('span'); sp.textContent = it.desc;
+      c.append(b, sp);
+      for (let a = 1; a <= ex.max; a++) {
+        const on = !!it.accounts[a];
+        const btn = document.createElement('button');
+        btn.textContent = on ? 'Ligada' : 'Off';
+        btn.classList.toggle('on', on);
+        btn.dataset.ext = it.id;
+        btn.dataset.acc = String(a);
+        btn.title = `${it.name} na conta ${a}: ${on ? 'ligada' : 'desligada'} — clique para alternar`;
+        btn.onclick = async () => { btn.disabled = true; paint(await cfg.ext(it.id, a, !on)); };
+        tr.insertCell().append(btn);
+      }
     }
   }
   document.querySelectorAll('[data-toggle]').forEach((b) => { b.onclick = async () => paint(await cfg.toggle(b.dataset.toggle)); });
