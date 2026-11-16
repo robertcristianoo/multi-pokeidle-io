@@ -12,6 +12,7 @@ const { createPower } = require('./power');
 const { createCaptureWatch } = require('./capture-watch');
 const { createSettings } = require('./settings');
 const { createChromeExt } = require('./chrome-ext');
+const { createGamePatch } = require('./game-patch');
 const { app, BaseWindow, BrowserWindow, WebContentsView, dialog, ipcMain, nativeImage, screen, session, shell } = require('electron');
 const { createPoints } = require('./points');
 
@@ -197,6 +198,7 @@ let toastsCtl = null; // avisos no canto superior direito
 let updater = null; // aviso de versão nova (só em pacote de Release)
 let ultraCtl = null; // Modo ULTRA do jogo em todas as contas (ver src/ultra.js)
 let ramCtl = null; // barra de RAM no rodapé (src/ram.js)
+let gamePatch = null; // marca a arte dos pokémon para o atalho da /hunt (src/game-patch.js)
 let chromeExt = null; // extensões do Chromium por conta (src/chrome-ext.js)
 let settingsCtl = null; // modal de Configurações (src/settings.js)
 let captureCtl = null; // vigia de captura e Auto-bola sem VIP (src/capture-watch.js)
@@ -355,6 +357,7 @@ function loadExtensions() {
     getSlots: () => liveSlots(),
     sendLog,
   });
+  gamePatch = createGamePatch({ isWanted: (id) => chromeExt.isEnabled('hunt', id), sendLog });
   for (const file of LOCAL_EXTENSIONS) {
     try {
       const ext = require(file)({
@@ -467,6 +470,7 @@ function buildGameView(id) {
     return { action: 'deny' };
   });
   attachLogging(id, view);
+  gamePatch?.attach(id, view); // antes de carregar: serve o app.js do jogo com a marcação da arte
   ultraCtl?.attach(id, view);
   captureCtl?.attach(id, view); // antes de carregar: pega o `welcome` do jogo (estado VIP e contagem de captura)
   // o zoom é reaplicado a cada carga (a navegação pode zerá-lo)

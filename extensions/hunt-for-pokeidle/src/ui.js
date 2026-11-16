@@ -51,7 +51,9 @@
   const pctPequeno = (p) => `${(p * 100).toLocaleString('pt-BR', { maximumSignificantDigits: 3 })}%`;
   const poucos = (v) => v.toLocaleString('pt-BR', { maximumSignificantDigits: 2 });
 
-  const pkAtivo = () => eu?.pokemons?.find((p) => p.id === eu.activeId) ?? null;
+  // [multi-pokeidle-io] pkManual: pokémon escolhido pelo atalho ⚔? dos cards (mercado, coleção...); vale até fechar o painel
+  let pkManual = null;
+  const pkAtivo = () => pkManual ?? eu?.pokemons?.find((p) => p.id === eu.activeId) ?? null;
 
   // ---- o botão ---------------------------------------------------------------------------
   function criarBotao(extra = '') {
@@ -235,16 +237,31 @@
   function fecharPainel() {
     painel?.remove();
     painel = null;
+    pkManual = null;
     assinatura = '';
     vendoWishlist = false;
     removeEventListener('keydown', aoTeclar, true);
     removeEventListener('pointerdown', aoClicarFora, true);
   }
+  // [multi-pokeidle-io] usado pelo atalho ⚔? (atalho.js): abre o painel para o pokémon de um card
+  PIH.abrirParaPokemon = (pk) => {
+    if (!pk || typeof pk !== 'object') return;
+    if (painel) fecharPainel();
+    pkManual = pk;
+    alternarPainel();
+  };
   const aoTeclar = (ev) => { if (ev.key === 'Escape') fecharPainel(); };
-  const aoClicarFora = (ev) => { if (painel && !painel.contains(ev.target) && ev.target !== botao) fecharPainel(); };
+  const aoClicarFora = (ev) => { if (painel && !painel.contains(ev.target) && ev.target !== botao && !ev.target.closest?.('.pih-atalho')) fecharPainel(); };
 
   function posicionarPainel() {
     if (!painel) return;
+    if (pkManual) { // [multi-pokeidle-io] aberto por um card: centralizado, por cima de qualquer janela do jogo
+      painel.classList.add('pih-manual');
+      painel.style.left = `${Math.max(8, (innerWidth - (painel.offsetWidth || 640)) / 2)}px`;
+      painel.style.top = `${Math.max(8, Math.min(40, innerHeight - painel.offsetHeight - 8))}px`;
+      return;
+    }
+    painel.classList.remove('pih-manual');
     const base = document.getElementById('p-ativo')?.getBoundingClientRect() ?? botao.getBoundingClientRect();
     const larg = painel.offsetWidth || 640;
     let left = base.right + 10;

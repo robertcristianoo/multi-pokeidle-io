@@ -115,6 +115,13 @@ O app carrega, em cada conta, duas extensões da Chrome Web Store (a pasta `exte
 `pokeidle.io`. Cada uma pode ser ligada ou desligada **por conta** em **⚙ Configurações › Extensões por conta**
 (tudo ligado de fábrica); a página da conta recarrega para a mudança valer. As regras do sniper também são por conta.
 
+Com a /hunt ligada, as artes dos pokémon (mercado, coleção etc.) ganham um atalho pequeno, uma espada com `?`: ele abre
+o painel "Onde caçar?" para aquele pokémon, não só para o que está em campo. O jogo não informa à extensão de quem é cada
+card, então o app serve o `app.js` de `pokeidle.io` com um trecho a mais que anota o pokémon em cada arte
+(`src/game-patch.js`, pelo protocolo do DevTools; só esse arquivo é tocado e nada é enviado). Se o jogo mudar e o ponto de
+encaixe sumir, o `app.js` original segue sem alteração, um aviso vai para o log e o atalho não aparece. O atalho só
+funciona quando o jogo traz os atributos do pokémon do card (se faltarem, o painel avisa).
+
 ## Lives de bônus (Twitch e Kick)
 
 O jogo dá XP extra a quem assiste lives dos canais parceiros. O botão **Lives** da barra superior (ou `Ctrl+T`), abre no navegador padrão, com um clique:

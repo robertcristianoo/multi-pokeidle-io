@@ -24,7 +24,8 @@
         "src/ritmo.js",
         "src/engine.js",
         "src/geo.js",
-        "src/ui.js"
+        "src/ui.js",
+        "src/atalho.js"
       ],
       "run_at": "document_start",
       "world": "MAIN"
