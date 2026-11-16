@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Detalhes das lives</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 13px "Segoe UI", sans-serif; background: #161118; color: #e6e0ea; padding: 14px 18px; }
+  h1 { font-size: 16px; margin: 0 0 10px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #2a2030; vertical-align: top; }
+  th { color: #8ab4ff; font-weight: 600; font-size: 12px; }
+  .twitch { color: #b794f6; } .kick { color: #53fc18; }
+  .muted { color: #a99bb8; }
+  #notes { margin-top: 14px; color: #f5c46b; line-height: 1.5; }
+  #empty { color: #a99bb8; margin-top: 12px; }
+</style>
+</head>
+<body>
+<h1>Detalhes das lives</h1>
+<table>
+  <thead><tr><th>Conta</th><th>Site</th><th>Canal</th><th>Leve</th><th>Pontos</th></tr></thead>
+  <tbody id="rows"></tbody>
+</table>
+<div id="empty" hidden>Nenhuma conta com lives.</div>
+<div id="notes"></div>
+<script>
+  const td = (text, cls) => { const e = document.createElement('td'); e.textContent = text; if (cls) e.className = cls; return e; };
+  async function load() {
+    const { rows, notes } = await ld.get();
+    const tbody = document.getElementById('rows');
+    tbody.replaceChildren(...rows.map((r) => {
+      const tr = document.createElement('tr');
+      tr.append(td(`Conta ${r.acc}`), td(r.site, r.site.toLowerCase()), td(r.channel), td(r.light, 'muted'), td(r.points));
+      return tr;
+    }));
+    document.getElementById('empty').hidden = rows.length > 0 || notes.length > 0;
+    document.getElementById('notes').replaceChildren(...notes.map((n) => { const d = document.createElement('div'); d.textContent = n; return d; }));
+  }
+  load();
+  setInterval(load, 3000);
+</script>
+</body>
+</html>

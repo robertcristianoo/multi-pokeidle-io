@@ -129,11 +129,11 @@
     const pOpen = a.points?.open ?? null;
     mk('Pontos da Twitch', 'Abre/fecha o painel com o chat das lives da Twitch (botão dos pontos)', 'pointsTwitch', pOpen === 'twitch');
     mk('Pontos da Kick', 'Abre/fecha o painel com o chat das lives da Kick (botão dos pontos)', 'pointsKick', pOpen === 'kick');
-    // Lives: cinza = nenhuma com bônus no ar; azul = há lives para abrir; verde = abertas e em dia;
-    // vermelho piscando = o conjunto mudou desde a última vez (clique para abrir as novas)
+    // Lives (menu: contas, entrar na Twitch/Kick, detalhes, registro, config): cinza = desligadas; verde = ligadas e em dia;
+    // vermelho piscando = pede uma ação (resgate parado, falta entrar na Twitch/Kick)
     const lv = a.lives || { kind: 'none', text: '' };
-    const label = { none: 'Lives', idle: 'Lives', ok: 'Lives ✓', changed: 'Lives: atualizar' }[lv.kind] || 'Lives';
-    const dica = [lv.text || 'Nenhuma live com bônus no ar agora.', lv.detail].filter(Boolean).join('\n');
+    const label = { none: 'Lives', idle: 'Lives', ok: 'Lives ✓', changed: '⚠ Lives' }[lv.kind] || 'Lives';
+    const dica = [lv.text || 'Lives desligadas.', lv.detail].filter(Boolean).join('\n');
     const bl = el('button', 'plain lives-' + lv.kind, label, dica);
     bl.onclick = () => tb.action('lives');
     bar.append(bl);

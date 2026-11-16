@@ -80,11 +80,14 @@ function attachLogging(id, view) {
   });
 
   const ses = wc.session;
+  // a sessão da conta também abre páginas da Twitch/Kick (lives): só entram no log os pedidos da página do jogo
   ses.webRequest.onCompleted((d) => {
+    if (d.webContentsId !== wc.id) return;
     const bad = d.statusCode >= 400;
     sendLog({ acc, kind: 'net', level: bad ? 'error' : 'info', text: `${d.method} ${d.statusCode} [${d.resourceType}] ${d.url}` });
   });
   ses.webRequest.onErrorOccurred((d) => {
+    if (d.webContentsId !== wc.id) return;
     sendLog({ acc, kind: 'net', level: 'error', text: `${d.method} FALHOU: ${d.error} [${d.resourceType}] ${d.url}` });
   });
 }
@@ -191,9 +194,9 @@ const power = createPower({
 
 // ---- Ajuda (sobreposição) ----
 // View própria, por cima das contas e isolada das páginas do jogo (o site não enxerga nem altera).
-let livesCtl = null;
+let livesCtl = null; // gerenciador de lives: resgate automático dos pontos por conta (src/lives)
 let topidle = null; // voto no TopIdle (botão 🗳 de cada conta)
-let pointsCtl = null; // painel de pontos Twitch/Kick e resgate automático (src/points)
+let pointsCtl = null; // painel de pontos Twitch/Kick, para resgatar à mão (src/points)
 let toastsCtl = null; // avisos no canto superior direito
 let updater = null; // aviso de versão nova (só em pacote de Release)
 let ultraCtl = null; // Modo ULTRA do jogo em todas as contas (ver src/ultra.js)
@@ -329,7 +332,7 @@ async function resetAccount(index) {
     title: 'Resetar conta',
     message: `Resetar a sessão da conta ${id} (posição ${index + 1})?`,
     detail:
-      'Apaga cookies, login e dados locais desse quadrante e recarrega o link de indicação. ' +
+      'Apaga cookies, login e dados locais desse quadrante (inclusive o login da Twitch e da Kick das lives) e recarrega o link de indicação. ' +
       'A conta criada no jogo continua existindo no servidor.',
   });
   if (response !== 1) return;
@@ -385,7 +388,7 @@ function loadExtensions() {
 //   Ctrl+1..4          foca a conta da posição
 //   Ctrl+0             volta à grade
 //   Ctrl+L             mostra/esconde logs
-//   Ctrl+T             abre as lives (Twitch/Kick) no navegador; o mesmo do botão no canto
+//   Ctrl+T             abre o menu Lives (contas, entrar na Twitch/Kick, detalhes, registro, config)
 //   F5 / Ctrl+F5 / Ctrl+Shift+F5   recarrega / ignora o cache / todas as contas
 //   Ctrl+Shift+1..4    reseta a sessão da conta da posição (com confirmação)
 //   Ctrl+Alt+←/→       move a conta atual na grade (a em foco, ou a que tem o teclado)
@@ -445,7 +448,7 @@ function makeShortcutHandler(id) {
       toggleLogWindow();
     } else if (!input.alt && !input.shift && input.code === 'KeyT') {
       event.preventDefault();
-      livesCtl?.open();
+      livesCtl?.showMenu();
     } else if (!input.alt && !input.shift && input.code === 'KeyM') {
       event.preventDefault();
       ramCtl?.toggle();
@@ -604,12 +607,12 @@ function createWindow() {
         if (pos >= 0) setFocus(focused === pos ? null : pos);
       },
       logs: toggleLogWindow,
-      lives: () => livesCtl?.open(),
+      lives: () => livesCtl?.showMenu(),
       vote: (id) => topidle?.open(id),
       pointsTwitch: () => pointsCtl?.toggle('twitch'),
       pointsKick: () => pointsCtl?.toggle('kick'),
-      redeemConfig: () => pointsCtl?.showConfig(),
-      redeemLog: () => pointsCtl?.showLog(),
+      redeemConfig: () => livesCtl?.showConfig(),
+      redeemLog: () => livesCtl?.showLog(),
       update: async () => {
         // reconsulta antes de abrir: o botão pode estar mostrando uma versão já superada por outra
         const u = (await updater?.check()) ?? updater?.state();
@@ -651,12 +654,21 @@ function createWindow() {
       autoNoVip: () => captureCtl?.toggleAutoNoVip(),
     },
     extensions: { state: () => chromeExt.state(), set: (ext, acc, on) => chromeExt.setEnabled(ext, acc, on) },
-    open: { redeemConfig: () => pointsCtl?.showConfig(), redeemLog: () => pointsCtl?.showLog() },
+    open: { redeemConfig: () => livesCtl?.showConfig(), redeemLog: () => livesCtl?.showLog() },
   });
   for (const id of loadOrder(loadAccountCount())) createSlot(id);
   const lastFocus = slots.findIndex((x) => x.id === loadConfig().focusedId); // volta ao quadrante que estava em foco
   if (lastFocus >= 0) focused = lastFocus;
-  livesCtl = createLives({ mainWin, getSlots: () => liveSlots() });
+  livesCtl = createLives({
+    mainWin,
+    getSlots: () => liveSlots(),
+    config: { get: () => loadConfig().lives ?? {}, set: (cfg) => saveConfig({ lives: cfg }) },
+    getLegacyAuto: () => loadConfig().points?.auto ?? null, // o resgate automático da versão anterior (migração única)
+    userDataDir: app.getPath('userData'),
+    notify: (n) => toastsCtl?.show(n),
+    maxAccounts: MAX_ACCOUNTS,
+    timers: !process.env.PKMULTI_TEST,
+  });
   topidle = createTopIdle({ getSlots: () => liveSlots(), notify: (n) => toastsCtl?.show(n), timers: !process.env.PKMULTI_TEST });
   toastsCtl = createToasts({ mainWin, getTop: () => tbs.appBarH });
   ramCtl = createRamBar({
@@ -680,11 +692,14 @@ function createWindow() {
       get: () => loadConfig().points ?? {},
       set: (patch) => saveConfig({ points: { ...(loadConfig().points ?? {}), ...patch } }),
     },
-    userDataDir: app.getPath('userData'),
-    notify: (n) => toastsCtl?.show(n),
     raise: () => { toastsCtl?.raise(); if (helpOpen) mainWin.contentView.addChildView(helpView); },
     relayout: () => layout(),
-    maxAccounts: MAX_ACCOUNTS,
+    getStatus: (acc, site, channel) => {
+      const r = livesCtl?.redeemerOf(site, acc);
+      return { text: r?.text(channel) ?? '', stopped: r?.stopped ?? null };
+    },
+    onConfig: () => livesCtl?.showConfig(),
+    onLog: () => livesCtl?.showLog(),
   });
   win.on('focus', () => updater?.check({ force: false })); // voltou à janela: confere se saiu versão nova
 
