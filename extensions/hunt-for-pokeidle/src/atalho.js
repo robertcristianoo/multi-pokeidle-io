@@ -7,11 +7,12 @@
   'use strict';
   const PIH = (root.__pokeidleHunt ??= {});
   const MIN_PX = 40; // artes menores (ícones de lista) ficam sem o atalho
-  const ICONE = '<svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M4 20l2.2-4.2L17 5l2 2L8.2 17.8 4 20zm13.2-15.2L19 3l2 2-1.8 1.8-2-2z" fill="currentColor"/></svg><b>?</b>';
+  const ICONE = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 20l2.2-4.2L17 5l2 2L8.2 17.8 4 20zm13.2-15.2L19 3l2 2-1.8 1.8-2-2z" fill="currentColor"/></svg><b>?</b>';
 
   function pokemonDaArte(el) {
     const pk = el.__pk;
-    return pk && typeof pk === 'object' && pk.speciesId != null ? pk : null;
+    // só vale com o pokémon completo (nível e stats): as listas por espécie do mercado trazem só a espécie
+    return pk && typeof pk === 'object' && pk.speciesId != null && pk.stats && pk.level != null ? pk : null;
   }
 
   function enfeitar(el) {
@@ -24,7 +25,8 @@
     if (getComputedStyle(pai).position === 'static') pai.style.position = 'relative';
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'pih-atalho';
+    // tiles pequenos (coleção/depot no modo economia, ~55 px) levam a versão mini, no canto de cima
+    b.className = pai.offsetWidth && pai.offsetWidth < 90 ? 'pih-atalho pih-mini' : 'pih-atalho';
     b.innerHTML = ICONE;
     b.title = 'Onde caçar com este pokémon? (/hunt)';
     b.setAttribute('aria-label', b.title);

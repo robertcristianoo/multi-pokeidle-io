@@ -16,6 +16,7 @@ function spritePokemon(k, px = 40, { parado = false } = {}) {
   el.dataset.looktype = String(k?.looktype ?? 0);
   return el;
 }
+function atualizarTilePkCofre(tile, x) { tile.dataset.atualizado = '1'; }
 globalThis.__jogoCarregado = true;
 `;
 
@@ -32,6 +33,9 @@ app.whenReady().then(async () => {
     vm.runInContext(out.replace('globalThis.__jogoCarregado = true;', '') + '\nthis.r = spritePokemon({ speciesId: 7, looktype: 3 }, 64);', ctx);
     check(ctx.r?.__pk?.speciesId === 7 && ctx.r.attrs['data-pk-marca'] === '64', 'a arte sai com o pokémon e o tamanho anotados');
     check(ctx.r.dataset.looktype === '3', 'o resultado da função original é preservado');
+    check(out.includes('function __atualizarTilePkCofreOriginal(') && out.includes('globalThis.__pkMarcaAtiva = true'), 'também marca os tiles do modo economia');
+    const semTile = patchApp(JOGO.replace('function atualizarTilePkCofre', 'function outraCoisa'));
+    check(!!semTile && !semTile.includes('__atualizarTilePkCofreOriginal'), 'sem o ponto opcional dos tiles, só o da arte é aplicado');
 
     // 2) interceptação pelo DevTools: servidor local fazendo o papel de pokeidle.io/app.js
     const srv = http.createServer((req, res) => {
@@ -62,18 +66,19 @@ app.whenReady().then(async () => {
     await v2.webContents.executeJavaScript(`
       globalThis.__aberto = [];
       (globalThis.__pokeidleHunt ??= {}).abrirParaPokemon = (pk) => globalThis.__aberto.push(pk.speciesId);
-      const grande = document.createElement('canvas'); grande.__pk = { speciesId: 25, nome: 'Pikachu' }; grande.setAttribute('data-pk-marca', '64');
+      const grande = document.createElement('canvas'); grande.__pk = { speciesId: 25, nome: 'Pikachu', level: 50, stats: { hp: 1 } }; grande.setAttribute('data-pk-marca', '64');
       const pequena = document.createElement('canvas'); pequena.__pk = { speciesId: 4 }; pequena.setAttribute('data-pk-marca', '22');
       const semMarca = document.createElement('canvas');
-      for (const [id, el] of [['g', grande], ['p', pequena], ['s', semMarca]]) { const d = document.createElement('div'); d.id = id; d.append(el); document.body.append(d); }
+      const soEspecie = document.createElement('canvas'); soEspecie.__pk = { speciesId: 7, nome: 'Squirtle' }; soEspecie.setAttribute('data-pk-marca', '64');
+      for (const [id, el] of [['g', grande], ['p', pequena], ['s', semMarca], ['e', soEspecie]]) { const d = document.createElement('div'); d.id = id; d.append(el); document.body.append(d); }
       ${atalhoJs}
       true;`);
     check(await waitFor(() => v2.webContents.executeJavaScript('!!document.querySelector("#g .pih-atalho")'), 3000), 'arte grande marcada ganha o atalho');
-    check(await v2.webContents.executeJavaScript('!document.querySelector("#p .pih-atalho") && !document.querySelector("#s .pih-atalho")'), 'arte pequena ou sem marca fica sem atalho');
+    check(await v2.webContents.executeJavaScript('!document.querySelector("#p .pih-atalho") && !document.querySelector("#s .pih-atalho") && !document.querySelector("#e .pih-atalho")'), 'arte pequena, sem marca ou só com a espécie (sem nível e stats) fica sem atalho');
     await v2.webContents.executeJavaScript('document.querySelector("#g .pih-atalho").click()');
     check(await v2.webContents.executeJavaScript('JSON.stringify(globalThis.__aberto)') === '[25]', 'o clique abre o painel com o pokémon do card');
     // arte criada depois (card que redesenha) também ganha o atalho
-    await v2.webContents.executeJavaScript(`(() => { const d = document.createElement('div'); d.id = 'n'; const c = document.createElement('canvas'); c.__pk = { speciesId: 9 }; c.setAttribute('data-pk-marca', '64'); d.append(c); document.body.append(d); })()`);
+    await v2.webContents.executeJavaScript(`(() => { const d = document.createElement('div'); d.id = 'n'; const c = document.createElement('canvas'); c.__pk = { speciesId: 9, level: 5, stats: { hp: 1 } }; c.setAttribute('data-pk-marca', '64'); d.append(c); document.body.append(d); })()`);
     check(await waitFor(() => v2.webContents.executeJavaScript('!!document.querySelector("#n .pih-atalho")'), 3000), 'card criado depois também ganha o atalho');
   } catch (err) {
     console.error(err);

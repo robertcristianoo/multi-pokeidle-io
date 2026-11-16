@@ -12,11 +12,15 @@
 
 const PATTERN = 'https://pokeidle.io/app.js*';
 
-// Renomeia a função original e põe, no lugar dela, uma que chama a original e anota o resultado.
-const DECL = /(^|\n)function spritePokemon\(/;
-const WRAPPER = `
+// Cada ponto de encaixe renomeia a função original e põe, no lugar dela, uma que chama a original e anota o resultado.
+//  - spritePokemon(pk, px): arte dos cards (mercado, coleção em lista etc.);
+//  - atualizarTilePkCofre(tile, { pk }): os quadradinhos da coleção/depot no modo economia, que desenham a arte por
+//    outro caminho (só com o looktype), então o pokémon é anotado na `.eco-pk-arte` do tile.
+const HOOKS = [
+  {
+    name: 'spritePokemon',
+    wrapper: `
 // [multi-pokeidle-io] marca a arte com o pokémon (lido pela extensão /hunt)
-globalThis.__pkMarcaAtiva = true;
 function spritePokemon(...a) {
   const el = __spritePokemonOriginal(...a);
   try {
@@ -28,16 +32,52 @@ function spritePokemon(...a) {
   } catch {}
   return el;
 }
-`;
+`,
+    required: true,
+  },
+  {
+    name: 'atualizarTilePkCofre',
+    wrapper: `
+// [multi-pokeidle-io] idem, para os tiles do modo economia
+function atualizarTilePkCofre(...a) {
+  const r = __atualizarTilePkCofreOriginal(...a);
+  try {
+    const arte = a[0]?.querySelector?.('.eco-pk-arte');
+    const pk = a[1]?.pk;
+    if (arte && pk && typeof pk === 'object') {
+      arte.__pk = pk;
+      arte.setAttribute('data-pk-marca', '44');
+    }
+  } catch {}
+  return r;
+}
+`,
+    required: false,
+  },
+];
 
-/** Devolve o app.js com a marcação, ou null se o ponto de encaixe não existir (jogo mudou) ou já estiver aplicado. */
+/**
+ * Devolve o app.js com a marcação, ou null se o ponto de encaixe obrigatório não existir (jogo mudou), se já estiver
+ * aplicado, ou se uma função aparecer declarada mais de uma vez. Os pontos opcionais que sumirem são só pulados.
+ */
 function patchApp(source) {
   if (typeof source !== 'string' || source.includes('__spritePokemonOriginal')) return null;
-  const m = DECL.exec(source);
-  if (!m) return null;
-  // só aceita se houver exatamente uma declaração
-  if (source.slice(m.index + m[0].length).match(DECL)) return null;
-  return source.replace(DECL, `$1function __spritePokemonOriginal(`) + WRAPPER;
+  let out = source;
+  let extra = '';
+  for (const h of HOOKS) {
+    const decl = new RegExp('(^|\\n)function ' + h.name + '\\(');
+    const m = decl.exec(out);
+    const dup = m && out.slice(m.index + m[0].length).match(decl);
+    if (!m || dup) {
+      if (h.required) return null;
+      continue;
+    }
+    out = out.replace(decl, `$1function __${h.name}Original(`);
+    extra += h.wrapper;
+  }
+  return `${out}
+// [multi-pokeidle-io]
+globalThis.__pkMarcaAtiva = true;${extra}`;
 }
 
 function createGamePatch({ isWanted = () => true, sendLog = () => {} } = {}) {
