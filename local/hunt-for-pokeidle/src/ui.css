@@ -1,0 +1,177 @@
+/* PokeIdle Hunt — o botão /hunt no "Em campo" e o painel "Onde caçar?".
+   As cores são as variáveis do próprio jogo (com reserva), para parecer da casa. */
+
+/* O /hunt é o botão "Mega Evoluir" do jogo, mais curto: o mesmo dourado com o fio de luz em
+   cima (#ffe9a8 → #d09a17), a mesma moldura e o texto escuro. */
+.pih-btn {
+  display: inline-block; padding: 4px 10px; border: 0; border-radius: 6px; cursor: pointer;
+  background: linear-gradient(180deg, #ffe9a8 0 4px, #d09a17 4px 100%);
+  box-shadow: inset 0 0 0 2px var(--mad-linha, #480e1e), 0 1px 0 var(--mad-luz2, #e7a86d);
+  color: #000; text-shadow: 0 1px 0 rgba(255, 255, 255, .35);
+  font: 700 12px/1.2 Tahoma, Verdana, "Segoe UI", sans-serif; white-space: nowrap;
+}
+.pih-btn:hover { filter: brightness(1.06); }
+.pih-btn.pih-carregando { animation: pih-pulso 1s ease-in-out infinite; }
+@keyframes pih-pulso { 50% { filter: brightness(1.2); } }
+
+/* A barra fica no fluxo do painel "Em campo", entre o título e o card: acompanha a largura da
+   caixa em qualquer tela e nunca cobre o pokémon. */
+.pih-btn.pih-barra {
+  display: block; width: clamp(110px, 55%, 240px); margin: 0 auto 8px; padding: 7px 10px;
+}
+.pih-btn[hidden] { display: none; }
+/* Reserva, quando o jogador apontou o pokémon à mão (layout desconhecido): flutua acima dele. */
+.pih-btn.pih-fixo { position: fixed; z-index: 38; margin: 0; }
+
+/* ---- painel -------------------------------------------------------------------------- */
+.pih-painel {
+  position: fixed; z-index: 38; width: min(640px, calc(100vw - 24px)); max-height: min(78vh, 760px);
+  display: flex; flex-direction: column;
+  font: 500 12.5px/1.35 "Barlow", system-ui, sans-serif; color: var(--sobre-mad, #fff6ef);
+  background: linear-gradient(180deg, var(--mad-esc, #914850) 0 10px, var(--mad, #bd6951) 10px calc(100% - 10px), var(--mad-base, #722c3f) calc(100% - 10px));
+  border-radius: 9px; padding: 12px 14px 12px;
+  box-shadow: inset 0 0 0 2px var(--mad-linha, #480e1e), inset 0 3px 0 var(--mad-luz, #f1d3b7), 0 10px 30px #0009;
+}
+.pih-cab { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.pih-cab .pih-btn { flex: none; cursor: default; }
+.pih-titulo { flex: 1; min-width: 0; }
+.pih-titulo h3 { margin: 0; font-size: 15px; font-weight: 800; letter-spacing: .3px; text-transform: uppercase; }
+.pih-credito { margin-left: 8px; font-size: 10.5px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--sobre-mad, #fff6ef); opacity: .38; }
+.pih-titulo small { display: block; color: var(--sobre-mad-dim, #f5cdb9); font-size: 12px; font-weight: 600; }
+.pih-fechar {
+  flex: none; width: 26px; height: 26px; border-radius: 6px; cursor: pointer; font: 800 15px/1 system-ui;
+  color: var(--sobre-mad, #fff6ef); background: var(--vao, #33202b); border: 0;
+  box-shadow: inset 0 0 0 2px var(--mad-linha, #480e1e);
+}
+/* O apoio ao dev: botão dourado no cabeçalho (a cara do /hunt) e o balão com o QR da Livepix. */
+.pih-cab .pih-apoiar { cursor: pointer; padding: 6px 9px; font-size: 11px; }
+.pih-cab .pih-apoiar[aria-expanded="true"] { filter: brightness(.9); }
+.pih-apoio { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; font-size: 12px; }
+.pih-apoio[hidden] { display: none; }
+.pih-apoio-qr { flex: none; display: block; width: 112px; height: 112px; border-radius: 6px; overflow: hidden; box-shadow: 0 0 0 2px var(--mad-luz2, #e7a86d); }
+.pih-apoio-qr svg { display: block; width: 100%; height: 100%; }
+.pih-apoio b { font-size: 14px; }
+.pih-apoio p { margin: 4px 0 6px; color: var(--sobre-mad-dim, #f5cdb9); }
+.pih-apoio-link { text-decoration: none; }
+.pih-vao {
+  background: var(--vao, #33202b); border-radius: 6px; padding: 8px 10px;
+  box-shadow: inset 0 0 0 2px var(--mad-linha, #480e1e), 0 1px 0 var(--mad-luz2, #e7a86d);
+}
+.pih-stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px 8px; margin-bottom: 8px; }
+.pih-stat b { display: block; font-size: 10px; color: var(--vao-dim, #c9a9b4); font-weight: 700; }
+.pih-stat span { font-weight: 700; font-variant-numeric: tabular-nums; }
+.pih-stat i { font-style: normal; color: var(--verde, #6fd08a); font-size: 10.5px; margin-left: 3px; }
+
+.pih-bonus { margin-bottom: 8px; font-size: 12px; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; }
+.pih-bonus-total { margin-left: auto; font-weight: 800; color: var(--verde, #6fd08a); }
+.pih-ctrl { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; margin-bottom: 8px; }
+.pih-seg { display: inline-flex; border-radius: 6px; overflow: hidden; box-shadow: inset 0 0 0 2px var(--mad-linha, #480e1e); }
+.pih-seg button {
+  border: 0; cursor: pointer; padding: 5px 10px; font: 700 12px/1 "Barlow", system-ui, sans-serif;
+  color: var(--sobre-mad-dim, #f5cdb9); background: var(--vao, #33202b);
+}
+.pih-seg button.on { color: var(--rx-luz, #ffdef0); background: linear-gradient(180deg, var(--rx-clr, #e77ad2), var(--rx-esc, #8d49b8)); }
+/* O SHINY: o arco-íris anda e o brilho troca de cor junto. A faixa tem 2× a largura do botão, e 200% é uma volta inteira
+   dela (a posição em % conta sobre o que sobra: 1× o botão), então a repetição não dá salto. */
+.pih-shiny {
+  flex: none; padding: 5px 10px; border: 0; border-radius: 6px; cursor: pointer;
+  background: linear-gradient(90deg, #ff4d6d, #ff9f1c, #ffe14d, #4ade80, #38bdf8, #a78bfa, #f472b6, #ff4d6d) 0 0 / 200% 100%;
+  color: #fff; font: 900 12px/1.2 Tahoma, Verdana, "Segoe UI", sans-serif; letter-spacing: 1px; white-space: nowrap;
+  text-shadow: 0 1px 0 #000, 1px 0 0 #000, 0 -1px 0 #000, -1px 0 0 #000, 0 0 5px #000;
+  box-shadow: inset 0 0 0 1px #ffffffa6, 0 0 8px 1px #ff4d6d;
+  animation: pih-arco 4s linear infinite, pih-arco-brilho 4s linear infinite;
+}
+.pih-shiny:hover { filter: brightness(1.12); }
+.pih-shiny:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+@keyframes pih-arco { to { background-position: 200% 0; } }
+@keyframes pih-arco-brilho {
+  0%, 100% { box-shadow: inset 0 0 0 1px #ffffffa6, 0 0 8px 1px #ff4d6d; }
+  25% { box-shadow: inset 0 0 0 1px #ffffffa6, 0 0 9px 2px #ffe14d; }
+  50% { box-shadow: inset 0 0 0 1px #ffffffa6, 0 0 9px 2px #38bdf8; }
+  75% { box-shadow: inset 0 0 0 1px #ffffffa6, 0 0 9px 2px #a78bfa; }
+}
+@media (prefers-reduced-motion: reduce) { .pih-shiny { animation: none; } }
+.pih-ctrl label { display: inline-flex; gap: 5px; align-items: center; cursor: pointer; font-weight: 600; }
+.pih-regioes { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.pih-regioes button {
+  display: inline-flex; align-items: baseline; gap: 4px; border: 0; border-radius: 6px; cursor: pointer; padding: 5px 8px;
+  font: 700 12px/1 "Barlow", system-ui, sans-serif; color: var(--sobre-mad-dim, #f5cdb9); background: var(--vao, #33202b);
+  box-shadow: inset 0 0 0 2px var(--mad-linha, #480e1e);
+}
+.pih-regioes button small { font-size: 10.5px; font-weight: 600; color: var(--vao-dim, #c9a9b4); }
+.pih-regioes button.on { color: var(--rx-luz, #ffdef0); background: linear-gradient(180deg, var(--rx-clr, #e77ad2), var(--rx-esc, #8d49b8)); }
+.pih-regioes button.on::before { content: "✓"; }
+.pih-regioes button.on small { color: var(--rx-luz, #ffdef0); }
+.pih-regioes button:focus-visible { outline: 2px solid #ffe9a8; outline-offset: 1px; }
+
+.pih-ajuda {
+  margin-left: auto; flex: none; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; cursor: pointer;
+  font: 800 13px/1 Tahoma, Verdana, "Segoe UI", sans-serif; color: #000;
+  background: linear-gradient(180deg, #ffe9a8 0 3px, #d09a17 3px 100%);
+  box-shadow: inset 0 0 0 2px var(--mad-linha, #480e1e);
+}
+.pih-ajuda:hover { filter: brightness(1.06); }
+.pih-ajuda[aria-expanded="true"] { filter: brightness(.9); }
+.pih-dica { margin: -2px 0 8px; font-size: 12px; }
+.pih-dica[hidden] { display: none; }
+/* O aviso fixo: o que a conta deixa de fora de propósito (discos AoE e TM Elemental). */
+.pih-nota { margin: -2px 0 8px; font-size: 11.5px; font-weight: 600; color: var(--laranja, #f0a03c); }
+.pih-melhor { margin-bottom: 8px; display: flex; gap: 10px; align-items: center; }
+.pih-melhor .pih-coroa { font-size: 20px; }
+.pih-melhor strong { font-size: 15px; }
+.pih-melhor .pih-dim { color: var(--vao-dim, #c9a9b4); }
+
+.pih-lista { overflow: auto; padding: 0; min-height: 80px; }
+.pih-tab { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.pih-tab th {
+  position: sticky; top: 0; z-index: 1; background: var(--vao2, #462b39); color: var(--vao-dim, #c9a9b4);
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: .4px; text-align: right; padding: 6px 8px; white-space: nowrap;
+}
+.pih-tab th:nth-child(-n+2), .pih-tab td:nth-child(-n+2) { text-align: left; }
+.pih-tab td { padding: 5px 8px; text-align: right; border-top: 1px solid var(--vao2, #462b39); white-space: nowrap; }
+.pih-tab tr.pih-top td { background: #6fd08a1f; }
+.pih-tab tr.pih-bloq td { opacity: .5; }
+.pih-tab td.pih-hunt { white-space: normal; }
+.pih-tab td.pih-hunt b { font-weight: 700; }
+.pih-tab td.pih-hunt small { display: block; color: var(--vao-dim, #c9a9b4); font-size: 10.5px; }
+.pih-pos { color: var(--vao-dim, #c9a9b4); width: 1%; }
+.pih-ok { color: var(--verde, #6fd08a); }
+.pih-alerta { color: var(--laranja, #f0a03c); }
+.pih-perigo { color: var(--vermelho-luz, #ffc9bd); }
+.pih-medido { color: var(--verde, #6fd08a); cursor: help; margin-right: 2px; }
+.pih-faixa { display: block; color: var(--vao-dim, #c9a9b4); font-size: 10px; white-space: nowrap; }
+.pih-aprox { color: var(--vao-dim, #c9a9b4); cursor: help; }
+.pih-mais { width: 100%; margin-top: 6px; padding: 6px; cursor: pointer; border: 0; border-radius: 6px;
+  font: 700 12px/1 "Barlow", system-ui, sans-serif; color: var(--sobre-mad, #fff6ef); background: var(--vao2, #462b39); }
+.pih-wl-chamada { margin-bottom: 8px; font-size: 12.5px; }
+.pih-wl-chamada b { color: #ffe9a8; }
+.pih-wl-volta { margin-bottom: 8px; font-size: 12.5px; }
+.pih-wl-volta b { color: #6fd08a; }
+.pih-tab tr.pih-wl-primeiro td { background: #d09a1733; }
+.pih-tab tr.pih-wl-primeiro td.pih-wl-valor { color: #ffe9a8; font-weight: 800; }
+.pih-tab td.pih-wl-valor { font-weight: 700; }
+.pih-wl-link { color: #ffe9a8; font-weight: 700; }
+.pih-com-arte { display: flex; align-items: center; gap: 8px; }
+.pih-arte { flex: none; display: block; width: var(--px, 30px); height: var(--px, 30px); }
+.pih-arte img { display: block; width: 100%; height: 100%; }
+.pih-rodape { margin-top: 8px; font-size: 11px; color: var(--sobre-mad-dim, #f5cdb9); }
+.pih-carga { display: grid; place-items: center; gap: 8px; padding: 26px 0; color: var(--vao-dim, #c9a9b4); }
+.pih-carga::before {
+  content: ""; width: 26px; height: 26px; border-radius: 50%;
+  border: 3px solid var(--vao2, #462b39); border-top-color: var(--rx-clr, #e77ad2); animation: pih-gira .7s linear infinite;
+}
+@keyframes pih-gira { to { transform: rotate(1turn); } }
+.pih-erro { color: var(--vermelho-luz, #ffc9bd); padding: 12px 0; }
+
+/* ---- aviso (verificação "onde está seu pokémon ativo?") ------------------------------- */
+.pih-aviso {
+  position: fixed; left: 16px; bottom: 44px; z-index: 38; max-width: 340px;
+  display: flex; gap: 10px; align-items: center;
+  font: 600 12.5px/1.35 "Barlow", system-ui, sans-serif; color: var(--sobre-mad, #fff6ef);
+  background: var(--vao, #33202b); border-radius: 8px; padding: 10px 12px;
+  box-shadow: inset 0 0 0 2px var(--mad-linha, #480e1e), 0 0 0 2px var(--mad-luz2, #e7a86d), 0 8px 20px #0008;
+}
+.pih-aviso .pih-btn { flex: none; font-size: 10.5px; cursor: default; }
+.pih-aviso button.pih-x { margin-left: auto; background: none; border: 0; color: inherit; cursor: pointer; font-size: 14px; }
+.pih-mirando, .pih-mirando * { cursor: crosshair !important; }
+.pih-alvo { outline: 3px dashed var(--seta, #ffd166) !important; outline-offset: 2px; }

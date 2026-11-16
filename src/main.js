@@ -344,7 +344,7 @@ async function resetAccount(index) {
 // `features()` devolve [{ id, label, title, isOn(contaId), set(contaId, on), settings?() }]: viram botões
 // liga/desliga na barra de cada conta (ver toolbar.js).
 // `onSlotCreated(id, view)` roda antes de a conta carregar a página (dá para registrar preloads).
-const LOCAL_EXTENSIONS = ['../local/autoball.js', '../local/sniper.js', '../local/autocatch.js', '../local/autopvp.js'];
+const LOCAL_EXTENSIONS = ['../local/autoball.js', '../local/sniper.js', '../local/hunt.js', '../local/autocatch.js', '../local/autopvp.js'];
 const exts = [];
 function loadExtensions() {
   for (const file of LOCAL_EXTENSIONS) {

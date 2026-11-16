@@ -1,7 +1,7 @@
 // Sobe o app de verdade (janela escondida, dados isolados) e confere a janela: barra do app, uma barra por
 // conta colada no topo do jogo dela, nada sobreposto, botões das extensões e liga/desliga por conta.
 const { app, sleep, check, finish, waitFor } = require('./helpers');
-const { BaseWindow, BrowserWindow } = require('electron');
+const { BaseWindow, BrowserWindow, session } = require('electron');
 const { BAR_H } = require('../src/ram');
 
 require('../src/main.js');
@@ -98,6 +98,12 @@ app.whenReady().then(async () => {
         cockpit()?.close();
         await waitFor(() => !cockpit(), 3000);
       }
+    }
+
+    // as extensões do Chromium (Rotom Sniper e /hunt) ficam carregadas na sessão de cada conta, antes de o jogo abrir
+    {
+      const nomes = (n) => session.fromPartition(`persist:conta${n}`).extensions.getAllExtensions().map((x) => x.name);
+      for (const n of [1, 2]) check(nomes(n).some((x) => /hunt for PokeIdle/.test(x)), `/hunt for PokeIdle carregada na conta ${n}`);
     }
 
     // liga/desliga é POR CONTA: clicar na conta 1 não pode acender a 2
