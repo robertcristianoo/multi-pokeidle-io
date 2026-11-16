@@ -1,15 +1,13 @@
-// Pontos da Twitch/Kick: o painel com o rodapé do chat de cada live (para resgatar à mão), o resgate automático
-// opcional e o registro dos resgates. main.js só chama `createPoints(...)`, `panelHeight()`, `place()` e `open()`.
+// Pontos da Twitch/Kick: o painel com o rodapé do chat de cada live (para resgatar à mão). O resgate automático, a
+// configuração e o registro dos resgates são do gerenciador de lives (src/lives); o painel só abre a janela deles.
+// main.js só chama `createPoints(...)`, `panelHeight()`, `place()` e `open()`.
 //
 // O painel: uma view do host (barra com Próxima conta, Página completa, Config e Fechar, e a borda para mudar a
-// altura) e UMA view da página do canal, na sessão da conta (partição própria por site e conta, o login fica salvo).
+// altura) e UMA view da página do canal, na sessão da própria conta do jogo (o login da Twitch/Kick fica salvo nela).
 // As views só existem enquanto o painel está aberto.
 const path = require('path');
-const { BrowserWindow, WebContentsView, ipcMain, session, shell } = require('electron');
-const { BONUSES, SITES, partitionOf, footerScript } = require('./sites');
-const { SCRIPTS, TWITCH_CLIENT_ID } = require('./scripts');
-const { createRedeemer } = require('./redeem');
-const { createRedeemLog } = require('./log');
+const { WebContentsView, ipcMain, shell } = require('electron');
+const { SITES, partitionOf, footerScript } = require('./sites');
 
 const UI = (f) => path.join(__dirname, '..', 'ui', f);
 const PRELOAD = (f) => path.join(__dirname, '..', 'preload', f);
@@ -17,52 +15,16 @@ const TOP_H = 40; // faixa de arraste (6 px) + barra de botões do painel
 const DEFAULT_H = 360;
 const MIN_H = 160;
 const MARGIN_BELOW_TOP = 160; // espaço mínimo que sobra para as contas acima do painel
-const LOAD_TIMEOUT_MS = 30 * 1000;
 
-const withTimeout = (p, ms) => Promise.race([p, new Promise((_r, rej) => setTimeout(() => rej(new Error('a página demorou demais')), ms))]);
-
-// Lista plana das lives (de todas as contas) no formato que o resgate usa
+// Lista plana das lives (de todas as contas): { acc, site, channel, nome }
 const flatLives = (accounts) => accounts.flatMap((a) => [
   ...a.twitch.map((l) => ({ acc: a.acc, site: 'twitch', channel: l.id, nome: l.nome })),
   ...a.kick.map((l) => ({ acc: a.acc, site: 'kick', channel: l.id, nome: l.nome })),
 ]);
 
-function createPoints({ mainWin, getAccounts, config, userDataDir, notify = () => {}, raise = () => {}, relayout = () => {}, maxAccounts = 4 }) {
-  const rlog = createRedeemLog(path.join(userDataDir, 'resgates.log'));
+// `getStatus(acc, site, channel)` -> { text, stopped } do resgate automático (do gerenciador de lives); `onConfig`/`onLog` abrem as janelas dele.
+function createPoints({ mainWin, getAccounts, config, raise = () => {}, relayout = () => {}, getStatus = () => ({}), onConfig = () => {}, onLog = () => {} }) {
   const configOf = () => config.get() ?? {};
-
-  // Conferência real de um canal: abre a página do canal (escondida, muda, na sessão da conta), roda o script e fecha.
-  async function runCheck({ acc, site, channel, word, spend, refund }) {
-    const S = SITES[site];
-    const ses = session.fromPartition(partitionOf(site, acc));
-    const login = (await ses.cookies.get({ url: S.loginCookie.url, name: S.loginCookie.name }))[0]?.value;
-    if (!login) return { error: `sem login ${S.label} nesta conta (entre pelo painel de pontos)` };
-    const device = S.deviceCookie ? (await ses.cookies.get({ url: S.deviceCookie.url, name: S.deviceCookie.name }))[0]?.value : undefined;
-    const args = {
-      api: site === 'kick' ? 'https://kick.com' : 'https://gql.twitch.tv',
-      channel, token: login, device, clientId: TWITCH_CLIENT_ID, word, spend, refund,
-    };
-    const wv = new WebContentsView({ webPreferences: { partition: partitionOf(site, acc), backgroundThrottling: false } });
-    wv.webContents.setAudioMuted(true);
-    try {
-      await withTimeout(wv.webContents.loadURL(S.chatUrl(channel)), LOAD_TIMEOUT_MS);
-      const out = await wv.webContents.executeJavaScript(SCRIPTS[site](args), true);
-      return JSON.parse(out);
-    } catch (err) {
-      return { error: `falha na conferência: ${err.message}` };
-    } finally {
-      wv.webContents.close();
-    }
-  }
-
-  const redeemer = createRedeemer({
-    getAuto: () => configOf().auto ?? {},
-    getLives: () => flatLives(getAccounts()),
-    check: runCheck,
-    log: (e) => rlog.append(e),
-    notify,
-  });
-  redeemer.start();
 
   let panel = null; // { site, items, index, full, notice, host, view }
   let lastW = 0;
@@ -87,8 +49,8 @@ function createPoints({ mainWin, getAccounts, config, userDataDir, notify = () =
       total: panel.items.length,
       index: panel.index,
       title: it ? itemLabel(it) : '',
-      text: it ? redeemer.text(it.acc, it.site, it.channel) : '',
-      stopped: it ? redeemer.stoppedReason(it.acc, it.site) : null,
+      text: it ? (getStatus(it.acc, it.site, it.channel).text ?? '') : '',
+      stopped: it ? (getStatus(it.acc, it.site, it.channel).stopped ?? null) : null,
       full: panel.full,
       notice: panel.notice,
     });
@@ -196,53 +158,14 @@ function createPoints({ mainWin, getAccounts, config, userDataDir, notify = () =
     if (panel.view) panel.view.setBounds({ x: 0, y: y0 + TOP_H, width, height: Math.max(0, H - TOP_H) });
   }
 
-  // ---- Janela de configuração do resgate automático (por conta e por site) ----
-  let cfgWin = null;
-  function showConfig() {
-    if (cfgWin && !cfgWin.isDestroyed()) return cfgWin.focus();
-    cfgWin = new BrowserWindow({
-      width: 560, height: 360, title: 'Resgate automático - Multi PokeIdle IO', autoHideMenuBar: true,
-      webPreferences: { preload: PRELOAD('points-config.js') },
-    });
-    cfgWin.loadFile(UI('points-config.html'));
-  }
-
-  // ---- Janela do registro dos resgates ----
-  let logW = null;
-  function showLog() {
-    if (logW && !logW.isDestroyed()) return logW.focus();
-    logW = new BrowserWindow({
-      width: 1000, height: 560, title: 'Log de resgates - Multi PokeIdle IO', autoHideMenuBar: true,
-      webPreferences: { preload: PRELOAD('redeem-log.js') },
-    });
-    logW.loadFile(UI('redeem-log.html'));
-  }
-
   ipcMain.on('pts:cmd', (_e, name) => {
     if (name === 'next') next();
     else if (name === 'full') toggleFull();
     else if (name === 'close') close();
-    else if (name === 'config') showConfig();
-    else if (name === 'log') showLog();
+    else if (name === 'config') onConfig();
+    else if (name === 'log') onLog();
   });
   ipcMain.on('pts:resize', (_e, dy) => resize(Number(dy) || 0));
-  ipcMain.handle('pts:log', () => ({ file: rlog.file, rows: rlog.read() }));
-  ipcMain.handle('pts:config-get', () => ({ auto: configOf().auto ?? {}, accounts: Array.from({ length: maxAccounts }, (_v, i) => i + 1), bonuses: BONUSES }));
-  ipcMain.handle('pts:config-save', (_e, auto) => {
-    const limpo = {};
-    for (const [acc, v] of Object.entries(auto ?? {})) {
-      const id = Number(acc);
-      if (!Number.isInteger(id) || id < 1 || id > maxAccounts || !v || typeof v !== 'object') continue;
-      const linha = {};
-      for (const site of Object.keys(SITES)) if (BONUSES[v[site]]) linha[site] = v[site];
-      if (Object.keys(linha).length) limpo[id] = linha;
-    }
-    config.set({ auto: limpo });
-    redeemer.restart();
-    setTimeout(() => redeemer.tick().catch(() => {}), 500);
-    return true;
-  });
-
   return {
     open,
     close,
@@ -250,9 +173,6 @@ function createPoints({ mainWin, getAccounts, config, userDataDir, notify = () =
     next,
     panelHeight,
     place,
-    showLog,
-    showConfig,
-    redeemer,
     state: () => ({ open: panel?.site ?? null }),
   };
 }
