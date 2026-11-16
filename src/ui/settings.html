@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Configurações</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 13px "Segoe UI", sans-serif; background: #161118; color: #e6e0ea; padding: 16px 20px; user-select: none; }
+  h1 { font-size: 16px; margin: 0 0 12px; }
+  h2 { font-size: 12px; color: #8ab4ff; font-weight: 600; margin: 18px 0 6px; text-transform: uppercase; letter-spacing: .04em; }
+  .row { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid #2a2030; }
+  .txt { flex: 1; }
+  .txt b { display: block; font-weight: 600; }
+  .txt span { color: #a99bb8; font-size: 12px; line-height: 1.4; }
+  button { border: 1px solid #ffffff22; background: #2a2030; color: #cfc6d6; border-radius: 6px; padding: 4px 12px; font: inherit; font-weight: 600; cursor: pointer; white-space: nowrap; min-width: 92px; }
+  button:hover { background: #3a2f44; }
+  button.on { background: #1b8f3a; border-color: #2fd160; color: #fff; }
+  .acts { display: flex; justify-content: flex-end; margin-top: 18px; }
+  .acts button { background: #2f6fed; border-color: #6c9bff; color: #fff; }
+</style>
+</head>
+<body>
+<h1>Configurações</h1>
+
+<h2>Jogo</h2>
+<div class="row">
+  <div class="txt"><b>Animações reduzidas</b><span>Reduz as animações do jogo em todas as contas (menos CPU). Vale na hora, sem recarregar.</span></div>
+  <button data-toggle="reduceMotion" id="reduceMotion"></button>
+</div>
+
+<h2>Captura</h2>
+<div class="row">
+  <div class="txt"><b>Vigia de captura</b><span>Avisa na tela da conta e com som quando ela fica cerca de 45 s sem capturar com Ultra ou Beast Ball, havendo alvo.</span></div>
+  <button data-toggle="vigia" id="vigia"></button>
+</div>
+<div class="row">
+  <div class="txt"><b>Auto-bola sem VIP</b><span>Liga o Auto-bola sozinho nas contas sem VIP, ao entrar no jogo (contas VIP não ligam sozinhas).</span></div>
+  <button data-toggle="autoNoVip" id="autoNoVip"></button>
+</div>
+
+<h2>Pontos (Twitch e Kick)</h2>
+<div class="row">
+  <div class="txt"><b>Resgate automático</b><span>Escolhe, por conta e por site, o bônus resgatado sozinho (desligado de fábrica).</span></div>
+  <button data-open="redeemConfig">Configurar…</button>
+</div>
+<div class="row">
+  <div class="txt"><b>Log de resgates</b><span>Registro de cada resgate, recusa e parada.</span></div>
+  <button data-open="redeemLog">Abrir…</button>
+</div>
+
+<div class="acts"><button id="close">Fechar</button></div>
+<script>
+  const FLAGS = { reduceMotion: (s) => s.reduceMotion, vigia: (s) => s.watch, autoNoVip: (s) => s.autoNoVip };
+  function paint(s) {
+    if (!s) return;
+    for (const [id, get] of Object.entries(FLAGS)) {
+      const b = document.getElementById(id);
+      const on = !!get(s);
+      b.textContent = on ? 'Ligado' : 'Desligado';
+      b.classList.toggle('on', on);
+    }
+  }
+  document.querySelectorAll('[data-toggle]').forEach((b) => { b.onclick = async () => paint(await cfg.toggle(b.dataset.toggle)); });
+  document.querySelectorAll('[data-open]').forEach((b) => { b.onclick = () => cfg.open(b.dataset.open); });
+  document.getElementById('close').onclick = () => window.close();
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') window.close(); });
+  cfg.get().then(paint);
+</script>
+</body>
+</html>

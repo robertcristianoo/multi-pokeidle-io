@@ -67,6 +67,23 @@ app.whenReady().then(async () => {
       const l = await labels(appBar);
       check(l.some((x) => x.startsWith('Lives')), `botão Lives na barra do app: ${JSON.stringify(l)}`);
       check(l.some((x) => x.includes('ULTRA')), `botão ULTRA na barra do app: ${JSON.stringify(l)}`);
+      check(l.some((x) => x.includes('Configurações')), `botão Configurações na barra do app: ${JSON.stringify(l)}`);
+      check(!l.some((x) => /Auto-bola s\/|Vigia|Animações|Resgate auto|Log de resgates/.test(x)), 'opções agrupadas saíram da barra do app');
+      // o modal abre, mostra o estado das três opções e fecha
+      const modal = () => BrowserWindow.getAllWindows().find((w) => /settings\.html/.test(w.webContents.getURL()));
+      await appBar.webContents.executeJavaScript('[...document.querySelectorAll("button")].find(b => b.textContent.includes("Configurações")).click()');
+      check(await waitFor(() => !!modal(), 4000), 'Configurações abre o modal');
+      await waitFor(async () => (await modal()?.webContents.executeJavaScript('document.getElementById("vigia").textContent').catch(() => '')) !== '', 4000);
+      const est = await modal()?.webContents.executeJavaScript('["reduceMotion","vigia","autoNoVip"].map(i => document.getElementById(i).textContent).join(",")');
+      check(/^(Ligado|Desligado),(Ligado|Desligado),(Ligado|Desligado)$/.test(est ?? ''), `modal mostra as três opções: ${est}`);
+      const antes = await modal()?.webContents.executeJavaScript('document.getElementById("autoNoVip").textContent');
+      await modal()?.webContents.executeJavaScript('document.getElementById("autoNoVip").click()');
+      await waitFor(async () => (await modal()?.webContents.executeJavaScript('document.getElementById("autoNoVip").textContent')) !== antes, 3000);
+      const depois = await modal()?.webContents.executeJavaScript('document.getElementById("autoNoVip").textContent');
+      check(depois !== antes, `alternar no modal muda o estado (${antes} -> ${depois})`);
+      await modal()?.webContents.executeJavaScript('document.getElementById("autoNoVip").click()'); // devolve ao que era
+      modal()?.close();
+      await waitFor(() => !modal(), 3000);
     }
     check(!win.contentView.children.some((v) => /lives.html/.test(v.webContents?.getURL() ?? '')), 'sem view flutuante de lives');
 

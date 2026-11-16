@@ -81,7 +81,7 @@ O botão **⚡ ULTRA** da barra superior (ou `Ctrl+U`) liga o **Modo ULTRA Econo
 
 ## Barras de botões e avisos
 
-Cada conta tem uma barra de botões no topo do próprio quadrante (liga/desliga só daquela conta, mais o **Foco**), e há uma barra do app no topo da janela (Contas 2/4, Logs, Lives, Ajuda). Cada funcionalidade extra que o app carrega aparece como um botão sozinha. O botão **Animações** da barra do app liga/desliga as animações reduzidas do jogo em todas as contas (ligado por padrão): é o mesmo pedido de "menos movimento" que o navegador faz com `prefers-reduced-motion`, o que diminui o uso de CPU sem mudar o que está escrito na tela. Os avisos (`src/toasts.js`) são pequenos, ficam no canto superior direito e somem em até 5 s.
+Cada conta tem uma barra de botões no topo do próprio quadrante (liga/desliga só daquela conta, mais o **Foco**), e há uma barra do app no topo da janela (Contas 2/4, Logs, Lives, Ajuda e **⚙ Configurações**). Cada funcionalidade extra que o app carrega aparece como um botão sozinha. O botão **⚙ Configurações** abre uma janela (modal) que reúne as opções do app: animações reduzidas, vigia de captura, Auto-bola sem VIP, resgate automático e log de resgates. Em **Animações**, dá para ligar/desligar as animações reduzidas do jogo em todas as contas (ligado por padrão): é o mesmo pedido de "menos movimento" que o navegador faz com `prefers-reduced-motion`, o que diminui o uso de CPU sem mudar o que está escrito na tela. Os avisos (`src/toasts.js`) são pequenos, ficam no canto superior direito e somem em até 5 s.
 
 ### Barra de RAM
 
@@ -142,7 +142,7 @@ Os botões **Pontos da Twitch** e **Pontos da Kick** (barra superior) abrem um p
 
 ### Resgate automático (opcional, desligado de fábrica)
 
-Em **Resgate auto**, escolha por conta e por site o bônus que pode ser resgatado com os pontos do canal: **+15% XP** (300 pontos), **Captura** (500) ou **Shiny** (1.000). Com a configuração salva, o app confere o saldo de cada live no ar (a cada 5 min na Kick e 2 min na Twitch), resgata um bônus por canal quando houver saldo e, se o site recusar, tenta de novo no mesmo canal depois de 30 min.
+Em **Configurações › Resgate automático**, escolha por conta e por site o bônus que pode ser resgatado com os pontos do canal: **+15% XP** (300 pontos), **Captura** (500) ou **Shiny** (1.000). Com a configuração salva, o app confere o saldo de cada live no ar (a cada 5 min na Kick e 2 min na Twitch), resgata um bônus por canal quando houver saldo e, se o site recusar, tenta de novo no mesmo canal depois de 30 min.
 
 - Para a conta e o site quando os pontos voltam logo após um resgate (site não vinculado no jogo) ou quando zeram sem resgate, e avisa. Salvar a configuração de novo volta a resgatar.
 - O app **não** pega o baú de bônus da Twitch e **não** contorna verificações anti-robô: se o site desafiar o pedido, o resgate para e fica registrado.
@@ -150,7 +150,7 @@ Em **Resgate auto**, escolha por conta e por site o bônus que pode ser resgatad
 
 ### Log de resgates
 
-O botão **Log de resgates** mostra cada resgate, recusa e parada, com hora, conta, site e canal, do mais recente para o mais antigo. O registro fica em `%APPDATA%\multi-pokeidle-io\resgates.log` (últimas 2.000 linhas).
+**Configurações › Log de resgates** mostra cada resgate, recusa e parada, com hora, conta, site e canal, do mais recente para o mais antigo. O registro fica em `%APPDATA%\multi-pokeidle-io\resgates.log` (últimas 2.000 linhas).
 ## Auto-reposição (🛒)
 
 Opcional e **desligada por padrão**. Em cada conta, o botão **🛒** da barra liga e desliga a reposição (fica verde quando ela está ligada e a conta conectada ao jogo); o **⚙** ao lado abre a janela com o estoque, o ouro, as regras e o registro das compras.
@@ -168,7 +168,7 @@ Limites de segurança fixos: no máximo 9.999 unidades por pedido; uma compra a 
 
 ## Vigia de captura e Auto-bola sem VIP
 
-Duas funções, ambas com botão na barra superior (e ligadas por padrão):
+Duas funções, ambas com liga/desliga em **⚙ Configurações** (e ligadas por padrão):
 
 - **Vigia**: se uma conta fica cerca de 45 s sem capturar com Ultra ou Beast Ball, havendo alvo na lista, mostra um aviso vermelho na tela dela e toca um som (o som sai mesmo com a conta silenciada). O aviso some quando ela volta a capturar; enquanto persistir, o som se repete a cada 60 s.
 - **Auto-bola s/ VIP**: nas contas sem VIP, liga o Auto-bola sozinho ao entrar no jogo. Contas VIP não ligam sozinhas. Se você desligar o Auto-bola de uma conta, o app não o religa até ser fechado. A bola de arremesso é a mesma que o jogo usaria (a primeira que a conta tem), lida do estado do jogo; a economia não é alterada, e a conta recarrega uma vez para o Auto-bola acompanhar a conexão. Um aviso do app mostra se o Auto-bola ligou ou por que não ligou.
@@ -180,7 +180,7 @@ Os dois só leem o que o próprio jogo já manda pelo socket (o estado VIP e os 
 - Janela principal: `BaseWindow` do Electron com uma `WebContentsView` por conta.
 - Isolamento: cada conta usa uma partição própria (`persist:conta1` … `persist:conta4`), com cookies e `localStorage` separados e salvos em disco.
 - `backgroundThrottling` desligado para o jogo não pausar nos quadrantes sem foco.
-- Animações reduzidas (`src/reduce-motion.js`): a preferência `reduceMotion` do `config.json` (padrão ligada) faz cada conta receber `prefers-reduced-motion: reduce` por emulação do DevTools (sem CSS injetado), reaplicada a cada carga e alterada na hora pelo botão **Animações**. Só reduz o que o próprio site trata como movimento; animações feitas em canvas ou por script continuam.
+- Animações reduzidas (`src/reduce-motion.js`): a preferência `reduceMotion` do `config.json` (padrão ligada) faz cada conta receber `prefers-reduced-motion: reduce` por emulação do DevTools (sem CSS injetado), reaplicada a cada carga e alterada na hora por **Configurações › Animações**. Só reduz o que o próprio site trata como movimento; animações feitas em canvas ou por script continuam.
 - O User-Agent não inclui "Electron", porque sites com captcha costumam recusar isso.
 - Preferências (número de contas, 2 ou 4, e ordem da grade; a última escolha é lembrada, inclusive se a barra de RAM está oculta) ficam em `config.json` e `order.json`, na pasta de dados do app (`%APPDATA%\multi-pokeidle-io`).
 - Preferências (número de contas, 2 ou 4, e ordem da grade; a última escolha é lembrada) ficam em `config.json` e `order.json`, na pasta de dados do app (`%APPDATA%\multi-pokeidle-io`). A configuração da auto-reposição fica em `restock.json`, na mesma pasta.
