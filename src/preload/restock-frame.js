@@ -340,6 +340,7 @@ function restockPage(opts) {
   setInterval(tick, 1000);
 }
 
-if (webFrame) webFrame.executeJavaScript(`(${restockPage})()`).catch(() => {});
+// Só no site do jogo: a sessão da conta também abre páginas da Twitch e da Kick (lives), onde isto não deve rodar
+if (webFrame && /(^|\.)pokeidle\.io$|^(localhost|127\.0\.0\.1)$/.test(location.hostname)) webFrame.executeJavaScript(`(${restockPage})()`).catch(() => {});
 // Só para os testes (na main o `webFrame` não existe, então a função é exportada e injetada pelo teste)
 if (typeof module === 'object' && module && module.exports) module.exports = restockPage;

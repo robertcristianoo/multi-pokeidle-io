@@ -30,8 +30,8 @@ const SITES = {
   },
 };
 
-// Cada conta tem a sua sessão por site (o login da Twitch/Kick fica nela, e só se faz uma vez).
-const partitionOf = (site, acc) => `persist:pontos-${site}-conta${acc}`;
+// O login da Twitch/Kick fica na sessão da própria conta do jogo (a mesma partição), e só se faz uma vez.
+const partitionOf = (_site, acc) => `persist:conta${acc}`;
 
 // Botões e campos do rodapé do chat, em ordem de preferência. Os seletores não foram validados contra o site ao vivo:
 // se nada casar, o painel avisa e mostra a página inteira.
