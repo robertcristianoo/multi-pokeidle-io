@@ -15,7 +15,9 @@ function createSettings({ mainWin, getState, toggles, open }) {
     if (win && !win.isDestroyed()) { win.focus(); return; }
     win = new BrowserWindow({
       width: 520,
-      height: 520,
+      height: 580,
+      useContentSize: true,
+      resizable: false,
       parent: mainWin,
       modal: true,
       title: 'Configurações - Multi PokeIdle IO',
