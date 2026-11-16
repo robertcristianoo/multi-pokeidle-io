@@ -338,7 +338,7 @@ async function resetAccount(index) {
 // ---- Extensões locais (opcional) ----
 // Os arquivos da pasta `local/` são carregados com
 // acesso às contas abertas. Contrato:
-//   `module.exports = ({ getSlots, sendLog, notify }) => ({ onShortcut?, onSlotCreated?, onSlotRemoved?, features? })`
+//   `module.exports = ({ getSlots, sendLog, notify }) => ({ onShortcut?, onSlotCreated?, onSlotRemoved?, features?, ready? })`
 // `features()` devolve [{ id, label, title, isOn(contaId), set(contaId, on), settings?() }]: viram botões
 // liga/desliga na barra de cada conta (ver toolbar.js).
 // `onSlotCreated(id, view)` roda antes de a conta carregar a página (dá para registrar preloads).
@@ -673,8 +673,10 @@ function createWindow() {
   updateTitle();
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   loadExtensions();
+  // extensões que precisam estar prontas antes de as contas abrirem o jogo (ex.: as que carregam extensão do Chromium)
+  await Promise.all(exts.map((x) => x.ready?.()));
   createWindow();
   app.on('activate', () => {
     if (BaseWindow.getAllWindows().length === 0) createWindow();

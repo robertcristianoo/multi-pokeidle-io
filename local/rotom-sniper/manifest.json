@@ -1,0 +1,56 @@
+{
+"update_url": "https://clients2.google.com/service/update2/crx",
+
+  "manifest_version": 3,
+  "name": "Rotom Sniper - Assistente PokéIdle",
+  "short_name": "Rotom Sniper",
+  "version": "1.5.6",
+  "description": "Assistente PokéIdle: Sniper do Mercado da Comunidade com radar de Shiny, P5 e Nota e catálogo do RMT sempre atualizado.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": [
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://pokeidle.io/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Rotom Sniper (Cockpit)",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://pokeidle.io/*"
+      ],
+      "js": [
+        "content_script.js"
+      ],
+      "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "items_db.js",
+        "injected.js"
+      ],
+      "matches": [
+        "https://pokeidle.io/*"
+      ]
+    }
+  ]
+}
