@@ -7,7 +7,9 @@
   'use strict';
   const PIH = (root.__pokeidleHunt ??= {});
   const MIN_PX = 40; // artes menores (ícones de lista) ficam sem o atalho
-  const ICONE = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 20l2.2-4.2L17 5l2 2L8.2 17.8 4 20zm13.2-15.2L19 3l2 2-1.8 1.8-2-2z" fill="currentColor"/></svg><b>?</b>';
+  // duas espadas cruzadas (lâmina, guarda e cabo de cada uma) + "?"
+  const ICONE = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">'
+    + '<path stroke-width="2" d="M4 4l11 11M20 4L9 15"/><path stroke-width="2" d="M12.3 17.7l5.4-5.4M11.7 17.7L6.3 12.3"/><path stroke-width="2.6" d="M16 16l3.5 3.5M8 16l-3.5 3.5"/></svg><b>?</b>';
 
   function pokemonDaArte(el) {
     const pk = el.__pk;
