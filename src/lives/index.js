@@ -152,7 +152,7 @@ function createLives({
       const kick = c.kickLives > 0 ? c.kickChannels : [];
       const twitch = c.twitchLives > 0 ? c.twitchChannels : [];
       const [kickNow, twitchNow] = await Promise.all([
-        Promise.all(kick.map((ch) => D.kickLive.isLiveAsync(ch))),
+        Promise.all(kick.map((ch) => D.kickLive.isLiveAsync(ch, { fetchFn: sessionFetch([...active][0]) }))),
         D.twitchLive.liveAsync(twitch),
       ]);
       kick.forEach((ch, i) => { liveNow.kick[ch] = kickNow[i]; });
@@ -406,6 +406,14 @@ function createLives({
     watchers.delete(acc);
   }
 
+  // Pede à Kick pela sessão do Chromium da conta (mesmos cookies e identidade do painel "Pontos da Kick"): o fetch do Node
+  // recebe 403 do site. Sem sessão (testes), cai no fetch comum.
+  function sessionFetch(acc) {
+    if (!acc || deps.kickLive || !session?.fromPartition) return undefined;
+    const ses = session.fromPartition(`persist:conta${acc}`);
+    return (url, init) => ses.fetch(url, init);
+  }
+
   async function updateKickWatchers() {
     for (const acc of active) {
       const channels = openOf('kick', acc);
@@ -416,7 +424,7 @@ function createLives({
       }
       const current = kickWatchers.get(acc);
       if (current && current.token !== token) stopKickWatcher(acc);
-      if (!kickWatchers.has(acc)) kickWatchers.set(acc, new D.KickWatcher(D.kickEndpoints, token));
+      if (!kickWatchers.has(acc)) kickWatchers.set(acc, new D.KickWatcher(D.kickEndpoints, token, sessionFetch(acc)));
       kickWatchers.get(acc).setChannels(channels);
     }
   }

@@ -25,7 +25,10 @@ const sleep = (ms, signal) => new Promise((resolve, reject) => {
 });
 
 class KickWatcher {
-  constructor(endpoints, token) {
+  // `fetchFn`: como pedir à Kick. No app é o da sessão do Chromium da conta (cookies e identidade de navegador, que o site
+  // confere: o fetch do Node leva 403); sem ele usa o fetch do Node.
+  constructor(endpoints, token, fetchFn = null) {
+    this._fetch = fetchFn ?? ((...a) => fetch(...a));
     this._endpoints = endpoints;
     this._token = token;
     this._lives = new Map();
@@ -174,7 +177,7 @@ class KickWatcher {
   }
 
   _request(url, stop) {
-    return fetch(url, {
+    return this._fetch(url, {
       headers: {
         'User-Agent': USER_AGENT, Accept: 'application/json', 'x-app-platform': 'web', Referer: 'https://kick.com',
         Authorization: `Bearer ${this._token}`,
@@ -200,7 +203,7 @@ class KickWatcher {
 
   // O token de espectador, com o login da conta (vale para uma conexão).
   async _viewerToken(stop) {
-    const r = await fetch(`${this._endpoints.websockets}/viewer/v1/token`, {
+    const r = await this._fetch(`${this._endpoints.websockets}/viewer/v1/token`, {
       headers: {
         'User-Agent': USER_AGENT, Accept: 'application/json', 'x-app-platform': 'web', Referer: 'https://kick.com',
         Authorization: `Bearer ${this._token}`, 'X-CLIENT-TOKEN': KICK_CLIENT_TOKEN,

@@ -25,6 +25,9 @@ const flatLives = (accounts) => accounts.flatMap((a) => [
 ]);
 
 // `getStatus(acc, site, channel)` -> { text, stopped } do resgate automático (do gerenciador de lives); `onConfig`/`onLog` abrem as janelas dele.
+// Volume baixo (10%) nos vídeos do painel: o player abre em 100% de fábrica. Cada vídeo é ajustado uma vez só.
+const QUIET_SCRIPT = `for (const v of document.querySelectorAll('video')) { if (v.dataset.quietSet) continue; v.dataset.quietSet = '1'; v.volume = 0.1; }`;
+
 function createPoints({ mainWin, getAccounts, config, raise = () => {}, relayout = () => {}, getStatus = () => ({}), onConfig = () => {}, onLog = () => {} }) {
   const configOf = () => config.get() ?? {};
 
@@ -91,6 +94,12 @@ function createPoints({ mainWin, getAccounts, config, raise = () => {}, relayout
       }).catch(() => {});
     };
     view.webContents.on('did-finish-load', apply);
+    // O player carrega depois da página: põe o volume em 10% uma vez em cada vídeo que aparece (mexer depois vale).
+    const quiet = setInterval(() => {
+      if (view.webContents.isDestroyed()) return clearInterval(quiet);
+      view.webContents.executeJavaScript(QUIET_SCRIPT).catch(() => {});
+    }, 2000);
+    view.webContents.once('destroyed', () => clearInterval(quiet));
     view.webContents.loadURL(panel.full ? S.pageUrl(it.channel) : S.chatUrl(it.channel)).catch(() => {});
     relayout();
     pushState();

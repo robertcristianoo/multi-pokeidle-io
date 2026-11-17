@@ -20,9 +20,9 @@ function parseLive(json) {
 }
 
 // Pergunta à Kick por um endereço; true/false se a resposta diz, null se não deu para saber (bloqueio, erro, sem internet).
-async function ask(url) {
+async function ask(url, fetchFn = fetch) {
   try {
-    const r = await fetch(url, {
+    const r = await fetchFn(url, {
       headers: { 'User-Agent': USER_AGENT, Accept: 'application/json', 'x-app-platform': 'web', Referer: 'https://kick.com' },
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
@@ -34,9 +34,9 @@ async function ask(url) {
 }
 
 // O endereço de sempre e, sem resposta, o "/info" (o mesmo que a Kick leve usa para abrir o canal).
-async function isLiveAsync(channel, { api = 'https://kick.com' } = {}) {
+async function isLiveAsync(channel, { api = 'https://kick.com', fetchFn } = {}) {
   const base = `${api}/api/v2/channels/${encodeURIComponent(channel)}`;
-  return (await ask(base)) ?? (await ask(`${base}/info`));
+  return (await ask(base, fetchFn)) ?? (await ask(`${base}/info`, fetchFn));
 }
 
 // As lives para abrir: só canais que estão no ar, na ordem da lista (a primeira tem prioridade), até `slots`. Quando um
