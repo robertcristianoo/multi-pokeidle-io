@@ -156,7 +156,13 @@ function createLives({
         D.twitchLive.liveAsync(twitch),
       ]);
       kick.forEach((ch, i) => { liveNow.kick[ch] = kickNow[i]; });
+      // A Kick não respondeu (bloqueio do site, por exemplo): usa o que o próprio jogo informa dos canais oficiais.
+      if (kick.some((ch) => liveNow.kick[ch] === null || liveNow.kick[ch] === undefined)) {
+        const game = new Map(((await officialChannels()).kick ?? []).map((o) => [String(o?.login ?? '').toLowerCase(), o?.live]));
+        for (const ch of kick) if (!(typeof liveNow.kick[ch] === 'boolean') && typeof game.get(ch) === 'boolean') liveNow.kick[ch] = game.get(ch);
+      }
       for (const [ch, live] of Object.entries(twitchNow ?? {})) liveNow.twitch[ch] = live;
+      autoSortLists(c);
       for (const acc of active) {
         if (twitchLogin.get(acc) === false && (await readTwitchLogin(acc)).token) twitchLogin.set(acc, true);
       }
@@ -166,6 +172,18 @@ function createLives({
       liveChecking = false;
     }
     applyLives();
+  }
+
+  // Com a opção ligada, reordena as listas por status (no ar primeiro) a cada conferência e guarda a ordem nova no config.
+  const lastLive = { twitch: {}, kick: {} };
+  function autoSortLists(c) {
+    const next = {};
+    for (const [site, key] of [['twitch', 'twitchChannels'], ['kick', 'kickChannels']]) {
+      const sorted = cfgLib.sortByStatus(c[key], liveNow[site], lastLive[site]);
+      if (c.autoSort && sorted.some((ch, i) => ch !== c[key][i])) next[key] = sorted;
+      for (const ch of c[key]) if (typeof liveNow[site][ch] === 'boolean') lastLive[site][ch] = liveNow[site][ch];
+    }
+    if (Object.keys(next).length) config.set({ ...config.get(), ...next });
   }
 
   // Deixa abertas, em cada conta, só as lives da Twitch e da Kick que estão no ar (até o limite da conta), na ordem da lista.
@@ -825,6 +843,7 @@ function createLives({
     return cfg();
   });
   ipcMain.handle('lives:details', () => details());
+  ipcMain.handle('pts:log', () => ({ file: rlog.file, rows: rlog.read() }));
 
   if (timers) timer = setInterval(tick, 1000);
   sleepless(syncAccounts());
