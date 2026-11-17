@@ -11,3 +11,5 @@ Versão de origem: 1.0.19 (Chrome Web Store). Ao atualizar a extensão, reaplica
 - `src/ui.css`: estilo do atalho e do painel aberto por ele.
 
 O atalho depende de o app marcar a arte (`src/game-patch.js`, fora desta pasta).
+- `src/ui.js`, `src/ui.css`: o botão `/hunt` do "Em campo" virou um ícone (espadas cruzadas + "?") no cabeçalho do painel,
+  antes dos botões + e chat do jogo; sem o cabeçalho conhecido, cai na barra de antes.
