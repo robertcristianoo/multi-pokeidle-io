@@ -1,6 +1,6 @@
 // Roda antes de compilar (`npm test`, e automaticamente em `npm run dist` / `dist:release`):
-//  1. confere a sintaxe de todos os .js de src/, tools/, test/ (e de local/, se existir);
-//  2. roda cada teste do Electron (test/*.test.js, e local/test/*.test.js das extensões locais, se existirem)
+//  1. confere a sintaxe de todos os .js de src/, tools/, test/;
+//  2. roda cada teste do Electron (test/*.test.js)
 //     num processo à parte, com a pasta de dados isolada: nunca toca nas sessões/contas reais.
 const fs = require('fs');
 const os = require('os');
@@ -14,7 +14,7 @@ let failed = 0;
 const walk = (dir) => (fs.existsSync(dir)
   ? fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : e.name.endsWith('.js') ? [path.join(dir, e.name)] : []))
   : []);
-const jsFiles = ['src', 'tools', 'test', 'local'].flatMap((d) => walk(path.join(root, d)));
+const jsFiles = ['src', 'tools', 'test'].flatMap((d) => walk(path.join(root, d)));
 for (const f of jsFiles) {
   const r = spawnSync(process.execPath, ['--check', f], { encoding: 'utf8' });
   if (r.status !== 0) {
@@ -24,7 +24,7 @@ for (const f of jsFiles) {
 }
 console.log(`sintaxe: ${jsFiles.length - failed}/${jsFiles.length} arquivos ok`);
 
-const testDirs = [__dirname, path.join(root, 'local', 'test')].filter((d) => fs.existsSync(d));
+const testDirs = [__dirname];
 const tests = testDirs.flatMap((d) => fs.readdirSync(d).filter((f) => f.endsWith('.test.js')).sort().map((f) => path.join(d, f)));
 for (const t of tests) {
   console.log(`\n== ${path.relative(root, t)}`);

@@ -233,10 +233,6 @@ Também dá para lançar na mão em **Actions → Release → Run workflow**. As
 
 **Aviso de versão nova no app:** os pacotes de Release carregam a própria versão e, de tempos em tempos, o app consulta o último Release público do GitHub (`api.github.com`, sem login e sem enviar nada seu). Se existir uma versão mais nova, o botão **Atualizar → vX.Y.Z** pisca na barra superior e um aviso aparece uma vez; o clique abre a página do Release para baixar o instalador. O app não se atualiza sozinho. Builds locais e execução por `npm start` não consultam nada.
 
-## Link de indicação
-
-O app abre o jogo usando o link que contém o meu código de indicação. Para usar o seu, troque a constante `URL` no topo de [`src/main.js`](src/main.js).
-
 ## Termos do jogo
 
 Use contas e múltiplas sessões de acordo com os [termos do PokeIdle](https://pokeidle.io/terms).

@@ -1,7 +1,8 @@
 {
   "appId": "com.pokeidle.multi",
   "directories": { "output": "dist-release" },
-  "files": ["**/*", "!local/**", "!test/**", "!dist/**", "!dist-release/**", "!err.txt"],
+  "files": ["**/*", "!test/**", "!dist/**", "!dist-release/**", "!err.txt"],
+  "asarUnpack": ["extensions/**"],
   "win": { "target": ["portable", "nsis"], "icon": "assets/icon.ico" },
   "portable": { "artifactName": "multi-pokeidle-io-Portable-${version}.${ext}" },
   "nsis": { "artifactName": "multi-pokeidle-io-Setup-${version}.${ext}" }

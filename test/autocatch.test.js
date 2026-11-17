@@ -1,17 +1,17 @@
-// Testa a extensão de auto-captura contra uma página que imita o Mapa novo do jogo (local/test/fixture-map.html):
+// Testa a extensão de auto-captura contra uma página que imita o Mapa novo do jogo (test/fixtures/fixture-map.html):
 // lista + filtro Pokédex + dropdown de região.
 // Captura semanal: o selo "já capturado" do jogo (lifetime) é ignorado; só vale o cache da semana.
 // Fluxo esperado: Kanto do menor nível ao maior (sem as travadas) -> Johto -> Outland -> fim; depois do reset, tudo de novo.
 // Hoenn (cadeado) e Sinnoh (em obra) não podem ser visitadas. Um clique recusado pela "trava de combate" é repetido.
-const { app, sleep, check, finish, waitFor } = require('../../test/helpers');
+const { app, sleep, check, finish, waitFor } = require('./helpers');
 const path = require('path');
 const { BrowserWindow } = require('electron');
 
 app.whenReady().then(async () => {
   const win = new BrowserWindow({ show: false, webPreferences: { backgroundThrottling: false } });
-  await win.loadFile(path.join(__dirname, 'fixture-map.html'));
+  await win.loadFile(path.join(__dirname, 'fixtures', 'fixture-map.html'));
   const logs = [];
-  const ext = require('../autocatch.js')({
+  const ext = require('../src/autocatch.js')({
     getSlots: () => [{ id: 1, view: { webContents: win.webContents } }],
     sendLog: (e) => logs.push(e.text),
   });
