@@ -715,6 +715,24 @@ function createLives({
       if (site === 'twitch') twitchLogin.delete(acc), activateLogin(acc);
     });
   }
+  // Apaga o login da Twitch/Kick só desta conta (cookies e dados do site na sessão dela), para entrar de novo com a conta certa.
+  async function logout(acc, site) {
+    const ses = session.fromPartition(partitionOf(site, acc));
+    const hosts = site === 'kick' ? ['kick.com'] : ['twitch.tv', 'twitchcdn.net'];
+    try {
+      for (const ck of await ses.cookies.get({})) {
+        const d = String(ck.domain).replace(/^\./, '');
+        if (hosts.some((h) => d === h || d.endsWith('.' + h))) await ses.cookies.remove(`https://${d}${ck.path || '/'}`, ck.name).catch(() => {});
+      }
+      for (const h of hosts) for (const origin of [`https://${h}`, `https://www.${h}`, `https://id.${h}`]) await ses.clearStorageData({ origin }).catch(() => {});
+      if (site === 'kick') kickWatchers.get(acc) && stopKickWatcher(acc);
+      redeemers[site].get(acc)?.restart?.();
+      if (site === 'twitch') twitchLogin.set(acc, false);
+      note(acc, `${SITES[site].label}: login apagado nesta conta. Use "Entrar na Twitch/Kick" para entrar de novo.`);
+    } catch (err) {
+      note(acc, `${SITES[site].label}: não consegui apagar o login (${err?.message ?? err})`);
+    }
+  }
   const activateLogin = async (acc) => { if (active.has(acc)) { twitchLogin.set(acc, !!(await readTwitchLogin(acc)).token); liveCheckAt = 0; } };
 
   let detailsWin = null;
@@ -819,6 +837,10 @@ function createLives({
       {
         label: 'Entrar na Twitch/Kick (para resgatar pontos)',
         submenu: accountIds().flatMap((acc) => SITE_ORDER.map((s) => ({ label: `Conta ${acc} · ${SITES[s].label}`, click: () => showLogin(acc, s) }))),
+      },
+      {
+        label: 'Sair da Twitch/Kick (limpar o login da conta)',
+        submenu: accountIds().flatMap((acc) => SITE_ORDER.map((s) => ({ label: `Conta ${acc} · ${SITES[s].label}`, click: () => logout(acc, s) }))),
       },
       { label: 'Detalhes… (Twitch leve, baús, pontos por hora)', enabled: active.size > 0, click: showDetails },
       { label: `Registro dos resgates… (${today} hoje)`, click: showLog },
