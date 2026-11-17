@@ -104,7 +104,7 @@
         if (cab) {
           // ícone pequeno no cabeçalho "Em campo", antes dos botões + e chat do jogo
           botao.classList.remove('pih-barra');
-          botao.classList.add('pih-icone', 'btn-compartilhar-pk');
+          botao.classList.add('pih-icone');
           if (!botao.querySelector('svg')) botao.innerHTML = ICONE_CAB;
           const ref = cab.querySelector('#btn-refino-pk, #btn-compartilhar-pk');
           if (botao.parentElement !== cab || (ref && botao.nextElementSibling !== ref)) { if (ref) cab.insertBefore(botao, ref); else cab.append(botao); }

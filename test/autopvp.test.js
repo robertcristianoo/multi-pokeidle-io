@@ -1,5 +1,5 @@
 // Auto-PvP: entra na fila pelo socket do jogo, grava a "tela de batalha" como "off", espera ~22 s entre partidas e recua se a fila não abre.
-const { app, check, finish, waitFor } = require('../../test/helpers');
+const { app, check, finish, waitFor } = require('./helpers');
 const { BrowserWindow } = require('electron');
 
 const http = require('http');
@@ -17,7 +17,7 @@ const servidor = http.createServer((_, res) => { res.setHeader('content-type', '
 
 app.whenReady().then(async () => {
   const win = new BrowserWindow({ show: false, webPreferences: { backgroundThrottling: false } });
-  const ext = require('../autopvp.js')({ getSlots: () => [{ id: 1, view: { webContents: win.webContents } }], sendLog: () => {} });
+  const ext = require('../src/autopvp.js')({ getSlots: () => [{ id: 1, view: { webContents: win.webContents } }], sendLog: () => {} });
   const f = ext.features().find((x) => x.id === 'autopvp');
   const js = (s) => win.webContents.executeJavaScript(s);
   const entradas = () => js('(window.enviados || []).filter((m) => m.t === "pvp.fila.entrar").length');

@@ -193,8 +193,8 @@
 
 /* Versão em ícone, no cabeçalho "Em campo" (entre o título e os botões + e chat do jogo). */
 .pih-btn.pih-icone {
-  display: inline-flex; align-items: center; gap: 1px; width: auto; min-width: 0; height: auto; margin: 0; padding: 4px 6px;
-  color: #000;
+  display: inline-flex; align-items: center; justify-content: center; gap: 1px; width: auto; min-width: 30px; height: 30px; margin: 0; padding: 0 7px;
+  background: linear-gradient(180deg, #ffe9a8 0 4px, #d09a17 4px 100%); color: #1a0a00; text-shadow: none;
 }
 .pih-btn.pih-icone b { font-size: 12px; line-height: 1; }
 .pih-btn.pih-icone svg { flex: none; }

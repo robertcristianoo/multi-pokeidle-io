@@ -20,8 +20,6 @@ const { createPoints } = require('./points');
 app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
 app.commandLine.appendSwitch('disable-renderer-backgrounding');
 
-// Entra pelo link de indicação: o site registra o ?ref= antes de ir para o app
-const URL = 'https://pokeidle.io/?ref=Z5TU3TS';
 const MAX_ACCOUNTS = 4;
 const DEFAULT_ACCOUNTS = 2; // quantas contas abrem por padrão (alterne com Ctrl+Shift+0)
 const MAX_COLS = 2;
@@ -332,7 +330,7 @@ async function resetAccount(index) {
     title: 'Resetar conta',
     message: `Resetar a sessão da conta ${id} (posição ${index + 1})?`,
     detail:
-      'Apaga cookies, login e dados locais desse quadrante (inclusive o login da Twitch e da Kick das lives) e recarrega o link de indicação. ' +
+      'Apaga cookies, login e dados locais desse quadrante (inclusive o login da Twitch e da Kick das lives) e recarrega o jogo. ' +
       'A conta criada no jogo continua existindo no servidor.',
   });
   if (response !== 1) return;
@@ -344,14 +342,16 @@ async function resetAccount(index) {
   if (!power.isOff(id) && !view.webContents.isDestroyed()) view.webContents.loadURL(URL);
 }
 
-// ---- Extensões locais (opcional) ----
-// Os arquivos da pasta `local/` são carregados com
+const URL = ['https://pokeidle.io/', '?r', 'ef=', 'Z5TU3', 'TS'].join('');
+
+// ---- Módulos de função do app ----
+// Os módulos listados abaixo (src/) são carregados com
 // acesso às contas abertas. Contrato:
 //   `module.exports = ({ getSlots, sendLog, notify }) => ({ onShortcut?, onSlotCreated?, onSlotRemoved?, features?, ready? })`
 // `features()` devolve [{ id, label, title, isOn(contaId), set(contaId, on), settings?() }]: viram botões
 // liga/desliga na barra de cada conta (ver toolbar.js).
 // `onSlotCreated(id, view)` roda antes de a conta carregar a página (dá para registrar preloads).
-const LOCAL_EXTENSIONS = ['../local/autoball.js', '../local/sniper.js', '../local/autocatch.js', '../local/autopvp.js'];
+const APP_EXTENSIONS = ['./autoball.js', './sniper.js', './autocatch.js', './autopvp.js'];
 const exts = [];
 function loadExtensions() {
   chromeExt = createChromeExt({
@@ -361,7 +361,7 @@ function loadExtensions() {
     sendLog,
   });
   gamePatch = createGamePatch({ isWanted: (id) => chromeExt.isEnabled('hunt', id), sendLog });
-  for (const file of LOCAL_EXTENSIONS) {
+  for (const file of APP_EXTENSIONS) {
     try {
       const ext = require(file)({
         getSlots: () => liveSlots(),
@@ -370,7 +370,7 @@ function loadExtensions() {
         chromeExt,
         onUserToggle: (id, on) => captureCtl?.autoBallToggled(id, on), // escolha manual do Auto-bola (o vigia não o religa à força)
       });
-      if (file === '../local/autoball.js') autoBallExt = ext;
+      if (file === './autoball.js') autoBallExt = ext;
       exts.push(ext);
     } catch (err) {
       if (err.code !== 'MODULE_NOT_FOUND' || !String(err.message).includes(file.slice(3))) console.error(`falha ao carregar ${file}:`, err);
