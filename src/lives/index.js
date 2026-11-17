@@ -28,7 +28,7 @@ const PRELOAD = (f) => path.join(__dirname, '..', 'preload', f);
 
 const TWITCH_API = 'https://gql.twitch.tv';
 const KICK_API = 'https://kick.com';
-const LIVE_CHECK_MS = 2 * 60 * 1000;
+const LIVE_CHECK_MS = 60 * 1000; // quem está no ar: quando uma live aberta cai, a próxima online ocupa a vaga na conferência seguinte
 const FIRST_REDEEM_MS = 60 * 1000; // o saldo, 1 min depois de abrir (as lives já assentaram)
 const PROBLEM_EVERY_MS = 10 * 60 * 1000;
 const SITE_ORDER = ['twitch', 'kick'];
@@ -168,7 +168,8 @@ function createLives({
     applyLives();
   }
 
-  // Deixa abertas, em cada conta, só as lives da Twitch e da Kick que estão no ar (até o limite da conta)
+  // Deixa abertas, em cada conta, só as lives da Twitch e da Kick que estão no ar (até o limite da conta), na ordem da lista.
+  // Roda a cada conferência de quem está no ar: a live aberta que caiu sai e o próximo canal online ainda fechado entra no lugar.
   function applyLives() {
     const c = cfg();
     for (const acc of active) {
@@ -177,14 +178,44 @@ function createLives({
       if (Object.keys(liveNow.twitch).length > 0 || twitchLogin.get(acc) === false) {
         const lim = c.twitch[acc];
         const wanted = c.twitchChannels.filter((ch) => !lim.closed.includes(ch));
-        open.twitch.set(acc, twitchLogin.get(acc) === false ? [] : kickLive.pick(wanted, liveNow.twitch, cfgLib.slotsOf(lim, c.twitchLives)));
+        const now = twitchLogin.get(acc) === false ? [] : kickLive.pick(wanted, liveNow.twitch, cfgLib.slotsOf(lim, c.twitchLives), openOf('twitch', acc));
+        swapNotice(acc, 'twitch', openOf('twitch', acc), now);
+        open.twitch.set(acc, now);
       }
       if (Object.keys(liveNow.kick).length > 0) {
         const lim = c.kick[acc];
         const wanted = c.kickChannels.filter((ch) => !lim.closed.includes(ch));
-        open.kick.set(acc, kickLive.pick(wanted, liveNow.kick, cfgLib.slotsOf(lim, c.kickLives)));
+        const now = kickLive.pick(wanted, liveNow.kick, cfgLib.slotsOf(lim, c.kickLives), openOf('kick', acc));
+        swapNotice(acc, 'kick', openOf('kick', acc), now);
+        open.kick.set(acc, now);
       }
     }
+  }
+
+  // Avisa e registra quando uma live aberta caiu e outra entrou no lugar dela
+  function swapNotice(acc, site, before, now) {
+    const gone = before.filter((ch) => !now.includes(ch) && liveNow[site][ch] === false);
+    const added = now.filter((ch) => !before.includes(ch));
+    if (!gone.length || !added.length) return;
+    logLine(acc, site, `${gone.join(', ')}: ficou offline; abri ${added.join(', ')} no lugar`);
+    note(acc, `${SITES[site].label}: ${gone.join(', ')} ficou offline; abri ${added.join(', ')}`);
+  }
+
+  // Os canais oficiais que o jogo informa (no ar e offline), lidos da primeira conta ligada que tenha a lista:
+  // { twitch: [{ login, live }], kick: [...], acc } (acc = null se nenhuma conta trouxe a lista)
+  async function officialChannels() {
+    const out = { twitch: [], kick: [], acc: null };
+    for (const slot of getSlots()) {
+      const summary = await readBonus(slot.id);
+      const tw = summary?.twitch?.channels ?? [];
+      const kk = summary?.kick?.channels ?? [];
+      if (!tw.length && !kk.length) continue;
+      out.twitch = tw;
+      out.kick = kk;
+      out.acc = slot.id;
+      break;
+    }
+    return out;
   }
 
   // Antes, o login da Twitch/Kick ficava numa sessão própria do painel de pontos (persist:pontos-<site>-conta<N>); agora fica
@@ -785,7 +816,9 @@ function createLives({
     accounts: accountIds(),
     bonuses: BONUSES,
     limits: { max: cfgLib.MAX_SLOTS },
+    live: { twitch: { ...liveNow.twitch }, kick: { ...liveNow.kick } },
   }));
+  ipcMain.handle('lives:official-channels', () => officialChannels());
   ipcMain.handle('lives:config-save', (_e, raw) => {
     config.set(cfgLib.normalize(raw, { maxAccounts }));
     reopenAll();
@@ -817,6 +850,7 @@ function createLives({
     syncAccounts,
     checkLives,
     applyLives,
+    officialChannels,
     redeemKick,
     twitchPoints,
     refreshBonus,

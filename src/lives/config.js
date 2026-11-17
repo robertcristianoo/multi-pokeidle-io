@@ -83,6 +83,26 @@ function normalize(raw, { maxAccounts = 4, legacyAuto = null } = {}) {
   };
 }
 
+// Junta à lista do usuário os canais oficiais que faltam, no fim (a ordem escolhida não muda). `official` = [{ login, live }]
+// como o jogo informa (no ar e offline). Devolve a lista nova e os canais acrescentados.
+function mergeOfficial(current, official) {
+  const list = parseChannels(current);
+  const added = [];
+  for (const o of Array.isArray(official) ? official : []) {
+    const [c] = parseChannels(o?.login);
+    if (c && !list.includes(c)) { list.push(c); added.push(c); }
+  }
+  return { list, added };
+}
+
+// Move o canal `from` para a posição `to` (arrastar e soltar); índices fora da lista não mudam nada.
+function move(list, from, to) {
+  const out = [...list];
+  if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || from >= out.length || to < 0 || to >= out.length) return out;
+  out.splice(to, 0, out.splice(from, 1)[0]);
+  return out;
+}
+
 const slotsOf = (lim, max) => clamp(lim.slots ?? max, 0, max);
 
-module.exports = { normalize, parseChannels, slotsOf, MAX_SLOTS, DEFAULT_SLOTS, DEFAULT_TWITCH, DEFAULT_KICK };
+module.exports = { normalize, parseChannels, mergeOfficial, move, slotsOf, MAX_SLOTS, DEFAULT_SLOTS, DEFAULT_TWITCH, DEFAULT_KICK };

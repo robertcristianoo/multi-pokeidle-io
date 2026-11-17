@@ -71,7 +71,8 @@ app.whenReady().then(async () => {
     check(kickLive.parseLive('{"livestream":null}') === false && kickLive.parseLive('{"livestream":{"is_live":false}}') === false
       && kickLive.parseLive('{"livestream":{"id":1}}') === true && kickLive.parseLive('{}') === null && kickLive.parseLive('x') === null, 'Kick parseLive: null/offline/no ar/sem campo/estranho');
     const live = new Map([['a', true], ['b', false], ['c', null], ['d', true]]);
-    check(kickLive.pick(['b', 'a', 'c', 'd'], live, 2).join() === 'a,c' && kickLive.pick(['a', 'b'], { a: true, b: false }, 5).join() === 'a', 'Kick pick: ordem da lista, sem offline, canal sem resposta conta, limite');
+    check(kickLive.pick(['b', 'a', 'c', 'd'], live, 2).join() === 'a,d' && kickLive.pick(['a', 'b'], { a: true, b: false }, 5).join() === 'a', 'Kick pick: ordem da lista, só canais no ar, limite');
+    check(kickLive.pick(['b', 'a', 'c', 'd'], live, 3, ['c']).join() === 'a,c,d' && kickLive.pick(['x', 'a'], { a: true }, 5).join() === 'a', 'Kick pick: canal sem resposta só segue aberto se já estava aberto; nunca abre um desconhecido');
 
     const api = await fakeServer((req, body) => {
       if (req.url === '/gql') {
