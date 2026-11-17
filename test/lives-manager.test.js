@@ -37,6 +37,10 @@ app.whenReady().then(async () => {
     check(mig.redeemKick[1] === 'captura' && mig.redeemTwitch[1] === 'shiny' && !mig.redeemKick[2], 'config: migra o resgate automático da versão anterior');
     check(cfgLib.normalize({ redeemKick: {} }, { legacyAuto: { 1: { kick: 'xp' } } }).redeemKick[1] === undefined, 'config: a escolha nova vence a antiga');
 
+    const merged = cfgLib.mergeOfficial(['yetz', 'axt'], [{ login: 'AXT', live: true }, { login: 'rodil', live: false }, { login: 'novo_canal', live: true }, { login: '', live: true }]);
+    check(merged.list.join() === 'yetz,axt,rodil,novo_canal' && merged.added.join() === 'rodil,novo_canal', `lista oficial: acrescenta no fim, sem repetir nem mexer na ordem (${merged.list})`);
+    check(cfgLib.move(['a', 'b', 'c', 'd'], 3, 0).join() === 'd,a,b,c' && cfgLib.move(['a', 'b', 'c'], 0, 1).join() === 'b,a,c' && cfgLib.move(['a', 'b'], 0, 5).join() === 'a,b', 'reordenar: mover para cima, para baixo e índice inválido');
+
     // ---- guarda do bônus ----
     let clock = 1_000_000;
     const guard = createGuard({ now: () => clock });
@@ -77,6 +81,7 @@ app.whenReady().then(async () => {
     await session.fromPartition('persist:conta1').cookies.set({ url: 'https://www.twitch.tv', name: 'auth-token', value: 'twtok' });
 
     let store = { accounts: [1], kickChannels: ['off', 'a', 'b', 'c'], twitchChannels: [], kickLives: 2, twitchLives: 0, redeemKick: { 1: 'xp' } };
+    const kickOn = {}; // quem está no ar (canal -> true | false | null); sem entrada: no ar, menos 'off'
     const ran = [];
     const once = [];
     const notices = [];
@@ -90,7 +95,7 @@ app.whenReady().then(async () => {
       notify: (x) => notices.push(x),
       timers: false,
       deps: {
-        kickLive: { ...require('../src/lives/kick-live'), isLiveAsync: async (c) => (c === 'off' ? false : true) },
+        kickLive: { ...require('../src/lives/kick-live'), isLiveAsync: async (c) => (c in kickOn ? kickOn[c] : c !== 'off') },
         twitchLive: { liveAsync: async () => ({}) },
         pages: {
           run: async (acc, siteName, channel, script) => {
@@ -147,6 +152,40 @@ app.whenReady().then(async () => {
     await lives.checkLives();
     check(lives.open('kick', 1).join() === 'a,b', 'nova conferência mantém as lives abertas');
 
+    // troca automática: uma live aberta cai e a próxima online da lista que não estava aberta ocupa a vaga
+    store = { ...store, kickChannels: ['off', 'a', 'b', 'c', 'd'] };
+    lives.reopenAll();
+    await lives.syncAccounts();
+    await lives.checkLives();
+    check(lives.open('kick', 1).join() === 'a,b', `antes da queda: a,b abertas, off pulada (${lives.open('kick', 1).join()})`);
+    notices.length = 0;
+    kickOn.a = false;
+    await lives.checkLives();
+    check(lives.open('kick', 1).join() === 'b,c', `a caiu: sai e a próxima online (c) entra (${lives.open('kick', 1).join()})`);
+    check(notices.some((x) => /a ficou offline; abri c/.test(x.text)) && lives.log.read().some((r) => /ficou offline; abri c/.test(r.detalhe)), 'a troca é avisada e vai para o registro');
+    kickOn.b = null; // conferência sem resposta: a live aberta continua, nenhuma desconhecida abre
+    kickOn.c = null;
+    await lives.checkLives();
+    check(lives.open('kick', 1).join() === 'b,c', `sem resposta: as abertas ficam (${lives.open('kick', 1).join()})`);
+    kickOn.b = false;
+    await lives.checkLives();
+    check(lives.open('kick', 1).join() === 'c,d', `b caiu com c sem resposta: c fica, d entra (${lives.open('kick', 1).join()})`);
+    kickOn.a = true;
+    delete kickOn.b;
+    delete kickOn.c;
+    await lives.checkLives();
+    check(lives.open('kick', 1).join() === 'a,b', `a voltou: a prioridade da lista manda (${lives.open('kick', 1).join()})`);
+    kickOn.a = true;
+    for (const k of Object.keys(kickOn)) delete kickOn[k];
+    store = { ...store, kickChannels: ['off', 'a', 'b', 'c'] };
+
+    // a lista oficial que o jogo informa (no ar e offline), lida da conta ligada
+    summary = { connected: true, kick: { linked: true, left: {}, channels: [{ login: 'axt', live: true }, { login: 'cogu', live: false }] }, twitch: { linked: true, left: {}, channels: [{ login: 'rodil', live: false }] } };
+    const off = await lives.officialChannels();
+    check(off.acc === 1 && off.kick.length === 2 && off.kick[1].live === false && off.twitch[0].login === 'rodil', 'lista oficial: traz os canais no ar e offline de cada site');
+    summary = null;
+    check((await lives.officialChannels()).acc === null, 'lista oficial: sem dados do jogo, devolve vazio (a janela avisa)');
+
     // fechar e abrir de novo uma live nesta conta (leva a vaga junto: não abre outra no lugar)
     store = { ...store, kickChannels: ['off', 'a', 'b', 'c'] };
     lives.reopenAll();
@@ -168,12 +207,19 @@ app.whenReady().then(async () => {
     await waitFor(() => !cw.webContents.isLoading(), 5000);
     const rowsN = await waitFor(async () => (await cw.webContents.executeJavaScript('document.querySelectorAll("#rows tr").length')) === 4, 4000);
     check(rowsN, 'config: uma linha por conta (4)');
-    check(await cw.webContents.executeJavaScript('document.getElementById("kk").value.split("\\n").length') >= 4, 'config: a lista de canais da Kick aparece');
+    check(await cw.webContents.executeJavaScript('document.querySelectorAll("#kk li").length') >= 4, 'config: a lista de canais da Kick aparece, um item por canal');
+    // reordenar: ▼ no primeiro da Kick desce uma posição; adicionar e remover canal na Twitch
+    const kkBefore = await cw.webContents.executeJavaScript('[...document.querySelectorAll("#kk .name")].map((e) => e.textContent).join()');
+    await cw.webContents.executeJavaScript('document.querySelectorAll("#kk li")[0].querySelectorAll("button")[1].click()');
+    const kkAfter = await cw.webContents.executeJavaScript('[...document.querySelectorAll("#kk .name")].map((e) => e.textContent).join()');
+    const [k0, k1, ...kRest] = kkBefore.split(',');
+    check(kkAfter === [k1, k0, ...kRest].join(), `config: ▼ troca o primeiro com o segundo (${kkAfter})`);
     await cw.webContents.executeJavaScript(`(() => {
       document.querySelector('tr[data-acc="2"] .on').checked = true;
       document.querySelector('tr[data-acc="2"] select.twitch').value = 'captura';
       document.querySelector('tr[data-acc="1"] select.kick').value = 'shiny';
-      document.getElementById('tw').value = 'https://www.twitch.tv/Rodil\\n@cogu';
+      for (const name of ['https://www.twitch.tv/Rodil', '@cogu', 'sobrando']) { document.getElementById('add-tw').value = name; document.getElementById('btn-tw').click(); }
+      document.querySelector('#tw li:last-child button:last-child').click(); // remove 'sobrando'
       document.getElementById('save').click();
     })()`);
     const saved = await waitFor(() => store.redeemKick?.[1] === 'shiny', 4000);

@@ -31,8 +31,16 @@ async function isLiveAsync(channel, { api = 'https://kick.com' } = {}) {
   }
 }
 
-// As lives para abrir: as primeiras da lista que estão no ar, até `slots` (a primeira tem prioridade). Canal que
-// não deu para conferir conta como no ar, para não perder pontos.
-const pick = (channels, live, slots) => [...channels].filter((c) => (live instanceof Map ? live.get(c) : live[c]) !== false).slice(0, Math.max(0, slots));
+// As lives para abrir: só canais que estão no ar, na ordem da lista (a primeira tem prioridade), até `slots`. Quando um
+// canal aberto cai, o próximo online da lista que ainda não está aberto ocupa a vaga na mesma conferência. Canal sem
+// resposta da conferência (null/undefined) só continua aberto se já estava em `opened`: nunca se abre um canal que não se
+// sabe se está no ar.
+const pick = (channels, live, slots, opened = []) => {
+  const seen = (c) => (live instanceof Map ? live.get(c) : live[c]);
+  const keep = new Set(opened);
+  return [...channels]
+    .filter((c) => { const v = seen(c); return v === true || ((v === null || v === undefined) && keep.has(c)); })
+    .slice(0, Math.max(0, slots));
+};
 
 module.exports = { isLiveAsync, parseLive, pick, DEFAULT_SLOTS, MAX_SLOTS };

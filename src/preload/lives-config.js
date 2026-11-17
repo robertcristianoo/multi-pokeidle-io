@@ -3,5 +3,6 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('lc', {
   get: () => ipcRenderer.invoke('lives:config-get'),
+  official: () => ipcRenderer.invoke('lives:official-channels'),
   save: (config) => ipcRenderer.invoke('lives:config-save', config),
 });
