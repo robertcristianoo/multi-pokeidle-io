@@ -149,6 +149,8 @@ Ao clicar, abre uma janela com a página de voto do TopIdle, com o nick do perso
 O login do TopIdle fica salvo por conta, numa área separada da sessão do jogo. Para saber o estado, o app consulta `topidle.com` com os cookies dessa conta (`/api/me` e `/api/games`) e não envia nada além disso.
 
 **Login com Google.** O Google recusa login dentro de janelas de aplicativos ("Esse navegador ou app pode não ser seguro"). Ao escolher o Google na janela do TopIdle, o app oferece **entrar pelo navegador**: abre o Chrome (ou o Edge) instalado, com um perfil temporário, para você entrar normalmente e fechar a janela. Só os cookies do TopIdle são copiados para a conta (o Google e o resto do navegador ficam de fora), e o perfil temporário é apagado. Durante o login, o navegador fica com a porta de depuração aberta apenas em `127.0.0.1`. Discord e e-mail e senha continuam funcionando direto na janela.
+
+**Login com Google em todo o app.** O mesmo recurso vale para o jogo (PokeIdle), para o login da Kick/Twitch (Lives › Entrar) e para o painel de pontos: quando uma página tenta abrir o Google, o app pergunta se quer entrar pelo Chrome (ou Edge) instalado. Só o login do site daquela janela volta para a conta (cookies e, quando o site guarda o login ali, o localStorage), a página recarrega e o perfil temporário é apagado.
 ## Pontos da Twitch e da Kick
 
 Os botões **Pontos da Twitch** e **Pontos da Kick** (barra superior) abrem um painel embaixo da janela com o chat de cada live aberta nas suas contas, mostrando só o rodapé (o botão dos pontos e o popup de escolher o bônus), para você resgatar à mão:
