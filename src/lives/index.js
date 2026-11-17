@@ -18,6 +18,8 @@ const { TwitchWatcher, TWITCH_ENDPOINTS } = require('./twitch-watcher');
 const { KickWatcher, KICK_ENDPOINTS } = require('./kick-watcher');
 const { TwitchPubSub, TWITCH_PUBSUB_URL } = require('./twitch-pubsub');
 const R = require('../points/redeem');
+const { createGoogleLogin, sites: GOOGLE_SITES } = require('../google-login');
+const googleLogin = createGoogleLogin();
 const { BONUSES, SITES, partitionOf } = require('../points/sites');
 const { createRedeemLog } = require('../points/log');
 
@@ -645,6 +647,11 @@ function createLives({
     loginWin = new BrowserWindow({
       width: 1000, height: 760, title: `Entrar na ${SITES[site].label} - Conta ${acc}`, autoHideMenuBar: true,
       webPreferences: { partition: partitionOf(site, acc) },
+    });
+    const google = googleLogin.attach(loginWin.webContents, GOOGLE_SITES[site]); // "Entrar com Google" da Kick
+    loginWin.webContents.setWindowOpenHandler(({ url }) => {
+      if (google.intercept(url)) return { action: 'deny' };
+      return { action: 'allow' };
     });
     loginWin.loadURL(SITES[site].loginUrl);
     loginWin.on('closed', () => {

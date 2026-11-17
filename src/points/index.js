@@ -8,6 +8,8 @@
 const path = require('path');
 const { WebContentsView, ipcMain, shell } = require('electron');
 const { SITES, partitionOf, footerScript } = require('./sites');
+const { createGoogleLogin, sites: GOOGLE_SITES } = require('../google-login');
+const googleLogin = createGoogleLogin();
 
 const UI = (f) => path.join(__dirname, '..', 'ui', f);
 const PRELOAD = (f) => path.join(__dirname, '..', 'preload', f);
@@ -71,7 +73,9 @@ function createPoints({ mainWin, getAccounts, config, raise = () => {}, relayout
     const S = SITES[it.site];
     const view = new WebContentsView({ webPreferences: { partition: partitionOf(it.site, it.acc), backgroundThrottling: false } });
     view.setBackgroundColor('#0b0b0f');
+    const google = googleLogin.attach(view.webContents, GOOGLE_SITES[it.site]);
     view.webContents.setWindowOpenHandler(({ url }) => {
+      if (google.intercept(url)) return { action: 'deny' };
       if (/^https?:/i.test(url)) shell.openExternal(url).catch(() => {});
       return { action: 'deny' };
     });
