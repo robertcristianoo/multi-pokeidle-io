@@ -64,6 +64,9 @@
     return b;
   }
 
+  // duas espadas cruzadas + "?" (o mesmo ícone do atalho sobre a arte)
+  const ICONE_CAB = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">'
+    + '<path stroke-width="2" d="M4 4l11 11M20 4L9 15"/><path stroke-width="2" d="M12.3 17.7l5.4-5.4M11.7 17.7L6.3 12.3"/><path stroke-width="2.6" d="M16 16l3.5 3.5M8 16l-3.5 3.5"/></svg><b>?</b>';
   const botao = criarBotao('pih-barra');
   botao.title = 'Onde caçar? — as melhores hunts para o seu pokémon em campo';
   botao.setAttribute('aria-label', botao.title);
@@ -96,9 +99,19 @@
       botao.hidden = false;
       if (a.modo === 'padrao') {
         botao.classList.remove('pih-fixo');
-        botao.classList.add('pih-barra');
         botao.style.left = botao.style.top = botao.style.width = '';
-        if (a.card.previousElementSibling !== botao) a.card.before(botao);
+        const cab = a.card.parentElement?.querySelector(':scope > .painel-cab');
+        if (cab) {
+          // ícone pequeno no cabeçalho "Em campo", antes dos botões + e chat do jogo
+          botao.classList.remove('pih-barra');
+          botao.classList.add('pih-icone', 'btn-compartilhar-pk');
+          if (!botao.querySelector('svg')) botao.innerHTML = ICONE_CAB;
+          const ref = cab.querySelector('#btn-refino-pk, #btn-compartilhar-pk');
+          if (botao.parentElement !== cab || (ref && botao.nextElementSibling !== ref)) { if (ref) cab.insertBefore(botao, ref); else cab.append(botao); }
+        } else {
+          botao.classList.add('pih-barra');
+          if (a.card.previousElementSibling !== botao) a.card.before(botao);
+        }
       } else {
         // Reserva: flutua logo acima do ponto que o jogador apontou.
         botao.classList.remove('pih-barra');

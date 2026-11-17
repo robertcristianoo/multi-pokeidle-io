@@ -14,3 +14,5 @@ O atalho depende de o app marcar a arte (`src/game-patch.js`, fora desta pasta).
 - `src/ui.js`, `src/geo.js`: endurecimento apontado pela análise de código (CodeQL): campos do pokémon escapados antes
   de entrarem em `innerHTML`, preferências (`ordem`, `regiao`) validadas e `slug` recusado quando é chave especial
   (`__proto__`, `constructor`, `prototype`).
+- `src/ui.js`, `src/ui.css`: o botão `/hunt` do "Em campo" virou um ícone (espadas cruzadas + "?") no cabeçalho do painel,
+  antes dos botões + e chat do jogo; sem o cabeçalho conhecido, cai na barra de antes.

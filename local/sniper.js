@@ -37,14 +37,12 @@ module.exports = function init({ getSlots, notify, chromeExt }) {
     features: () => [{
       id: 'sniper',
       label: 'Sniper',
-      title: 'Abre o cockpit do Rotom Sniper desta conta (regras, radar de Shiny/P5 e liga/desliga do sniper)',
-      isOn: (id) => !!cockpits.get(id) && !cockpits.get(id).isDestroyed(),
-      hint: (id) => (chromeExt.isEnabled('rotom', id) ? '' : 'Extensão desligada nesta conta (Configurações › Extensões por conta)'),
+      title: 'Abre o cockpit do Rotom Sniper desta conta (regras, radar de Shiny/P5 e liga/desliga do sniper). O sniper roda na página do jogo: fechar o cockpit não o para.',
+      // verde = extensão carregada na conta (o sniper trabalha na página, com ou sem a janela do cockpit aberta)
+      isOn: (id) => chromeExt.isEnabled('rotom', id) && !!chromeExt.idOf('rotom', id),
+      hint: (id) => (chromeExt.isEnabled('rotom', id) ? 'Verde: extensão ativa na conta. Fechar o cockpit não para o sniper; o liga/desliga dele fica dentro do cockpit.' : 'Extensão desligada nesta conta (Configurações › Extensões por conta)'),
       badge: (id) => (chromeExt.isEnabled('rotom', id) ? '' : 'off'),
-      set: (id, v) => {
-        if (v) openCockpit(id);
-        else cockpits.get(id)?.close();
-      },
+      set: (id) => openCockpit(id), // o botão só abre (ou traz à frente) o cockpit; ligar/desligar a extensão é em Configurações
       settings: openCockpit,
     }],
     onShortcut(event, input) {
