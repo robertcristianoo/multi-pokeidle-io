@@ -133,7 +133,7 @@ app.whenReady().then(async () => {
         return json({ data: { user: { id: '555', stream: { id: 'b1', game: { id: 'g1', name: 'PokeIdle' } } } } });
       }
       if (url.pathname === '/rodil') return { body: `<script src="${base.u}/config/settings.abc.js"></script>` };
-      if (url.pathname === '/config/settings.abc.js') return { body: `{"spade_url":"${base.u.replace(/\//g, '\\/')}\\/spade"}` };
+      if (url.pathname === '/config/settings.abc.js') return { body: `{"spade_url":"${base.u.replace(/\\/g, '\\\\').replace(/\//g, '\\/')}\\/spade"}` };
       if (url.pathname === '/spade') { twSeen.minute.push({ type: req.headers['content-type'], body }); return { status: 204 }; }
       if (url.pathname === '/usher/api/channel/hls/rodil.m3u8') {
         return { body: '#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=3000000,RESOLUTION=1280x720\nhi.m3u8\n#EXT-X-STREAM-INF:BANDWIDTH=300000,RESOLUTION=284x160\nlow.m3u8\n#EXT-X-STREAM-INF:BANDWIDTH=100000\naudio.m3u8\n' };

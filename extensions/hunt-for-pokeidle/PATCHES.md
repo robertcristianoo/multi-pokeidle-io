@@ -11,3 +11,6 @@ Versão de origem: 1.0.19 (Chrome Web Store). Ao atualizar a extensão, reaplica
 - `src/ui.css`: estilo do atalho e do painel aberto por ele.
 
 O atalho depende de o app marcar a arte (`src/game-patch.js`, fora desta pasta).
+- `src/ui.js`, `src/geo.js`: endurecimento apontado pela análise de código (CodeQL): campos do pokémon escapados antes
+  de entrarem em `innerHTML`, preferências (`ordem`, `regiao`) validadas e `slug` recusado quando é chave especial
+  (`__proto__`, `constructor`, `prototype`).

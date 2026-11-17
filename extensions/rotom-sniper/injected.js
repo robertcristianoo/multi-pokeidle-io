@@ -180,6 +180,10 @@
         'gap: 4px'
       ].join(';');
 
+      // [multi-pokeidle-io] título e mensagem entram escapados (só <b>, </b> e <br> da mensagem são mantidos)
+      const escHtml = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+      title = escHtml(title);
+      message = escHtml(message).replace(/&lt;(\/?b|br\s*\/?)&gt;/gi, '<$1>');
       toast.innerHTML = `
         <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(72,14,30,0.4); padding-bottom: 3px;">
           <div style="display: flex; align-items: center; gap: 6px;">
@@ -742,7 +746,7 @@
       moeda: String(moeda || 'gold')
     };
 
-    console.log(`[Rotom Sniper]: DISPARANDO COMPRA #${offerId} (${targetName}${seller ? ' de @' + seller : ''}):`, payload);
+    console.log('[Rotom Sniper]: DISPARANDO COMPRA #%s (%s%s):', String(offerId), String(targetName), seller ? ' de @' + String(seller) : '', payload);
     const sent = sendRaw(payload);
 
     if (sent) {

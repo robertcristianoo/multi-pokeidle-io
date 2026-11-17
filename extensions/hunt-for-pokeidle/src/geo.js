@@ -71,7 +71,7 @@
 
   PIH.on?.('campo.init', (m) => {
     fecharSessao();
-    if (!m?.slug || m.centro || m.pvp || m.casa != null) return;
+    if (!m?.slug || typeof m.slug !== 'string' || ['__proto__', 'constructor', 'prototype'].includes(m.slug) || m.centro || m.pvp || m.casa != null) return;
     if (m.mapa && banco.hunts[m.slug]?.mapa !== m.mapa) {
       (banco.hunts[m.slug] ??= {}).mapa = m.mapa;
       gravar();
