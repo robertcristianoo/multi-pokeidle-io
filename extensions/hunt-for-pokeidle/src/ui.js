@@ -290,7 +290,7 @@
     const q = Number(pk?.quality ?? pk?.qualidade);
     const iv = pk?.ivs ? Object.values(pk.ivs).reduce((s, x) => s + (Number(x) || 0), 0) : null;
     const sub = pk
-      ? [esc(pk.nome), `Nv ${num(pk.level)}`, `P${pk.potencia ?? 1}`, Number.isFinite(q) ? `Q ${q.toFixed(3).replace('.', ',')}` : '', iv != null ? `IV ${iv}` : '']
+      ? [esc(pk.nome), `Nv ${num(pk.level)}`, `P${esc(pk.potencia ?? 1)}`, Number.isFinite(q) ? `Q ${q.toFixed(3).replace('.', ',')}` : '', iv != null ? `IV ${iv}` : '']
         .filter(Boolean).join(' · ')
       : 'nenhum pokémon em campo';
     return `<div class="pih-cab">
@@ -320,7 +320,7 @@
     if (!pk?.stats) return '';
     const rot = [['hp', 'HP'], ['atk', 'ATK'], ['def', 'DEF'], ['spAtk', 'SP.ATK'], ['spDef', 'SP.DEF'], ['speed', 'SPD']];
     return `<div class="pih-vao pih-stats">${rot.map(([k, r]) => `
-      <div class="pih-stat"><b>${r}</b><span>${num(pk.stats[k] ?? 0)}</span>${pk.ivs?.[k] != null ? `<i>IV ${pk.ivs[k]}</i>` : ''}</div>`).join('')}
+      <div class="pih-stat"><b>${r}</b><span>${num(pk.stats[k] ?? 0)}</span>${pk.ivs?.[k] != null ? `<i>IV ${esc(pk.ivs[k])}</i>` : ''}</div>`).join('')}
     </div>`;
   }
 
@@ -329,7 +329,7 @@
     if (!p) return '';
     const medalha = ['👑', '🥈', '🥉'][p.lugar - 1] ?? '';
     return `<div class="pih-vao pih-bonus" title="Quem está no pódio de um ginásio bate mais forte na hunt com todo pokémon daquele tipo: +25% o líder, +10% o 2º, +5% o 3º (sem empilhar entre os dois tipos)">
-      <b>Pódio de ginásio:</b> ${medalha} ${p.lugar}º lugar <span class="pih-bonus-total">+${p.pct}% de dano</span>
+      <b>Pódio de ginásio:</b> ${medalha} ${esc(p.lugar)}º lugar <span class="pih-bonus-total">+${esc(p.pct)}% de dano</span>
     </div>`;
   }
 
@@ -740,11 +740,11 @@
       ajuda.setAttribute('aria-expanded', String(!dica.hidden));
     });
     for (const b of painel.querySelectorAll('[data-ordem]')) {
-      b.addEventListener('click', () => { prefs.ordem = b.dataset.ordem; gravarJson(CHAVE_PREFS, prefs); desenhar(); });
+      b.addEventListener('click', () => { prefs.ordem = MODOS[b.dataset.ordem] ? b.dataset.ordem : 'xp'; gravarJson(CHAVE_PREFS, prefs); desenhar(); });
     }
     for (const b of painel.querySelectorAll('[data-regiao]')) {
       b.addEventListener('click', () => {
-        prefs.regiao = b.dataset.regiao;
+        prefs.regiao = String(b.dataset.regiao ?? '').replace(/[^\w-]/g, '');
         gravarJson(CHAVE_PREFS, prefs);
         mostrando = POR_PAGINA;
         if (!ultimo) return desenhar();

@@ -540,6 +540,7 @@ document.addEventListener('DOMContentLoaded', () => {
     sniperRules.forEach(rule => {
       const card = document.createElement('div');
       card.className = 'vao rule-card';
+      const escRule = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
       const iconUrl = typeof window.getItemIconUrl === 'function'
         ? window.getItemIconUrl(rule)
@@ -558,11 +559,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (isInf) {
         pct = 100;
-        qtyText = `${bought} / ∞`;
+        qtyText = `${Number(bought) || 0} / ∞`;
       } else {
         const maxQ = (rule.maxQty !== undefined && rule.maxQty > 0) ? (isPlayerVip ? rule.maxQty : Math.min(rule.maxQty, MAX_BASIC_QTY)) : MAX_BASIC_QTY;
         pct = Math.min(100, Math.round((bought / maxQ) * 100));
-        qtyText = `${bought} / ${maxQ}`;
+        qtyText = `${Number(bought) || 0} / ${Number(maxQ) || 0}`;
       }
 
       card.innerHTML = `
@@ -571,7 +572,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <img src="${iconUrl}" class="rule-icon">
             <div class="rule-name-box">
               <div style="display: flex; align-items: center; gap: 6px;">
-                <span class="rule-name">${rule.targetName}</span>
+                <span class="rule-name">${escRule(rule.targetName)}</span>
                 ${(rule.targetType !== 'pokemon' && typeof window.isRotomItemNoRmt === 'function' && rule.targetId && !window.isRotomItemNoRmt(rule.targetId))
                   ? '<span style="font-size: 7.5px; padding: 1px 4px; background: rgba(232,50,42,0.25); border: 1px solid #e8322a; color: #ff9b94; font-weight: 800; border-radius: 0px;" title="O jogo tirou este item do Mercado da Comunidade: a regra nunca vai encontrar anúncio.">FORA DO RMT</span>'
                   : ''}
@@ -883,7 +884,7 @@ document.addEventListener('DOMContentLoaded', () => {
       chrome.tabs.query({}, (tabs) => {
         if (Array.isArray(tabs)) {
           tabs.forEach(t => {
-            const isPokeidle = t && t.url && (t.url.includes('pokeidle.io') || t.url.includes('pokeidle'));
+            const isPokeidle = t && t.url && (/^https?:\/\/([\w-]+\.)*pokeidle\.io(\/|$)/.test(t.url));
             if (isPokeidle && t.id) {
               chrome.tabs.sendMessage(t.id, message, () => {
                 if (chrome.runtime && chrome.runtime.lastError) {}
