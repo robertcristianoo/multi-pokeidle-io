@@ -4,6 +4,8 @@ const { createLives } = require('./lives');
 const { createToolbars } = require('./toolbar');
 const { createToasts } = require('./toasts');
 const { createTopIdle } = require('./topidle');
+const { createGoogleLogin, sites: GOOGLE_SITES } = require('./google-login');
+const googleLogin = createGoogleLogin();
 const { createUpdater } = require('./updates');
 const { createReduceMotion } = require('./reduce-motion');
 const { createUltra } = require('./ultra');
@@ -466,7 +468,9 @@ function buildGameView(id) {
       backgroundThrottling: false, // idle game: não pausar views sem foco
     },
   });
+  const google = googleLogin.attach(view.webContents, GOOGLE_SITES.game); // login com Google pelo Chrome/Edge instalado
   view.webContents.setWindowOpenHandler(({ url }) => {
+    if (google.intercept(url)) return { action: 'deny' };
     if (topidle?.handleLink(id, url)) return { action: 'deny' }; // o "votar" do jogo abre a janela de voto
     // links/popups abrem no navegador padrão do sistema (nova aba)
     if (/^(https?|mailto):/i.test(url)) shell.openExternal(url).catch(() => {});

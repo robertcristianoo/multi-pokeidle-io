@@ -75,10 +75,10 @@ function connectCdp(wsUrl, WS = WebSocket) {
     ws.onerror = () => reject(new Error('sem conexão com o navegador'));
     ws.onclose = () => { for (const p of pending.values()) p.reject(new Error('navegador fechado')); pending.clear(); };
     ws.onopen = () => resolve({
-      send: (method, params = {}) => new Promise((res, rej) => {
+      send: (method, params = {}, sessionId) => new Promise((res, rej) => {
         const id = next++;
         pending.set(id, { resolve: res, reject: rej });
-        ws.send(JSON.stringify({ id, method, params }));
+        ws.send(JSON.stringify(sessionId ? { id, method, params, sessionId } : { id, method, params }));
       }),
       close: () => { try { ws.close(); } catch { /* já fechado */ } },
     });
@@ -128,11 +128,33 @@ async function waitForWsUrl(profile, port, readPort, isExited, sleep, timeoutMs)
   }
 }
 
+const originOf = (u) => { try { return new URL(u).origin; } catch { return ''; } };
+
+// localStorage das abas abertas nas origens pedidas ({ origem: { chave: valor } }). Alguns sites (o jogo, por exemplo)
+// guardam o login ali e não em cookies. Melhor esforço: falha numa aba não derruba o login.
+async function readStorage(cdp, origins) {
+  const out = {};
+  const { targetInfos = [] } = await cdp.send('Target.getTargets');
+  for (const t of targetInfos) {
+    const origin = originOf(t.url);
+    if (t.type !== 'page' || !origins.includes(origin)) continue;
+    try {
+      const { sessionId } = await cdp.send('Target.attachToTarget', { targetId: t.targetId, flatten: true });
+      const r = await cdp.send('Runtime.evaluate', { expression: 'JSON.stringify(Object.assign({}, localStorage))', returnByValue: true }, sessionId);
+      cdp.send('Target.detachFromTarget', { sessionId }).catch(() => {});
+      const data = JSON.parse(r?.result?.value ?? '{}');
+      if (Object.keys(data).length) out[origin] = data;
+    } catch { /* aba sem acesso ao storage */ }
+  }
+  return out;
+}
+
 // Abre `url` no navegador, espera você fechar e grava na sessão os cookies de `domains`.
 // Devolve { ok, count, reason }. Tudo que toca o sistema é injetável (os testes usam versões de mentira).
 async function loginViaBrowser({
   url,
   domains,
+  origins = [],
   session,
   browserPath = findBrowser(),
   spawnImpl = spawn,
@@ -163,6 +185,7 @@ async function loginViaBrowser({
 
   let cdp = null;
   let snapshot = [];
+  let storage = {};
   try {
     const wsUrl = await waitForWsUrl(profile, port, readPort, () => exited, sleep, START_TIMEOUT_MS);
     cdp = await connect(wsUrl);
@@ -172,6 +195,9 @@ async function loginViaBrowser({
         const r = await cdp.send('Storage.getCookies');
         snapshot = (r.cookies ?? []).filter((c) => wantedCookie(c, wanted));
       } catch { break; } // conexão caiu: o navegador fechou
+      if (origins.length) {
+        try { storage = { ...storage, ...(await readStorage(cdp, origins)) }; } catch { /* segue só com os cookies */ }
+      }
       await sleep(pollMs);
     }
   } catch (e) {
@@ -183,12 +209,13 @@ async function loginViaBrowser({
   }
 
   try { rmTmp(profile); } catch { /* o navegador pode demorar a soltar a pasta; é temporária */ }
-  if (!snapshot.length) return { ok: false, count: 0, reason: 'nenhum login encontrado' };
+  if (!snapshot.length && !Object.keys(storage).length) return { ok: false, count: 0, reason: 'nenhum login encontrado' };
   let count = 0;
   for (const c of snapshot) {
     try { await session.cookies.set(toElectronCookie(c)); count++; } catch { /* cookie recusado: segue com os demais */ }
   }
-  return { ok: count > 0, count, reason: count > 0 ? '' : 'a sessão recusou os cookies' };
+  const ok = count > 0 || Object.keys(storage).length > 0;
+  return { ok, count, storage, reason: ok ? '' : 'a sessão recusou os cookies' };
 }
 
-module.exports = { loginViaBrowser, findBrowser, readActivePort, wantedCookie, toElectronCookie };
+module.exports = { loginViaBrowser, readStorage, findBrowser, readActivePort, wantedCookie, toElectronCookie };
