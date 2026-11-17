@@ -10,6 +10,9 @@ const { createUltra } = require('./ultra');
 const { createRamBar } = require('./ram');
 const { createPower } = require('./power');
 const { createCaptureWatch } = require('./capture-watch');
+const { createSettings } = require('./settings');
+const { createChromeExt } = require('./chrome-ext');
+const { createGamePatch } = require('./game-patch');
 const { app, BaseWindow, BrowserWindow, WebContentsView, dialog, ipcMain, nativeImage, screen, session, shell } = require('electron');
 const { createPoints } = require('./points');
 
@@ -77,11 +80,14 @@ function attachLogging(id, view) {
   });
 
   const ses = wc.session;
+  // a sessão da conta também abre páginas da Twitch/Kick (lives): só entram no log os pedidos da página do jogo
   ses.webRequest.onCompleted((d) => {
+    if (d.webContentsId !== wc.id) return;
     const bad = d.statusCode >= 400;
     sendLog({ acc, kind: 'net', level: bad ? 'error' : 'info', text: `${d.method} ${d.statusCode} [${d.resourceType}] ${d.url}` });
   });
   ses.webRequest.onErrorOccurred((d) => {
+    if (d.webContentsId !== wc.id) return;
     sendLog({ acc, kind: 'net', level: 'error', text: `${d.method} FALHOU: ${d.error} [${d.resourceType}] ${d.url}` });
   });
 }
@@ -188,13 +194,16 @@ const power = createPower({
 
 // ---- Ajuda (sobreposição) ----
 // View própria, por cima das contas e isolada das páginas do jogo (o site não enxerga nem altera).
-let livesCtl = null;
+let livesCtl = null; // gerenciador de lives: resgate automático dos pontos por conta (src/lives)
 let topidle = null; // voto no TopIdle (botão 🗳 de cada conta)
-let pointsCtl = null; // painel de pontos Twitch/Kick e resgate automático (src/points)
+let pointsCtl = null; // painel de pontos Twitch/Kick, para resgatar à mão (src/points)
 let toastsCtl = null; // avisos no canto superior direito
 let updater = null; // aviso de versão nova (só em pacote de Release)
 let ultraCtl = null; // Modo ULTRA do jogo em todas as contas (ver src/ultra.js)
 let ramCtl = null; // barra de RAM no rodapé (src/ram.js)
+let gamePatch = null; // marca a arte dos pokémon para o atalho da /hunt (src/game-patch.js)
+let chromeExt = null; // extensões do Chromium por conta (src/chrome-ext.js)
+let settingsCtl = null; // modal de Configurações (src/settings.js)
 let captureCtl = null; // vigia de captura e Auto-bola sem VIP (src/capture-watch.js)
 let autoBallExt = null; // API do Auto-bola (extensão local), usada pelo vigia
 
@@ -323,7 +332,7 @@ async function resetAccount(index) {
     title: 'Resetar conta',
     message: `Resetar a sessão da conta ${id} (posição ${index + 1})?`,
     detail:
-      'Apaga cookies, login e dados locais desse quadrante e recarrega o link de indicação. ' +
+      'Apaga cookies, login e dados locais desse quadrante (inclusive o login da Twitch e da Kick das lives) e recarrega o link de indicação. ' +
       'A conta criada no jogo continua existindo no servidor.',
   });
   if (response !== 1) return;
@@ -338,19 +347,27 @@ async function resetAccount(index) {
 // ---- Extensões locais (opcional) ----
 // Os arquivos da pasta `local/` são carregados com
 // acesso às contas abertas. Contrato:
-//   `module.exports = ({ getSlots, sendLog, notify }) => ({ onShortcut?, onSlotCreated?, onSlotRemoved?, features? })`
+//   `module.exports = ({ getSlots, sendLog, notify }) => ({ onShortcut?, onSlotCreated?, onSlotRemoved?, features?, ready? })`
 // `features()` devolve [{ id, label, title, isOn(contaId), set(contaId, on), settings?() }]: viram botões
 // liga/desliga na barra de cada conta (ver toolbar.js).
 // `onSlotCreated(id, view)` roda antes de a conta carregar a página (dá para registrar preloads).
 const LOCAL_EXTENSIONS = ['../local/autoball.js', '../local/sniper.js', '../local/autocatch.js', '../local/autopvp.js'];
 const exts = [];
 function loadExtensions() {
+  chromeExt = createChromeExt({
+    maxAccounts: MAX_ACCOUNTS,
+    config: { get: () => loadConfig().chromeExtOff, set: (v) => saveConfig({ chromeExtOff: v }) },
+    getSlots: () => liveSlots(),
+    sendLog,
+  });
+  gamePatch = createGamePatch({ isWanted: (id) => chromeExt.isEnabled('hunt', id), sendLog });
   for (const file of LOCAL_EXTENSIONS) {
     try {
       const ext = require(file)({
         getSlots: () => liveSlots(),
         sendLog,
         notify: (n) => toastsCtl?.show(n),
+        chromeExt,
         onUserToggle: (id, on) => captureCtl?.autoBallToggled(id, on), // escolha manual do Auto-bola (o vigia não o religa à força)
       });
       if (file === '../local/autoball.js') autoBallExt = ext;
@@ -371,7 +388,7 @@ function loadExtensions() {
 //   Ctrl+1..4          foca a conta da posição
 //   Ctrl+0             volta à grade
 //   Ctrl+L             mostra/esconde logs
-//   Ctrl+T             abre as lives (Twitch/Kick) no navegador; o mesmo do botão no canto
+//   Ctrl+T             abre o menu Lives (contas, entrar na Twitch/Kick, detalhes, registro, config)
 //   F5 / Ctrl+F5 / Ctrl+Shift+F5   recarrega / ignora o cache / todas as contas
 //   Ctrl+Shift+1..4    reseta a sessão da conta da posição (com confirmação)
 //   Ctrl+Alt+←/→       move a conta atual na grade (a em foco, ou a que tem o teclado)
@@ -431,7 +448,7 @@ function makeShortcutHandler(id) {
       toggleLogWindow();
     } else if (!input.alt && !input.shift && input.code === 'KeyT') {
       event.preventDefault();
-      livesCtl?.open();
+      livesCtl?.showMenu();
     } else if (!input.alt && !input.shift && input.code === 'KeyM') {
       event.preventDefault();
       ramCtl?.toggle();
@@ -456,6 +473,7 @@ function buildGameView(id) {
     return { action: 'deny' };
   });
   attachLogging(id, view);
+  gamePatch?.attach(id, view); // antes de carregar: serve o app.js do jogo com a marcação da arte
   ultraCtl?.attach(id, view);
   captureCtl?.attach(id, view); // antes de carregar: pega o `welcome` do jogo (estado VIP e contagem de captura)
   // o zoom é reaplicado a cada carga (a navegação pode zerá-lo)
@@ -589,22 +607,20 @@ function createWindow() {
         if (pos >= 0) setFocus(focused === pos ? null : pos);
       },
       logs: toggleLogWindow,
-      lives: () => livesCtl?.open(),
+      lives: () => livesCtl?.showMenu(),
       vote: (id) => topidle?.open(id),
       pointsTwitch: () => pointsCtl?.toggle('twitch'),
       pointsKick: () => pointsCtl?.toggle('kick'),
-      redeemConfig: () => pointsCtl?.showConfig(),
-      redeemLog: () => pointsCtl?.showLog(),
+      redeemConfig: () => livesCtl?.showConfig(),
+      redeemLog: () => livesCtl?.showLog(),
       update: async () => {
         // reconsulta antes de abrir: o botão pode estar mostrando uma versão já superada por outra
         const u = (await updater?.check()) ?? updater?.state();
         if (u?.kind === 'available') shell.openExternal(u.url); // página do Release: de lá se baixa o instalador
       },
       help: () => toggleHelp(),
-      reduceMotion: () => motion.toggle(),
+      settings: () => settingsCtl?.show(),
       ultra: () => ultraCtl?.toggle(),
-      vigia: () => captureCtl?.toggleWatch(),
-      autoNoVip: () => captureCtl?.toggleAutoNoVip(),
       zoomIn: (id) => setSlotZoom(id, slotZoom(id) + ZOOM_STEP),
       zoomOut: (id) => setSlotZoom(id, slotZoom(id) - ZOOM_STEP),
       zoomReset: (id) => setSlotZoom(id, ZOOM_DEFAULTS[viewMode()]),
@@ -629,10 +645,30 @@ function createWindow() {
     store: { get: () => loadConfig().captureWatch !== false, set: (on) => saveConfig({ captureWatch: on }) },
     storeAuto: { get: () => loadConfig().autoBallNoVip !== false, set: (on) => saveConfig({ autoBallNoVip: on }) },
   });
+  settingsCtl = createSettings({
+    mainWin,
+    getState: () => ({ extensions: chromeExt.state(), reduceMotion: motion.isOn(), ...(captureCtl?.state() ?? { watch: true, autoNoVip: true }) }),
+    toggles: {
+      reduceMotion: () => motion.toggle(),
+      vigia: () => captureCtl?.toggleWatch(),
+      autoNoVip: () => captureCtl?.toggleAutoNoVip(),
+    },
+    extensions: { state: () => chromeExt.state(), set: (ext, acc, on) => chromeExt.setEnabled(ext, acc, on) },
+    open: { redeemConfig: () => livesCtl?.showConfig(), redeemLog: () => livesCtl?.showLog() },
+  });
   for (const id of loadOrder(loadAccountCount())) createSlot(id);
   const lastFocus = slots.findIndex((x) => x.id === loadConfig().focusedId); // volta ao quadrante que estava em foco
   if (lastFocus >= 0) focused = lastFocus;
-  livesCtl = createLives({ mainWin, getSlots: () => liveSlots() });
+  livesCtl = createLives({
+    mainWin,
+    getSlots: () => liveSlots(),
+    config: { get: () => loadConfig().lives ?? {}, set: (cfg) => saveConfig({ lives: cfg }) },
+    getLegacyAuto: () => loadConfig().points?.auto ?? null, // o resgate automático da versão anterior (migração única)
+    userDataDir: app.getPath('userData'),
+    notify: (n) => toastsCtl?.show(n),
+    maxAccounts: MAX_ACCOUNTS,
+    timers: !process.env.PKMULTI_TEST,
+  });
   topidle = createTopIdle({ getSlots: () => liveSlots(), notify: (n) => toastsCtl?.show(n), timers: !process.env.PKMULTI_TEST });
   toastsCtl = createToasts({ mainWin, getTop: () => tbs.appBarH });
   ramCtl = createRamBar({
@@ -656,11 +692,14 @@ function createWindow() {
       get: () => loadConfig().points ?? {},
       set: (patch) => saveConfig({ points: { ...(loadConfig().points ?? {}), ...patch } }),
     },
-    userDataDir: app.getPath('userData'),
-    notify: (n) => toastsCtl?.show(n),
     raise: () => { toastsCtl?.raise(); if (helpOpen) mainWin.contentView.addChildView(helpView); },
     relayout: () => layout(),
-    maxAccounts: MAX_ACCOUNTS,
+    getStatus: (acc, site, channel) => {
+      const r = livesCtl?.redeemerOf(site, acc);
+      return { text: r?.text(channel) ?? '', stopped: r?.stopped ?? null };
+    },
+    onConfig: () => livesCtl?.showConfig(),
+    onLog: () => livesCtl?.showLog(),
   });
   win.on('focus', () => updater?.check({ force: false })); // voltou à janela: confere se saiu versão nova
 
@@ -673,8 +712,10 @@ function createWindow() {
   updateTitle();
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   loadExtensions();
+  // extensões que precisam estar prontas antes de as contas abrirem o jogo (ex.: as que carregam extensão do Chromium)
+  await Promise.all([chromeExt.ready(), ...exts.map((x) => x.ready?.())]);
   createWindow();
   app.on('activate', () => {
     if (BaseWindow.getAllWindows().length === 0) createWindow();

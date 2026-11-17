@@ -80,10 +80,17 @@ app.whenReady().then(async () => {
     ctl.close();
     check(base() === b0, 'fechar de novo deixa a janela como estava');
 
-    // janela de configuração do resgate automático abre sem erro
-    ctl.showConfig();
-    await sleep(50);
-    check(true, 'janela de configuração abre sem erro');
+    // as janelas de configuração e de registro (do gerenciador de lives) abrem pelos botões do painel
+    let opened = [];
+    const ctl2 = createPoints({
+      mainWin: win, getAccounts: () => accounts, config: { get: () => cfg, set: (p) => Object.assign(cfg, p) }, relayout: place,
+      onConfig: () => opened.push('config'), onLog: () => opened.push('log'),
+      getStatus: () => ({ text: '10/300 pontos', stopped: null }),
+    });
+    ipcMain.emit('pts:cmd', {}, 'config');
+    ipcMain.emit('pts:cmd', {}, 'log');
+    check(opened.join() === 'config,log', 'botões Config e Registro do painel abrem as janelas do gerenciador');
+    ctl2.close();
     fs.rmSync(dir, { recursive: true, force: true });
   } catch (err) {
     check(false, `erro inesperado: ${err.stack || err}`);

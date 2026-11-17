@@ -1,7 +1,7 @@
 // Sobe o app de verdade (janela escondida, dados isolados) e confere a janela: barra do app, uma barra por
 // conta colada no topo do jogo dela, nada sobreposto, botões das extensões e liga/desliga por conta.
 const { app, sleep, check, finish, waitFor } = require('./helpers');
-const { BaseWindow } = require('electron');
+const { BaseWindow, BrowserWindow, session } = require('electron');
 const { BAR_H } = require('../src/ram');
 
 require('../src/main.js');
@@ -67,19 +67,59 @@ app.whenReady().then(async () => {
       const l = await labels(appBar);
       check(l.some((x) => x.startsWith('Lives')), `botão Lives na barra do app: ${JSON.stringify(l)}`);
       check(l.some((x) => x.includes('ULTRA')), `botão ULTRA na barra do app: ${JSON.stringify(l)}`);
+      check(l.some((x) => x.includes('Configurações')), `botão Configurações na barra do app: ${JSON.stringify(l)}`);
+      check(!l.some((x) => /Auto-bola s\/|Vigia|Animações|Resgate auto|Log de resgates/.test(x)), 'opções agrupadas saíram da barra do app');
+      // o modal abre, mostra o estado das três opções e fecha
+      const modal = () => BrowserWindow.getAllWindows().find((w) => /settings\.html/.test(w.webContents.getURL()));
+      await appBar.webContents.executeJavaScript('[...document.querySelectorAll("button")].find(b => b.textContent.includes("Configurações")).click()');
+      check(await waitFor(() => !!modal(), 4000), 'Configurações abre o modal');
+      await waitFor(async () => (await modal()?.webContents.executeJavaScript('document.getElementById("vigia").textContent').catch(() => '')) !== '', 4000);
+      const est = await modal()?.webContents.executeJavaScript('["reduceMotion","vigia","autoNoVip"].map(i => document.getElementById(i).textContent).join(",")');
+      check(/^(Ligado|Desligado),(Ligado|Desligado),(Ligado|Desligado)$/.test(est ?? ''), `modal mostra as três opções: ${est}`);
+      const antes = await modal()?.webContents.executeJavaScript('document.getElementById("autoNoVip").textContent');
+      await modal()?.webContents.executeJavaScript('document.getElementById("autoNoVip").click()');
+      await waitFor(async () => (await modal()?.webContents.executeJavaScript('document.getElementById("autoNoVip").textContent')) !== antes, 3000);
+      const depois = await modal()?.webContents.executeJavaScript('document.getElementById("autoNoVip").textContent');
+      check(depois !== antes, `alternar no modal muda o estado (${antes} -> ${depois})`);
+      await modal()?.webContents.executeJavaScript('document.getElementById("autoNoVip").click()'); // devolve ao que era
+      modal()?.close();
+      await waitFor(() => !modal(), 3000);
     }
     check(!win.contentView.children.some((v) => /lives.html/.test(v.webContents?.getURL() ?? '')), 'sem view flutuante de lives');
 
-    // sem selo na página do jogo (auto-captura) e sniper ligado sem regras avisa na barra
+    // sem selo na página do jogo (auto-captura); o botão Sniper abre o cockpit da extensão na sessão da conta
     if (slotBars[0]) {
       const find = (name) => `[...document.querySelectorAll("button")].find(b => b.textContent.startsWith(${JSON.stringify(name)}))`;
-      const sn = featureBtns.includes('Sniper');
-      if (sn) {
+      if (featureBtns.includes('Sniper')) {
+        const cockpit = () => BrowserWindow.getAllWindows().find((w) => /cockpit\.html/.test(w.webContents.getURL()));
         await slotBars[0].webContents.executeJavaScript(find('Sniper') + '.click()');
-        const ok = await waitFor(async () => /sem regras/.test(await slotBars[0].webContents.executeJavaScript(find('Sniper') + '.textContent')), 4000);
-        check(ok, 'Sniper ligado sem regras mostra "⚠ sem regras" no botão');
-        await slotBars[0].webContents.executeJavaScript(find('Sniper') + '.click()');
-        await waitFor(async () => (await slotBars[0].webContents.executeJavaScript(find('Sniper') + '.textContent')) === 'Sniper', 4000);
+        const ok = await waitFor(() => !!cockpit(), 6000);
+        check(ok, 'Sniper abre o cockpit da extensão');
+        cockpit()?.close();
+        await waitFor(() => !cockpit(), 3000);
+      }
+    }
+
+    // as extensões do Chromium (Rotom Sniper e /hunt) ficam carregadas na sessão de cada conta, antes de o jogo abrir
+    {
+      const nomes = (n) => session.fromPartition(`persist:conta${n}`).extensions.getAllExtensions().map((x) => x.name);
+      for (const n of [1, 2]) check(nomes(n).some((x) => /hunt for PokeIdle/.test(x)), `/hunt for PokeIdle carregada na conta ${n}`);
+      for (const n of [1, 2]) check(nomes(n).some((x) => /Rotom Sniper/.test(x)), `Rotom Sniper carregada na conta ${n}`);
+      // liga/desliga por conta, pelo modal: desligar na conta 1 não mexe na conta 2 e volta a ligar depois
+      const modalExt = () => BrowserWindow.getAllWindows().find((w) => /settings\.html/.test(w.webContents.getURL()));
+      if (appBar) {
+        await appBar.webContents.executeJavaScript('[...document.querySelectorAll("button")].find(b => b.textContent.includes("Configurações")).click()');
+        await waitFor(async () => !!(await modalExt()?.webContents.executeJavaScript('document.querySelector("button[data-ext=hunt][data-acc=\\"1\\"]")').catch(() => null)), 5000);
+        const clica = (acc) => modalExt()?.webContents.executeJavaScript(`document.querySelector('button[data-ext="hunt"][data-acc="${acc}"]').click()`);
+        await clica(1);
+        check(await waitFor(() => !nomes(1).some((x) => /hunt for PokeIdle/.test(x)), 5000), '/hunt desligada na conta 1 sai da sessão dela');
+        check(nomes(2).some((x) => /hunt for PokeIdle/.test(x)), '/hunt continua ligada na conta 2');
+        const rotulo = () => modalExt()?.webContents.executeJavaScript(`document.querySelector('button[data-ext="hunt"][data-acc="1"]').textContent`).catch(() => '');
+        await waitFor(async () => (await rotulo()) === 'Off', 5000);
+        await clica(1);
+        check(await waitFor(() => nomes(1).some((x) => /hunt for PokeIdle/.test(x)), 5000), '/hunt ligada de novo na conta 1');
+        modalExt()?.close();
+        await waitFor(() => !modalExt(), 3000);
       }
     }
 
