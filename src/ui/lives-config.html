@@ -50,6 +50,8 @@
   memória), e só abre a página do canal na hora de resgatar ou pegar o baú.</p>
 <div class="row" style="margin:0 0 10px">
   <button class="official" id="official" title="Lê os canais oficiais (no ar e offline) que o jogo informa e acrescenta no fim da lista os que faltam">Atualizar com a lista oficial do jogo</button>
+  <button class="official" id="sort" title="Ordena agora cada lista por status: os no ar primeiro, os offline depois (a ordem de prioridade dentro de cada grupo continua)">Ordenar por status</button>
+  <label title="A cada conferência, quem fica no ar vai para o fim dos no ar e quem cai desce para os offline"><input type="checkbox" id="autosort"> Manter ordenado por status</label>
   <small id="osrc"></small>
 </div>
 <div class="lists">
@@ -192,6 +194,16 @@
     $('osrc').textContent = 'Lista da conta ' + o.acc + ': ' + o.twitch.length + ' na Twitch, ' + o.kick.length + ' na Kick; ' + added + ' canal(is) acrescentado(s) no fim. Salve para valer.';
   };
 
+  // Ordena agora pelo status mostrado (no ar primeiro); sem status conhecido, o canal fica entre os offline
+  $('sort').onclick = () => {
+    for (const site of ['twitch', 'kick']) {
+      const list = lists[site];
+      lists[site] = [...list.filter((c) => status[site][c] === true), ...list.filter((c) => status[site][c] !== true)];
+      render(site);
+    }
+    $('osrc').textContent = 'Listas ordenadas por status. Salve para valer.';
+  };
+
   lc.get().then(({ config, accounts, bonuses, live }) => {
     state = config;
     lists.twitch = [...config.twitchChannels];
@@ -204,6 +216,7 @@
     $('ntw').value = config.twitchLives;
     $('nkk').value = config.kickLives;
     $('claim').checked = config.claimTwitch;
+    $('autosort').checked = config.autoSort === true;
     for (const acc of accounts) {
       const tr = document.createElement('tr');
       tr.dataset.acc = acc;
@@ -226,6 +239,7 @@
       twitchLives: Number($('ntw').value),
       kickLives: Number($('nkk').value),
       claimTwitch: $('claim').checked,
+      autoSort: $('autosort').checked,
       accounts: [], redeemKick: {}, redeemTwitch: {}, guard: {},
     };
     for (const tr of rows.querySelectorAll('tr')) {

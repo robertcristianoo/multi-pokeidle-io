@@ -41,6 +41,13 @@ app.whenReady().then(async () => {
     check(merged.list.join() === 'yetz,axt,rodil,novo_canal' && merged.added.join() === 'rodil,novo_canal', `lista oficial: acrescenta no fim, sem repetir nem mexer na ordem (${merged.list})`);
     check(cfgLib.move(['a', 'b', 'c', 'd'], 3, 0).join() === 'd,a,b,c' && cfgLib.move(['a', 'b', 'c'], 0, 1).join() === 'b,a,c' && cfgLib.move(['a', 'b'], 0, 5).join() === 'a,b', 'reordenar: mover para cima, para baixo e índice inválido');
 
+    // ordenar por status: no ar primeiro; quem ficou no ar vai para o fim dos no ar, quem caiu desce para o começo dos offline
+    check(cfgLib.sortByStatus(['a', 'b', 'c', 'd'], { a: false, b: true, c: false, d: true }).join() === 'b,d,a,c', 'ordenar por status: sem histórico, no ar primeiro mantendo a ordem');
+    check(cfgLib.sortByStatus(['b', 'd', 'a', 'c'], { a: true, b: true, c: false, d: true }, { a: false, b: true, c: false, d: true }).join() === 'b,d,a,c', 'ordenar por status: quem ficou no ar vai para o fim dos no ar');
+    check(cfgLib.sortByStatus(['b', 'd', 'a', 'c'], { a: false, b: false, c: false, d: true }, { a: true, b: true, c: false, d: true }).join() === 'd,b,a,c', 'ordenar por status: quem caiu desce, logo abaixo dos no ar');
+    check(cfgLib.sortByStatus(['b', 'a'], { a: null, b: null }, { a: true, b: false }).join() === 'a,b', 'ordenar por status: sem resposta vale o que era');
+    check(cfgLib.normalize({ autoSort: true }).autoSort === true && cfgLib.normalize({}).autoSort === false, 'config: autoSort liga só quando true');
+
     // ---- guarda do bônus ----
     let clock = 1_000_000;
     const guard = createGuard({ now: () => clock });

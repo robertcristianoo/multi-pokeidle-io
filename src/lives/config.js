@@ -76,6 +76,7 @@ function normalize(raw, { maxAccounts = 4, legacyAuto = null } = {}) {
     kickLives,
     redeemTwitch: r.redeemTwitch === undefined ? legacy('twitch') : perAccount(r.redeemTwitch, maxAccounts, rewardKey),
     redeemKick: r.redeemKick === undefined ? legacy('kick') : perAccount(r.redeemKick, maxAccounts, rewardKey),
+    autoSort: r.autoSort === true, // mantém a lista ordenada por status (no ar primeiro): de fábrica desligado
     claimTwitch: r.claimTwitch !== false, // o baú de bônus da Twitch (+50 a cada ~15 min): de fábrica ligado
     guard,
     twitch: lim('twitch', twitchLives),
@@ -103,6 +104,19 @@ function move(list, from, to) {
   return out;
 }
 
+// Ordena por status sem mexer na prioridade dentro de cada grupo: os no ar primeiro, os offline depois. `live` = { canal: true |
+// false | null } (agora) e `was` = o mesmo da conferência anterior. Quem acabou de ficar no ar vai para o fim dos no ar (não tira
+// o lugar de quem já está aberto) e quem acabou de cair vai para o começo dos offline (logo abaixo dos no ar). Canal sem resposta
+// (null) conta como estava antes; sem histórico, como offline.
+function sortByStatus(list, live, was = {}) {
+  const state = (c) => (typeof live?.[c] === 'boolean' ? live[c] : typeof was?.[c] === 'boolean' ? was[c] : false);
+  const on = list.filter((c) => state(c));
+  const off = list.filter((c) => !state(c));
+  const stay = (c, wasOn) => wasOn === undefined || wasOn === null || wasOn === state(c);
+  const isNew = (c) => !stay(c, was?.[c]);
+  return [...on.filter((c) => !isNew(c)), ...on.filter(isNew), ...off.filter(isNew), ...off.filter((c) => !isNew(c))];
+}
+
 const slotsOf = (lim, max) => clamp(lim.slots ?? max, 0, max);
 
-module.exports = { normalize, parseChannels, mergeOfficial, move, slotsOf, MAX_SLOTS, DEFAULT_SLOTS, DEFAULT_TWITCH, DEFAULT_KICK };
+module.exports = { normalize, parseChannels, mergeOfficial, move, sortByStatus, slotsOf, MAX_SLOTS, DEFAULT_SLOTS, DEFAULT_TWITCH, DEFAULT_KICK };
