@@ -4,6 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { app, check, finish } = require('./helpers');
+require('../src/i18n').setLang('pt-BR'); // os textos conferidos abaixo são os em português
 const { kickScript, twitchScript, twitchRaidScript, twitchMomentScript } = require('../src/points/scripts');
 const { twitchReadAsync, kickReadAsync } = require('../src/points/redeem');
 const { createRedeemLog, KEEP } = require('../src/points/log');

@@ -17,6 +17,7 @@
 // e createCaptureWatch (liga o monitor às contas, mostra o aviso na página, toca o som e liga o Auto-bola).
 const path = require('path');
 const { WebContentsView, shell } = require('electron');
+const { t: tr } = require('./i18n');
 
 // Bolas que contam como captura: Ultra Ball (4, id do catálogo de bolas: src/restock.js e a lista de bolas da página)
 // e Beast Ball (5, `BEAST_BALL_ID` no código público do jogo). As demais bolas não contam nem zeram o prazo.
@@ -85,7 +86,7 @@ function createMonitor({ limiteMs, alvoMs, repetirMs, now }) {
     if (t === 'welcome' && Array.isArray(m.catalogoBolas)) {
       catalogo = m.catalogoBolas
         .filter((b) => b && Number.isFinite(Number(b.id)))
-        .map((b) => ({ id: Number(b.id), nome: String(b.nome ?? `bola ${b.id}`) }));
+        .map((b) => ({ id: Number(b.id), nome: String(b.nome ?? tr('watch.ballFallback', { id: b.id })) }));
     }
     const e = m.estado;
     if (!e || typeof e !== 'object') return;
@@ -242,7 +243,7 @@ function createCaptureWatch({
     return !!ab && !ab.isOn(id);
   }
 
-  const log = (id, nivel, texto) => sendLog({ acc: `conta${id}`, kind: 'load', level: nivel, text: `auto-bola: ${texto}` });
+  const log = (id, nivel, texto) => sendLog({ acc: `conta${id}`, kind: 'load', level: nivel, text: tr('watch.log', { text: texto }) });
 
   // Ligação do Auto-bola em conta sem VIP. Passos (cada um vai para o log):
   //   1. lê a bola de arremesso do estado do jogo (a que o jogo usaria);
@@ -254,21 +255,21 @@ function createCaptureWatch({
     emCurso.add(id);
     try {
       const bola = mon.bolaArremesso();
-      if (!bola) return falha(id, 'a conta não tem nenhuma bola para arremessar');
-      log(id, 'info', `passo 1/3: bola de arremesso ${bola.id} (${bola.nome}) lida do estado do jogo`);
+      if (!bola) return falha(id, tr('watch.noBall'));
+      log(id, 'info', tr('watch.step1', { id: bola.id, nome: bola.nome }));
       if (wc.isDestroyed()) return;
       const passou = await semeia(id, wc, bola.id);
-      if (!passou) return falha(id, 'não consegui passar a bola à página do jogo');
-      log(id, 'info', 'passo 2/3: bola passada à página (economia não foi alterada)');
+      if (!passou) return falha(id, tr('watch.seedFail'));
+      log(id, 'info', tr('watch.step2'));
       if (!precisaLigar(id, mon)) return;
-      getAutoBall().setAuto(id, true, `conta sem VIP, bola ${bola.id}`);
-      log(id, 'info', 'passo 3/3: Auto-bola ligado');
-      notify({ kind: 'ok', title: `Conta ${id}: Auto-bola ativo`, text: `arremessando com ${bola.nome}`, ms: 4000 });
+      getAutoBall().setAuto(id, true, tr('watch.reason', { id: bola.id }));
+      log(id, 'info', tr('watch.step3'));
+      notify({ kind: 'ok', title: tr('watch.okTitle', { id }), text: tr('watch.okText', { nome: bola.nome }), ms: 4000 });
       // O gancho do Auto-bola na página só pega o socket do jogo se estiver instalado antes do `hello`. Conta que já
       // estava conectada perdeu isso, então recarrega UMA vez: o Auto-bola (ainda ligado) instala o gancho cedo, e a nova
       // conexão passa a ser a que ele acompanha. A economia não é tocada (a escolha fica salva no próprio jogo).
       if (mon.estado().conectado && !wc.isDestroyed()) {
-        log(id, 'info', 'passo 4/4: recarregando a conta para o Auto-bola acompanhar o socket do jogo (uma vez)');
+        log(id, 'info', tr('watch.step4'));
         wc.reload();
       }
     } catch (err) {
@@ -279,8 +280,8 @@ function createCaptureWatch({
   }
 
   function falha(id, motivo) {
-    log(id, 'error', `não ligou: ${motivo}`);
-    notify({ kind: 'fail', title: `Conta ${id}: Auto-bola não ligou`, text: motivo, ms: 5000 });
+    log(id, 'error', tr('watch.failLog', { motivo }));
+    notify({ kind: 'fail', title: tr('watch.failTitle', { id }), text: motivo, ms: 5000 });
   }
 
   async function semeia(id, wc, bola) {
@@ -353,8 +354,8 @@ function createCaptureWatch({
   function avisa(id, mon, r) {
     const s = Math.round(r.acc / 1000);
     if (r.inicio) {
-      sendLog({ acc: `conta${id}`, kind: 'load', level: 'warn', text: `vigia: não está capturando com Ultra/Beast Ball há ${s} s` });
-      notify({ kind: 'fail', title: `Conta ${id}: sem captura`, text: `não está capturando há ${s} s`, ms: 5000 });
+      sendLog({ acc: `conta${id}`, kind: 'load', level: 'warn', text: tr('watch.alertLog', { s }) });
+      notify({ kind: 'fail', title: tr('watch.alertTitle', { id }), text: tr('watch.alertText', { s }), ms: 5000 });
     }
     if (r.soar) tocar();
   }
@@ -384,9 +385,9 @@ function createCaptureWatch({
       const r = e.mon.tick(now());
       if (r.acao === 'limpa') {
         banner(wc, null);
-        sendLog({ acc: `conta${slot.id}`, kind: 'load', level: 'info', text: 'vigia: a conta voltou a capturar' });
+        sendLog({ acc: `conta${slot.id}`, kind: 'load', level: 'info', text: tr('watch.backLog') });
       } else if (r.acao === 'alerta') {
-        banner(wc, `⚠ Conta ${slot.id}: não está capturando há ${Math.round(r.acc / 1000)} s`);
+        banner(wc, tr('watch.banner', { id: slot.id, s: Math.round(r.acc / 1000) }));
         avisa(slot.id, e.mon, r);
       }
     }

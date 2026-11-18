@@ -1,5 +1,6 @@
 // Auto-PvP: entra na fila pelo socket do jogo, grava a "tela de batalha" como "off", espera ~22 s entre partidas e recua se a fila não abre.
 const { app, check, finish, waitFor } = require('./helpers');
+require('../src/i18n').setLang('pt-BR'); // os textos conferidos aqui estão em português
 const { BrowserWindow } = require('electron');
 
 const http = require('http');

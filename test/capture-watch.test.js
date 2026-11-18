@@ -3,6 +3,7 @@
 //  2. o caminho real: um servidor WebSocket local (mesmo host da página, como o jogo), duas contas (uma VIP e uma não),
 //     o protocolo de rede do DevTools que o app usa para ler o socket, o aviso injetado na página e o Auto-bola.
 const { app, sleep, check, finish, waitFor } = require('./helpers');
+require('../src/i18n').setLang('pt-BR'); // os textos conferidos aqui estão em português
 const http = require('http');
 const crypto = require('crypto');
 const path = require('path');

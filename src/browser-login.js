@@ -10,6 +10,7 @@ const net = require('net');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { t } = require('./i18n');
 
 const POLL_MS = 2000;
 const START_TIMEOUT_MS = 45000; // a primeira abertura de um perfil novo pode demorar
@@ -72,8 +73,8 @@ function connectCdp(wsUrl, WS = WebSocket) {
       pending.delete(m.id);
       if (m.error) p.reject(new Error(m.error.message)); else p.resolve(m.result);
     };
-    ws.onerror = () => reject(new Error('sem conexão com o navegador'));
-    ws.onclose = () => { for (const p of pending.values()) p.reject(new Error('navegador fechado')); pending.clear(); };
+    ws.onerror = () => reject(new Error(t('login.err.noConnection')));
+    ws.onclose = () => { for (const p of pending.values()) p.reject(new Error(t('login.err.closed'))); pending.clear(); };
     ws.onopen = () => resolve({
       send: (method, params = {}, sessionId) => new Promise((res, rej) => {
         const id = next++;
@@ -122,8 +123,8 @@ async function waitForWsUrl(profile, port, readPort, isExited, sleep, timeoutMs)
   for (;;) {
     const url = await readPort(profile, port);
     if (url) return url;
-    if (isExited()) throw new Error('o navegador fechou antes de iniciar (feche outras janelas dele e tente de novo)');
-    if (Date.now() - t0 > timeoutMs) throw new Error('o navegador não respondeu a tempo');
+    if (isExited()) throw new Error(t('login.err.closedEarly'));
+    if (Date.now() - t0 > timeoutMs) throw new Error(t('login.err.timeout'));
     await sleep(300);
   }
 }
@@ -166,7 +167,7 @@ async function loginViaBrowser({
   sleep = (ms) => new Promise((r) => setTimeout(r, ms)),
   pollMs = POLL_MS,
 }) {
-  if (!browserPath) return { ok: false, count: 0, reason: 'Chrome ou Edge não encontrados' };
+  if (!browserPath) return { ok: false, count: 0, reason: t('login.err.noBrowser') };
   const wanted = domains.map(hostOf);
   const port = await pickPort();
   const profile = mkTmp();
@@ -209,13 +210,13 @@ async function loginViaBrowser({
   }
 
   try { rmTmp(profile); } catch { /* o navegador pode demorar a soltar a pasta; é temporária */ }
-  if (!snapshot.length && !Object.keys(storage).length) return { ok: false, count: 0, reason: 'nenhum login encontrado' };
+  if (!snapshot.length && !Object.keys(storage).length) return { ok: false, count: 0, reason: t('login.err.noLogin') };
   let count = 0;
   for (const c of snapshot) {
     try { await session.cookies.set(toElectronCookie(c)); count++; } catch { /* cookie recusado: segue com os demais */ }
   }
   const ok = count > 0 || Object.keys(storage).length > 0;
-  return { ok, count, storage, reason: ok ? '' : 'a sessão recusou os cookies' };
+  return { ok, count, storage, reason: ok ? '' : t('login.err.cookies') };
 }
 
 module.exports = { loginViaBrowser, readStorage, findBrowser, readActivePort, wantedCookie, toElectronCookie };

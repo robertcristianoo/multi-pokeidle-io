@@ -2,6 +2,7 @@
 // recarregar, espera a tela de login virar jogo, não repete o clique depois de aplicado, não mexe numa escolha
 // salva ao ligar, e não quebra numa página sem os controles.
 const { app, sleep, check, finish, waitFor } = require('./helpers');
+require('../src/i18n').setLang('pt-BR'); // os textos conferidos aqui estão em português
 const path = require('path');
 const { BaseWindow, WebContentsView } = require('electron');
 const { createUltra } = require('../src/ultra');

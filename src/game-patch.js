@@ -10,6 +10,8 @@
 // `app.js` original segue sem alteração e o atalho simplesmente não aparece (um aviso vai para o log).
 //   createGamePatch({ isWanted(contaId), sendLog }) -> { attach(contaId, view) }
 
+const { t } = require('./i18n');
+
 const PATTERN = 'https://pokeidle.io/app.js*';
 
 // Cada ponto de encaixe renomeia a função original e põe, no lugar dela, uma que chama a original e anota o resultado.
@@ -110,7 +112,7 @@ function createGamePatch({ isWanted = () => true, sendLog = () => {} } = {}) {
         if (!patched) {
           if (!warned) {
             warned = true;
-            sendLog({ acc: `conta${id}`, kind: 'load', level: 'warn', text: '[hunt] não achei o ponto de encaixe no app.js (o jogo mudou?); o atalho ⚔? fica desligado nesta carga' });
+            sendLog({ acc: `conta${id}`, kind: 'load', level: 'warn', text: t('patch.noHook') });
           }
           return await pass();
         }

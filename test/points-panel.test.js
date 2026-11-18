@@ -5,6 +5,7 @@ const os = require('os');
 const path = require('path');
 const { app, BaseWindow, BrowserWindow, ipcMain } = require('electron');
 const { check, finish, sleep } = require('./helpers');
+require('../src/i18n').setLang('pt-BR'); // os textos conferidos abaixo são os em português
 const { footerScript } = require('../src/points/sites');
 const { createPoints } = require('../src/points');
 

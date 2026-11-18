@@ -2,6 +2,8 @@
 // Auto-bola: clica na lista "Proximidade para Capturar" (#caidos-lista .caido). Funciona também no modo economia de energia.
 // Atalhos: Ctrl+Alt+1..4 liga/desliga por posição, Ctrl+Alt+0 liga/desliga todas.
 
+const { t } = require('./i18n');
+
 const MIN_MS = 500;
 const MAX_MS = 1500;
 const TICK_MS = 250;
@@ -25,7 +27,7 @@ module.exports = function init({ getSlots, sendLog, onUserToggle = () => {} }) {
     if (!badge) {
       badge = document.createElement('div');
       badge.id = ID;
-      badge.textContent = 'AUTO BOLA';
+      badge.textContent = ${JSON.stringify(t('autoball.badge'))};
       badge.style.cssText = 'position:fixed;top:4px;left:50%;transform:translateX(-50%);z-index:2147483647;' +
         'background:#1b8f3a;color:#fff;font:bold 11px sans-serif;padding:2px 8px;border-radius:4px;' +
         'pointer-events:none;opacity:.9';
@@ -211,13 +213,13 @@ module.exports = function init({ getSlots, sendLog, onUserToggle = () => {} }) {
         allOn ? autoBall.delete(s.id) : autoBall.add(s.id);
         onUserToggle(s.id, !allOn);
       });
-      sendLog({ acc: 'app', kind: 'load', level: 'info', text: `auto-bola ${allOn ? 'DESLIGADA' : 'LIGADA'} em todas` });
+      sendLog({ acc: 'app', kind: 'load', level: 'info', text: t(allOn ? 'autoball.log.allOff' : 'autoball.log.allOn') });
     } else {
       const { id } = slots[index];
       const on = !autoBall.has(id);
       on ? autoBall.add(id) : autoBall.delete(id);
       onUserToggle(id, on);
-      sendLog({ acc: `conta${id}`, kind: 'load', level: 'info', text: `auto-bola ${on ? 'LIGADA' : 'DESLIGADA'}` });
+      sendLog({ acc: `conta${id}`, kind: 'load', level: 'info', text: t(on ? 'autoball.log.on' : 'autoball.log.off') });
     }
     tick();
   }
@@ -227,20 +229,20 @@ module.exports = function init({ getSlots, sendLog, onUserToggle = () => {} }) {
   return {
     features: () => [{
       id: 'autobola',
-      label: 'Auto-bola',
-      title: 'Lança a bola sozinho na lista "Proximidade para Capturar"',
+      get label() { return t('autoball.label'); },
+      get title() { return t('autoball.title'); },
       isOn: (id) => autoBall.has(id),
       set: (id, on) => {
         on ? autoBall.add(id) : autoBall.delete(id);
         onUserToggle(id, on);
-        sendLog({ acc: `conta${id}`, kind: 'load', level: 'info', text: `auto-bola ${on ? 'LIGADA' : 'DESLIGADA'}` });
+        sendLog({ acc: `conta${id}`, kind: 'load', level: 'info', text: t(on ? 'autoball.log.on' : 'autoball.log.off') });
         tick();
       },
     }],
     // API para o app (src/capture-watch.js): liga sozinho numa conta sem VIP. Não é escolha do usuário: não passa por onUserToggle.
     setAuto(id, on, motivo = '') {
       on ? autoBall.add(id) : autoBall.delete(id);
-      sendLog({ acc: `conta${id}`, kind: 'load', level: 'info', text: `auto-bola ${on ? 'LIGADA' : 'DESLIGADA'}${motivo ? ` (${motivo})` : ''}` });
+      sendLog({ acc: `conta${id}`, kind: 'load', level: 'info', text: motivo ? t(on ? 'autoball.log.onWhy' : 'autoball.log.offWhy', { reason: motivo }) : t(on ? 'autoball.log.on' : 'autoball.log.off') });
       tick();
       return autoBall.has(id);
     },

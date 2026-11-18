@@ -1,6 +1,7 @@
 // Voto no TopIdle: funções puras, controlador (com fetch, cookies e janelas de mentira, sem rede) e o botão 🗳
 // na barra da conta. Nada aqui sai para a internet nem abre a página de voto de verdade.
 const { app, check, finish, waitFor } = require('./helpers');
+require('../src/i18n').setLang('pt-BR'); // os textos conferidos aqui estão em português
 const path = require('path');
 const { BrowserWindow } = require('electron');
 const T = require('../src/topidle');

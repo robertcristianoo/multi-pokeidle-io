@@ -9,6 +9,7 @@ const path = require('path');
 const { WebContentsView, ipcMain, shell } = require('electron');
 const { SITES, partitionOf, footerScript } = require('./sites');
 const { createGoogleLogin, sites: GOOGLE_SITES } = require('../google-login');
+const { t, loadPage } = require('../i18n');
 const googleLogin = createGoogleLogin();
 
 const UI = (f) => path.join(__dirname, '..', 'ui', f);
@@ -36,7 +37,7 @@ function createPoints({ mainWin, getAccounts, config, raise = () => {}, relayout
   let lastFull = 0;
 
   const itemsFor = (site) => flatLives(getAccounts()).filter((x) => x.site === site);
-  const itemLabel = (it) => `Conta ${it.acc} · ${it.nome || it.channel}`;
+  const itemLabel = (it) => t('lives.points.itemLabel', { account: t('common.account', { id: it.acc }), name: it.nome || it.channel });
 
   const clampH = (h, fullH = lastFull) => Math.max(MIN_H, Math.min(Math.max(MIN_H, fullH - MARGIN_BELOW_TOP), h));
 
@@ -89,7 +90,7 @@ function createPoints({ mainWin, getAccounts, config, raise = () => {}, relayout
       const mode = panel.full ? 'full' : 'footer';
       view.webContents.executeJavaScript(footerScript(mode)).then((r) => {
         if (panel?.view !== view) return;
-        const aviso = !panel.full && r === 'nao-achou' ? 'Não achei o botão dos pontos nesta página: use "Página completa".' : '';
+        const aviso = !panel.full && r === 'nao-achou' ? t('lives.points.noButton') : '';
         if (aviso !== panel.notice) { panel.notice = aviso; pushState(); }
       }).catch(() => {});
     };
@@ -111,12 +112,12 @@ function createPoints({ mainWin, getAccounts, config, raise = () => {}, relayout
     const host = new WebContentsView({ webPreferences: { preload: PRELOAD('points.js') } });
     host.setBackgroundColor('#1b1220');
     mainWin.contentView.addChildView(host);
-    host.webContents.loadFile(UI('points.html'), { query: { site } });
+    loadPage(host.webContents, UI('points.html'), { site });
     host.webContents.on('did-finish-load', () => pushState());
     panel = { site, items: itemsFor(site), index: 0, full: false, notice: '', host, view: null };
     raise();
     if (!panel.items.length) {
-      panel.notice = `Nenhuma live de ${SITES[site].label} com as contas abertas agora.`;
+      panel.notice = t('lives.points.noLives', { site: SITES[site].label });
       relayout();
       pushState();
       return;
@@ -138,7 +139,7 @@ function createPoints({ mainWin, getAccounts, config, raise = () => {}, relayout
     panel.items = itemsFor(panel.site);
     if (!panel.items.length) {
       dropChannelView();
-      panel.notice = `Nenhuma live de ${SITES[panel.site].label} com as contas abertas agora.`;
+      panel.notice = t('lives.points.noLives', { site: SITES[panel.site].label });
       relayout();
       return pushState();
     }

@@ -1,6 +1,7 @@
 // Barra de RAM: formato dos números, soma por conta (processo da página) e o resto como "app/outros",
 // posição no rodapé (sem sobrepor as contas), ocultar/mostrar e o texto que aparece na barra.
 const { app, check, finish, waitFor, sleep } = require('./helpers');
+require('../src/i18n').setLang('pt-BR'); // os textos conferidos aqui estão em português
 const { BaseWindow, WebContentsView } = require('electron');
 const { createRamBar, sampleMemory, formatMemory, BAR_H } = require('../src/ram');
 

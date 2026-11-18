@@ -4,6 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 const { app, sleep, check, finish, waitFor } = require('./helpers');
+require('../src/i18n').setLang('pt-BR'); // os textos conferidos aqui estão em português
 const { BaseWindow } = require('electron');
 
 // Estado inicial: conta 2 desligada (o arquivo é lido na inicialização do app, então precisa existir antes do require)

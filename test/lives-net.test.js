@@ -3,6 +3,7 @@
 const http = require('http');
 const crypto = require('crypto');
 const { app, check, finish, waitFor } = require('./helpers');
+require('../src/i18n').setLang('pt-BR'); // os textos conferidos abaixo são os em português
 const twitchLive = require('../src/lives/twitch-live');
 const kickLive = require('../src/lives/kick-live');
 const { TwitchWatcher } = require('../src/lives/twitch-watcher');

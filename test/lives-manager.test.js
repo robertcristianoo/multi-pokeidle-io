@@ -7,6 +7,7 @@ const http = require('http');
 const path = require('path');
 const { app, session, BrowserWindow } = require('electron');
 const { check, finish, waitFor } = require('./helpers');
+require('../src/i18n').setLang('pt-BR'); // os textos conferidos abaixo são os em português
 const cfgLib = require('../src/lives/config');
 const { createGuard, kindName, time } = require('../src/lives/guard');
 const { createLives, classify } = require('../src/lives');

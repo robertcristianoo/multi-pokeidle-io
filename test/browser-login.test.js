@@ -1,6 +1,7 @@
 // Login por navegador instalado (src/browser-login.js): escolha do navegador, filtro de cookies, conversão e o fluxo
 // completo com navegador, protocolo de depuração e sessão de mentira. Nada abre o Chrome nem toca a rede.
 const { check, finish } = require('./helpers');
+require('../src/i18n').setLang('pt-BR'); // os textos conferidos aqui estão em português
 const { EventEmitter } = require('events');
 const B = require('../src/browser-login');
 

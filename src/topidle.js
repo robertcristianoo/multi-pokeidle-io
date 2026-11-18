@@ -9,6 +9,7 @@
 const { app, BrowserWindow, dialog, session, shell } = require('electron');
 const { EventEmitter } = require('events');
 const { loginViaBrowser } = require('./browser-login');
+const { t: tr, getLang } = require('./i18n');
 
 const BASE = 'https://topidle.com';
 const TOPIDLE_HOSTS = ['topidle.com', 'www.topidle.com'];
@@ -117,31 +118,31 @@ function formatLeft(ms) {
 }
 
 function formatWhen(at, now) {
-  const hm = new Date(at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const hm = new Date(at).toLocaleTimeString(getLang(), { hour: '2-digit', minute: '2-digit' });
   const day = (ms) => {
     const d = new Date(ms);
     d.setHours(0, 0, 0, 0);
     return d.getTime();
   };
   const dias = Math.round((day(at) - day(now)) / (24 * 60 * MIN));
-  if (dias === 0) return `hoje às ${hm}`;
-  if (dias === 1) return `amanhã às ${hm}`;
-  return `em ${new Date(at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} às ${hm}`;
+  if (dias === 0) return tr('topidle.today', { hm });
+  if (dias === 1) return tr('topidle.tomorrow', { hm });
+  return tr('topidle.onDate', { date: new Date(at).toLocaleDateString(getLang(), { day: '2-digit', month: '2-digit' }), hm });
 }
 
 // O que o botão 🗳 da conta mostra: kind = checking | login | ready | wait | voted
 function voteInfo(s, now) {
-  if (!s) return { kind: 'checking', label: '🗳 …', hint: 'Conferindo o voto desta conta no TopIdle…' };
+  if (!s) return { kind: 'checking', label: '🗳 …', hint: tr('topidle.checking.hint') };
   if (!s.loggedIn) {
-    return { kind: 'login', label: '🗳 Votar', hint: 'Votar no pokeidle pelo TopIdle (o jogo dá recompensa por voto). Na primeira vez, entre no TopIdle na janela que abre: o login fica salvo nesta conta.' };
+    return { kind: 'login', label: tr('topidle.vote.label'), hint: tr('topidle.login.hint') };
   }
   if (isReady(s, now)) {
-    return { kind: 'ready', label: '🗳 Votar', hint: `Voto liberado${s.user ? ` (${s.user})` : ''}. Clique para votar: quem vota é você, na página do TopIdle.` };
+    return { kind: 'ready', label: tr('topidle.vote.label'), hint: tr('topidle.ready.hint', { who: s.user ? ` (${s.user})` : '' }) };
   }
   if (s.nextVoteAt != null) {
-    return { kind: 'wait', label: `🗳 ${formatLeft(s.nextVoteAt - now)}`, hint: `Esta conta já votou. O próximo voto libera ${formatWhen(s.nextVoteAt, now)}.` };
+    return { kind: 'wait', label: `🗳 ${formatLeft(s.nextVoteAt - now)}`, hint: tr('topidle.wait.hint', { when: formatWhen(s.nextVoteAt, now) }) };
   }
-  return { kind: 'voted', label: '🗳 ✓ Votou', hint: 'Esta conta já votou. Conferindo no TopIdle quando libera o próximo voto…' };
+  return { kind: 'voted', label: tr('topidle.voted.label'), hint: tr('topidle.voted.hint') };
 }
 
 // O Google recusa login dentro de janelas de apps ("Esse navegador ou app pode não ser seguro"). Em vez da tela de erro,
@@ -155,10 +156,10 @@ async function runBrowserLogin(parent, partition) {
   if (loginsRunning.has(partition)) {
     dialog.showMessageBox(parent ?? undefined, {
       type: 'info',
-      title: 'Login pelo navegador',
-      message: 'Já há um login em andamento para esta conta.',
-      detail: 'Conclua o login na janela do Chrome (ou Edge) e feche-a: é ao fechar que o login volta para o app.',
-      buttons: ['Entendi'],
+      title: tr('topidle.browserLogin.title'),
+      message: tr('topidle.browserLogin.running'),
+      detail: tr('topidle.browserLogin.runningDetail'),
+      buttons: [tr('topidle.browserLogin.ok')],
     }).catch(() => {});
     return null;
   }
@@ -167,7 +168,7 @@ async function runBrowserLogin(parent, partition) {
     const r = await loginViaBrowser({ url: `${BASE}/`, domains: TOPIDLE_HOSTS, session: session.fromPartition(partition) });
     loginEvents.emit('done', { id: idOfPartition(partition), ...r });
     if (!r.ok) {
-      dialog.showMessageBox(parent ?? undefined, { type: 'warning', title: 'Login pelo navegador', message: 'Não foi possível trazer o login.', detail: (r.reason || 'Tente de novo') + '. Se preferir, entre com Discord ou e-mail e senha na janela do app.', buttons: ['Entendi'] }).catch(() => {});
+      dialog.showMessageBox(parent ?? undefined, { type: 'warning', title: tr('topidle.browserLogin.title'), message: tr('topidle.browserLogin.fail'), detail: tr('topidle.browserLogin.failDetail', { reason: r.reason || tr('topidle.browserLogin.tryAgain') }), buttons: [tr('topidle.browserLogin.ok')] }).catch(() => {});
     }
     return r;
   } finally {
@@ -180,11 +181,10 @@ async function offerBrowserLogin(win, partition) {
   if (loginsRunning.has(partition)) { runBrowserLogin(win, partition); return; }
   const { response } = await dialog.showMessageBox(win, {
     type: 'info',
-    title: 'Login com Google',
-    message: 'O Google não permite login dentro deste app.',
-    detail: 'Posso abrir o Chrome (ou o Edge) só para você entrar no TopIdle e trazer o login para esta conta. '
-      + 'Entre normalmente, depois feche a janela do navegador. Só os cookies do TopIdle são copiados.',
-    buttons: ['Entrar pelo navegador', 'Cancelar'],
+    title: tr('topidle.google.title'),
+    message: tr('topidle.google.message'),
+    detail: tr('topidle.google.detail'),
+    buttons: [tr('topidle.google.button'), tr('common.cancel')],
     defaultId: 0,
     cancelId: 1,
   });
@@ -199,10 +199,10 @@ async function defaultChooseLogin(id) {
   if (process.env.PKMULTI_TEST) return 'window';
   const { response } = await dialog.showMessageBox({
     type: 'question',
-    title: `TopIdle · conta ${id}`,
-    message: 'Esta conta ainda não entrou no TopIdle.',
-    detail: 'Escolha como entrar. O login com Google só funciona pelo navegador instalado, porque o Google recusa login dentro de apps.',
-    buttons: ['Discord ou e-mail (janela do app)', 'Google (pelo navegador)', 'Cancelar'],
+    title: tr('topidle.choose.title', { id }),
+    message: tr('topidle.choose.message'),
+    detail: tr('topidle.choose.detail'),
+    buttons: [tr('topidle.choose.window'), tr('topidle.choose.browser'), tr('common.cancel')],
     defaultId: 0,
     cancelId: 2,
   });
@@ -217,7 +217,7 @@ function defaultWindow(id) {
     width: 1100,
     height: 820,
     autoHideMenuBar: true,
-    title: `Votar com a conta ${id} · quem vota é você, nesta página do TopIdle`,
+    title: tr('topidle.window.title', { id }),
     webPreferences: { partition },
   });
   // O site pode manter o título; o aviso de quem vota fica no título da janela
@@ -304,7 +304,7 @@ function createTopIdle({
     r.state = { loggedIn: true, canVote: false, nextVoteAt: null, user: r.state?.user ?? null };
     r.refreshAt = now() + 2000; // o TopIdle ainda pode demorar a dizer quando libera o próximo
     const w = wins.get(id);
-    if (w && !w.isDestroyed()) w.setTitle(`✓ Voto registrado com a conta ${id}! Pode fechar esta janela`);
+    if (w && !w.isDestroyed()) w.setTitle(tr('topidle.window.voted', { id }));
   }
 
   async function refresh(id) {
@@ -367,7 +367,7 @@ function createTopIdle({
     }
     if (!gameId) await lookupGame();
     if (!gameId) {
-      notify({ kind: 'fail', title: 'TopIdle indisponível', text: 'Confira a internet e tente de novo', ms: 5000 });
+      notify({ kind: 'fail', title: tr('topidle.unavailable.title'), text: tr('topidle.unavailable.text'), ms: 5000 });
       return;
     }
     const target = url ?? voteUrl(gameId, await readNick(slot));
@@ -387,7 +387,7 @@ function createTopIdle({
     if (r.ok) {
       rec(r.id).refreshAt = 0;
       refresh(r.id);
-      notify({ kind: 'ok', title: `Conta ${r.id}: login do TopIdle trazido`, text: 'Clique em 🗳 para votar', ms: 5000 });
+      notify({ kind: 'ok', title: tr('topidle.loginBrought.title', { id: r.id }), text: tr('topidle.loginBrought.text'), ms: 5000 });
     }
   });
 
@@ -403,7 +403,7 @@ function createTopIdle({
     },
     // Texto de um botão 🗳 da conta (o toolbar.js/toolbar.html desenha)
     info(id) {
-      if (!gameId) return { kind: 'checking', label: '🗳 …', hint: 'Procurando o jogo no TopIdle…' };
+      if (!gameId) return { kind: 'checking', label: '🗳 …', hint: tr('topidle.lookingHint') };
       return voteInfo(recs.get(id)?.state, now());
     },
     // Resumo para a barra do app: quem pode votar agora e quanto falta para o próximo voto
@@ -415,8 +415,8 @@ function createTopIdle({
       const proximos = ids.map((id) => recs.get(id)?.state).filter((s) => s?.loggedIn && s.nextVoteAt != null && !isReady(s, t)).map((s) => s.nextVoteAt);
       const falta = proximos.length ? Math.min(...proximos) - t : null;
       const texto = ready.length
-        ? `🗳 Voto liberado: ${ready.map((id) => `Conta ${id}`).join(', ')}`
-        : falta != null ? `🗳 Próximo voto em ${formatLeft(falta)}` : null;
+        ? tr('topidle.summary.ready', { accounts: ready.map((id) => tr('common.account', { id })).join(', ') })
+        : falta != null ? tr('topidle.summary.next', { left: formatLeft(falta) }) : null;
       return { ready, text: texto };
     },
     tick,

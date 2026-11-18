@@ -2,7 +2,11 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<title>Detalhes das lives</title>
+<script src="../i18n/core.js"></script>
+<script src="../i18n/areas/lives.js"></script>
+<script src="../i18n/areas/common.js"></script>
+<script src="i18n.js"></script>
+<title data-i18n="lives.details.title">Detalhes das lives</title>
 <style>
   * { box-sizing: border-box; }
   body { margin: 0; font: 13px "Segoe UI", sans-serif; background: #161118; color: #e6e0ea; padding: 14px 18px; }
@@ -17,12 +21,12 @@
 </style>
 </head>
 <body>
-<h1>Detalhes das lives</h1>
+<h1 data-i18n="lives.details.title">Detalhes das lives</h1>
 <table>
-  <thead><tr><th>Conta</th><th>Site</th><th>Canal</th><th>Leve</th><th>Pontos</th></tr></thead>
+  <thead><tr><th data-i18n="lives.details.colAccount">Conta</th><th data-i18n="lives.details.colSite">Site</th><th data-i18n="lives.details.colChannel">Canal</th><th data-i18n="lives.details.colLight">Leve</th><th data-i18n="lives.details.colPoints">Pontos</th></tr></thead>
   <tbody id="rows"></tbody>
 </table>
-<div id="empty" hidden>Nenhuma conta com lives.</div>
+<div id="empty" hidden data-i18n="lives.details.empty">Nenhuma conta com lives.</div>
 <div id="notes"></div>
 <script>
   const td = (text, cls) => { const e = document.createElement('td'); e.textContent = text; if (cls) e.className = cls; return e; };
@@ -31,7 +35,7 @@
     const tbody = document.getElementById('rows');
     tbody.replaceChildren(...rows.map((r) => {
       const tr = document.createElement('tr');
-      tr.append(td(r.accLabel || `Conta ${r.acc}`), td(r.site, r.site.toLowerCase()), td(r.channel), td(r.light, 'muted'), td(r.points));
+      tr.append(td(r.accLabel || t('common.account', { id: r.acc })), td(r.site, r.site.toLowerCase()), td(r.channel), td(r.light, 'muted'), td(r.points));
       return tr;
     }));
     document.getElementById('empty').hidden = rows.length > 0 || notes.length > 0;

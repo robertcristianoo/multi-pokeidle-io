@@ -13,6 +13,8 @@
 // Não validado contra o jogo real (exige login): os seletores vêm do projeto de referência (PokeIdleMulti, MIT).
 // Se algum elemento não existir, o vigia simplesmente não age e termina sozinho.
 
+const { t } = require('./i18n');
+
 const GAME_HOST = 'pokeidle.io';
 const ULTRA_KEY = 'KeyU'; // Ctrl+U
 
@@ -106,7 +108,7 @@ function createUltra({ getSlots, sendLog = () => {}, notify = () => {}, store, i
     store.set(on);
     const slots = getSlots();
     for (const { id, view } of slots) {
-      sendLog({ acc: `conta${id}`, kind: 'load', level: 'info', text: `[ultra] ${on ? 'ligar' : 'desligar'} pedido` });
+      sendLog({ acc: `conta${id}`, kind: 'load', level: 'info', text: t(on ? 'ultra.log.on' : 'ultra.log.off') });
       vigiar(id, view, on);
     }
     // confere depois de um tempo quantas já estão no estado pedido (as que estão fora do jogo aplicam ao entrar)
@@ -116,14 +118,14 @@ function createUltra({ getSlots, sendLog = () => {}, notify = () => {}, store, i
       const total = slots.length;
       if (on) {
         const txt = marcadas === total
-          ? `Modo ULTRA do jogo ativo em ${total} conta(s).`
-          : `${marcadas} de ${total} conta(s) já em ULTRA. As demais entram em ULTRA ao chegar no jogo.`;
-        notify({ kind: 'ok', title: 'ULTRA ligado', text: txt, ms: 5000 });
+          ? t('ultra.on.all', { total })
+          : t('ultra.on.some', { marcadas, total });
+        notify({ kind: 'ok', title: t('ultra.on.title'), text: txt, ms: 5000 });
       } else {
         const txt = marcadas === 0
-          ? `Modo ULTRA desligado em ${total} conta(s).`
-          : `${marcadas} conta(s) ainda em ULTRA. Tente de novo ou desligue pelo jogo.`;
-        notify({ kind: marcadas === 0 ? 'info' : 'fail', title: 'ULTRA desligado', text: txt, ms: 5000 });
+          ? t('ultra.off.all', { total })
+          : t('ultra.off.some', { marcadas });
+        notify({ kind: marcadas === 0 ? 'info' : 'fail', title: t('ultra.off.title'), text: txt, ms: 5000 });
       }
     }, 3000);
   }

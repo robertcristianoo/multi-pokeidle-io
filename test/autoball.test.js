@@ -1,5 +1,6 @@
 // Auto-bola: no modo normal só clica em alvos visíveis; no modo economia (lista 0x0, sem offsetParent) clica nos que existem na página.
 const { app, check, finish, waitFor } = require('./helpers');
+require('../src/i18n').setLang('pt-BR'); // os textos conferidos aqui estão em português
 const { BrowserWindow } = require('electron');
 
 const pagina = (cls, listaStyle, oculto = true) => 'data:text/html;charset=utf-8,' + encodeURIComponent(

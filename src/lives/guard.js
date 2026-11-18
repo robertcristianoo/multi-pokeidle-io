@@ -5,6 +5,7 @@
 // pontos), e o gerenciador resgata 1 ali. Depois confere no jogo se o tempo do bônus subiu. Aqui fica só o estado e a
 // escolha; o resgate (numa página escondida do canal) é do gerenciador. Módulo puro.
 const { BONUSES } = require('../points/sites');
+const { t: tl } = require('../i18n');
 
 const THRESHOLD_MS = 30 * 60 * 1000; // a partir de quanto falta para vencer a guarda age
 const READ_FOR_MS = 30 * 60 * 1000; // quanto vale a leitura do saldo de um canal
@@ -12,7 +13,7 @@ const CONFIRM_WITHIN_MS = 5 * 60 * 1000; // depois do resgate, até quando o jog
 
 // O nome do bônus no jogo ("xp", "captura", "shiny") é a própria chave do resgate.
 const kind = (rewardKey) => rewardKey;
-const kindName = (rewardKey) => ({ xp: 'XP', captura: 'Captura', shiny: 'Shiny' }[rewardKey] ?? BONUSES[rewardKey]?.label ?? rewardKey);
+const kindName = (rewardKey) => (['xp', 'captura', 'shiny'].includes(rewardKey) ? tl(`lives.kind.${rewardKey}`) : BONUSES[rewardKey]?.label ?? rewardKey);
 
 // "35 min", "2 h 10 min"
 function time(secs) {

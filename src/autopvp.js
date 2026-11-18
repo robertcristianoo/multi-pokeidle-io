@@ -5,6 +5,8 @@
 //  - "Procurar partida" manda {"t":"pvp.fila.entrar"} pelo socket do jogo, o mesmo envio do clique do botão (#pvp-fila-bt);
 //  - quem está na fila é o selo "Na fila PvP" (#pvp-fila-pill, sem a classe `hidden`), que o jogo mantém sincronizado.
 
+const { t } = require('./i18n');
+
 const TICK_MS = 1000;
 
 module.exports = function init({ getSlots, sendLog }) {
@@ -25,7 +27,7 @@ module.exports = function init({ getSlots, sendLog }) {
     if (!badge) {
       badge = document.createElement('div');
       badge.id = ID;
-      badge.textContent = 'AUTO PVP';
+      badge.textContent = ${JSON.stringify(t('autopvp.badge'))};
       badge.style.cssText = 'position:fixed;top:4px;left:calc(50% + 50px);z-index:2147483647;' +
         'background:#6b3fa0;color:#fff;font:bold 11px sans-serif;padding:2px 8px;border-radius:4px;' +
         'pointer-events:none;opacity:.9';
@@ -117,12 +119,12 @@ module.exports = function init({ getSlots, sendLog }) {
   return {
     features: () => [{
       id: 'autopvp',
-      label: 'Auto-PvP',
-      title: 'Mantém a conta na fila do PvP Ranqueado (tela de batalha em "Não mostrar")',
+      get label() { return t('autopvp.label'); },
+      get title() { return t('autopvp.title'); },
       isOn: (id) => autoPvp.has(id),
       set: (id, on) => {
         on ? autoPvp.add(id) : autoPvp.delete(id);
-        sendLog({ acc: `conta${id}`, kind: 'load', level: 'info', text: `auto-pvp ${on ? 'LIGADO' : 'DESLIGADO'}` });
+        sendLog({ acc: `conta${id}`, kind: 'load', level: 'info', text: t(on ? 'autopvp.log.on' : 'autopvp.log.off') });
         tick();
       },
     }],

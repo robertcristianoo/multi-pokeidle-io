@@ -6,6 +6,7 @@
 // os scripts entrarem (ou saírem). O estado fica em config.json, só com o que foi DESLIGADO: `chromeExtOff: { rotom: [2] }`.
 const path = require('path');
 const { session } = require('electron');
+const { t } = require('./i18n');
 
 // dentro do app empacotado a pasta fica fora do asar (ver asarUnpack no package.json)
 const dirOf = (name) => path.join(__dirname, '..', 'extensions', name).replace('app.asar', 'app.asar.unpacked');
@@ -14,13 +15,13 @@ const CATALOG = [
   {
     id: 'rotom',
     name: 'Rotom Sniper',
-    desc: 'Compra anúncios do mercado dentro das regras (cockpit pelo botão Sniper da conta).',
+    get desc() { return t('ext.rotom.desc'); }, // avaliada no uso, para respeitar a troca de idioma
     dir: dirOf('rotom-sniper'),
   },
   {
     id: 'hunt',
     name: '/hunt for PokeIdle',
-    desc: 'Mostra, acima do pokémon em campo, onde caçar (melhores hunts por XP/h e ouro/h).',
+    get desc() { return t('ext.hunt.desc'); },
     dir: dirOf('hunt-for-pokeidle'),
   },
 ];
@@ -44,7 +45,7 @@ function createChromeExt({ maxAccounts, config, getSlots, sendLog }) {
       loaded.set(key(ext, acc), e.id);
     } catch (err) {
       console.error(`extensão ${ext}: não consegui carregar na conta ${acc}:`, err);
-      sendLog?.({ acc: `conta${acc}`, kind: 'load', level: 'error', text: `[${ext}] falha ao carregar a extensão: ${err.message}` });
+      sendLog?.({ acc: `conta${acc}`, kind: 'load', level: 'error', text: t('ext.loadFail', { ext, error: err.message }) });
     }
   }
 

@@ -2,7 +2,11 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<title>Config das lives</title>
+<script src="../i18n/core.js"></script>
+<script src="../i18n/areas/lives.js"></script>
+<script src="../i18n/areas/common.js"></script>
+<script src="i18n.js"></script>
+<title data-i18n="lives.config.title">Config das lives</title>
 <style>
   * { box-sizing: border-box; }
   body { margin: 0; font: 13px "Segoe UI", sans-serif; background: #161118; color: #e6e0ea; padding: 14px 18px; }
@@ -43,43 +47,43 @@
 </style>
 </head>
 <body>
-<h1>Config das lives</h1>
-<p>Os canais ficam em ordem de prioridade (o de cima tem prioridade): arraste para reordenar ou use ▲ ▼. Cada conta marcada abre
+<h1 data-i18n="lives.config.title">Config das lives</h1>
+<p data-i18n="lives.config.intro">Os canais ficam em ordem de prioridade (o de cima tem prioridade): arraste para reordenar ou use ▲ ▼. Cada conta marcada abre
   só os canais que estão no ar, na ordem da lista, até o número de vagas; quando uma live aberta cai, o app troca pelo próximo
   canal no ar que ainda não está aberto. As lives são leves: o app assiste como um player, sem vídeo (quase nada de CPU e
   memória), e só abre a página do canal na hora de resgatar ou pegar o baú.</p>
 <div class="row" style="margin:0 0 10px">
-  <button class="official" id="official" title="Lê os canais oficiais (no ar e offline) que o jogo informa e acrescenta no fim da lista os que faltam">Atualizar com a lista oficial do jogo</button>
-  <button class="official" id="sort" title="Ordena agora cada lista por status: os no ar primeiro, os offline depois (a ordem de prioridade dentro de cada grupo continua)">Ordenar por status</button>
-  <label title="A cada conferência, quem fica no ar vai para o fim dos no ar e quem cai desce para os offline"><input type="checkbox" id="autosort"> Manter ordenado por status</label>
+  <button class="official" id="official" title="Lê os canais oficiais (no ar e offline) que o jogo informa e acrescenta no fim da lista os que faltam" data-i18n-title="lives.config.officialTitle" data-i18n="lives.config.official">Atualizar com a lista oficial do jogo</button>
+  <button class="official" id="sort" title="Ordena agora cada lista por status: os no ar primeiro, os offline depois (a ordem de prioridade dentro de cada grupo continua)" data-i18n-title="lives.config.sortTitle" data-i18n="lives.config.sort">Ordenar por status</button>
+  <label title="A cada conferência, quem fica no ar vai para o fim dos no ar e quem cai desce para os offline" data-i18n-title="lives.config.autosortTitle"><input type="checkbox" id="autosort"> <span data-i18n="lives.config.autosort">Manter ordenado por status</span></label>
   <small id="osrc"></small>
 </div>
 <div class="lists">
   <div class="card twitch">
     <h2>Twitch <small id="ctw"></small></h2>
     <ol class="chans" id="tw"></ol>
-    <div class="add"><input id="add-tw" placeholder="canal ou endereço" spellcheck="false"><button id="btn-tw">Adicionar</button></div>
-    <div class="row"><label for="ntw">Lives abertas por conta</label><input type="number" id="ntw" min="0" max="10"></div>
-    <div class="row"><label><input type="checkbox" id="claim"> Pegar o baú de bônus sozinho</label> <small>+50 a cada ~15 min</small></div>
+    <div class="add"><input id="add-tw" placeholder="canal ou endereço" data-i18n-placeholder="lives.config.addPlaceholder" spellcheck="false"><button id="btn-tw" data-i18n="lives.config.add">Adicionar</button></div>
+    <div class="row"><label for="ntw" data-i18n="lives.config.perAccount">Lives abertas por conta</label><input type="number" id="ntw" min="0" max="10"></div>
+    <div class="row"><label><input type="checkbox" id="claim"> <span data-i18n="lives.config.claim">Pegar o baú de bônus sozinho</span></label> <small data-i18n="lives.config.claimHint">+50 a cada ~15 min</small></div>
   </div>
   <div class="card kick">
     <h2>Kick <small id="ckk"></small></h2>
     <ol class="chans" id="kk"></ol>
-    <div class="add"><input id="add-kk" placeholder="canal ou endereço" spellcheck="false"><button id="btn-kk">Adicionar</button></div>
-    <div class="row"><label for="nkk">Lives abertas por conta</label><input type="number" id="nkk" min="0" max="10"></div>
+    <div class="add"><input id="add-kk" placeholder="canal ou endereço" data-i18n-placeholder="lives.config.addPlaceholder" spellcheck="false"><button id="btn-kk" data-i18n="lives.config.add">Adicionar</button></div>
+    <div class="row"><label for="nkk" data-i18n="lives.config.perAccount">Lives abertas por conta</label><input type="number" id="nkk" min="0" max="10"></div>
   </div>
 </div>
 <table>
-  <thead><tr><th>Conta</th><th>Lives</th><th>Resgatar na Kick</th><th>Resgatar na Twitch</th><th title="Quando o bônus escolhido está para vencer, resgata 1 num canal fora das lives abertas que tenha os pontos">Guarda do bônus</th></tr></thead>
+  <thead><tr><th data-i18n="lives.config.colAccount">Conta</th><th data-i18n="lives.config.colLives">Lives</th><th data-i18n="lives.config.colKick">Resgatar na Kick</th><th data-i18n="lives.config.colTwitch">Resgatar na Twitch</th><th title="Quando o bônus escolhido está para vencer, resgata 1 num canal fora das lives abertas que tenha os pontos" data-i18n-title="lives.config.colGuardTitle" data-i18n="lives.config.colGuard">Guarda do bônus</th></tr></thead>
   <tbody id="rows"></tbody>
 </table>
-<p style="margin-top:10px">Vincule a Twitch e a Kick no jogo (Bônus Twitch / Bônus na Kick) em cada conta que resgata: sem isso os pontos
+<p style="margin-top:10px" data-i18n="lives.config.footer">Vincule a Twitch e a Kick no jogo (Bônus Twitch / Bônus na Kick) em cada conta que resgata: sem isso os pontos
   voltam e o app para de resgatar naquela conta. Entre na Twitch/Kick uma vez em Lives → Entrar. O resgate confere o saldo a
   cada 5 min (Kick) ou 2 min (Twitch), pega o mais barato liberado (as horas acumulam) e espera 30 min se o site recusar.</p>
 <div class="acts">
   <span id="msg"></span>
-  <button class="sec" id="cancel">Fechar</button>
-  <button id="save">Salvar</button>
+  <button class="sec" id="cancel" data-i18n="common.close">Fechar</button>
+  <button id="save" data-i18n="common.save">Salvar</button>
 </div>
 <script>
   const $ = (id) => document.getElementById(id);
@@ -97,7 +101,7 @@
   };
   const reward = (bonuses, atual) => {
     const sel = document.createElement('select');
-    sel.append(new Option('Não resgatar', ''));
+    sel.append(new Option(t('lives.bonus.none'), ''));
     for (const [k, b] of Object.entries(bonuses)) sel.append(new Option(b.label + ' · ' + b.cost, k));
     sel.value = atual || '';
     return sel;
@@ -120,11 +124,11 @@
     const ol = els[site];
     const list = lists[site];
     ol.textContent = '';
-    counts[site].textContent = list.length + ' canais';
+    counts[site].textContent = t(list.length === 1 ? 'lives.config.channels.one' : 'lives.config.channels.other', { n: list.length });
     if (!list.length) {
       const li = document.createElement('li');
       li.className = 'empty';
-      li.textContent = 'Nenhum canal. Adicione abaixo ou use a lista oficial.';
+      li.textContent = t('lives.config.empty');
       ol.append(li);
     }
     list.forEach((ch, i) => {
@@ -136,7 +140,7 @@
       dot.className = 'dot ' + (live === true ? 'on' : live === false ? 'off' : '');
       const st = document.createElement('span');
       st.className = 'st';
-      st.textContent = live === true ? 'no ar' : live === false ? 'offline' : '';
+      st.textContent = live === true ? t('lives.config.onAir') : live === false ? t('lives.config.offline') : '';
       const pos = document.createElement('span');
       pos.className = 'pos';
       pos.textContent = i + 1;
@@ -147,9 +151,9 @@
       name.className = 'name';
       name.textContent = ch;
       li.append(grip, pos, name, dot, st,
-        button('▲', 'Subir (mais prioridade)', () => move(site, i, i - 1), i === 0),
-        button('▼', 'Descer', () => move(site, i, i + 1), i === list.length - 1),
-        button('✕', 'Remover', () => { list.splice(i, 1); render(site); }));
+        button('▲', t('lives.config.up'), () => move(site, i, i - 1), i === 0),
+        button('▼', t('lives.config.down'), () => move(site, i, i + 1), i === list.length - 1),
+        button('✕', t('lives.config.remove'), () => { list.splice(i, 1); render(site); }));
       li.ondragstart = (e) => { e.dataTransfer.setData('text/plain', String(i)); e.dataTransfer.effectAllowed = 'move'; li.classList.add('dragging'); };
       li.ondragend = () => li.classList.remove('dragging');
       li.ondragover = (e) => { e.preventDefault(); li.classList.add('over'); };
@@ -177,10 +181,10 @@
 
   // A lista oficial do jogo (no ar e offline): acrescenta no fim os canais que faltam e mostra quem está no ar
   $('official').onclick = async () => {
-    $('osrc').textContent = 'Lendo a lista do jogo...';
+    $('osrc').textContent = t('lives.config.reading');
     const o = await lc.official();
     if (!o.acc) {
-      $('osrc').textContent = 'O jogo ainda não informou a lista oficial: abra uma conta ligada, vinculada à Twitch/Kick, e tente de novo.';
+      $('osrc').textContent = t('lives.config.noList');
       return;
     }
     let added = 0;
@@ -191,7 +195,7 @@
       }
       render(site);
     }
-    $('osrc').textContent = 'Lista da conta ' + o.acc + ': ' + o.twitch.length + ' na Twitch, ' + o.kick.length + ' na Kick; ' + added + ' canal(is) acrescentado(s) no fim. Salve para valer.';
+    $('osrc').textContent = t('lives.config.listRead', { acc: o.acc, tw: o.twitch.length, kk: o.kick.length, added });
   };
 
   // Ordena agora pelo status mostrado (no ar primeiro); sem status conhecido, o canal fica entre os offline
@@ -201,7 +205,7 @@
       lists[site] = [...list.filter((c) => status[site][c] === true), ...list.filter((c) => status[site][c] !== true)];
       render(site);
     }
-    $('osrc').textContent = 'Listas ordenadas por status. Salve para valer.';
+    $('osrc').textContent = t('lives.config.sorted');
   };
 
   lc.get().then(({ config, accounts, bonuses, live, labels }) => {
@@ -224,7 +228,7 @@
       const kick = reward(bonuses, config.redeemKick[acc]); kick.className = 'kick';
       const tw = reward(bonuses, config.redeemTwitch[acc]); tw.className = 'twitch';
       const guard = document.createElement('input'); guard.type = 'checkbox'; guard.checked = config.guard[acc] !== false; guard.className = 'guard';
-      const name = document.createElement('td'); name.textContent = (labels && labels[acc]) || 'Conta ' + acc;
+      const name = document.createElement('td'); name.textContent = (labels && labels[acc]) || t('common.account', { id: acc });
       tr.append(name, cell(on), cell(kick), cell(tw), cell(guard));
       rows.append(tr);
     }
@@ -250,7 +254,7 @@
       next.guard[acc] = tr.querySelector('.guard').checked;
     }
     state = await lc.save(next);
-    $('msg').textContent = 'Salvo. As lives abertas reabrem com os canais novos.';
+    $('msg').textContent = t('lives.config.saved');
   };
 </script>
 </body>
