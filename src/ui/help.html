@@ -2,7 +2,8 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<title>Atalhos</title>
+<title data-i18n="help.title">Shortcuts</title>
+<script src="../i18n/core.js"></script><script src="../i18n/areas/app.js"></script><script src="../i18n/areas/common.js"></script><script src="i18n.js"></script>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: transparent; font: 14px "Segoe UI", sans-serif; color: #eee; }
@@ -21,55 +22,55 @@
 </head>
 <body>
 <div class="panel">
-  <h1>Atalhos</h1>
+  <h1 data-i18n="help.title">Shortcuts</h1>
 
-  <h2>Foco e grade</h2>
+  <h2 data-i18n="help.focus">Foco e grade</h2>
   <table>
-    <tr><td><kbd>Ctrl</kbd>+<kbd>1</kbd>…<kbd>4</kbd></td><td>Foca a conta da posição (de novo = volta à grade)</td></tr>
-    <tr><td><kbd>Ctrl</kbd>+<kbd>0</kbd></td><td>Volta à grade</td></tr>
-    <tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>←</kbd> / <kbd>→</kbd></td><td>Move a conta atual uma posição</td></tr>
-    <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>0</kbd><span class="or">ou</span><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>0</kbd></td><td>Alterna entre 2 e 4 contas</td></tr>
-    <tr><td><kbd>F11</kbd></td><td>Tela cheia liga/desliga</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>1</kbd>…<kbd>4</kbd></td><td data-i18n="help.focus.1">Foca a conta da posição (de novo = volta à grade)</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>0</kbd></td><td data-i18n="help.focus.2">Volta à grade</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>←</kbd> / <kbd>→</kbd></td><td data-i18n="help.focus.3">Move a conta atual uma posição</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>0</kbd><span class="or" data-i18n="help.or">or</span><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>0</kbd></td><td data-i18n="help.focus.4">Alterna entre 2 e 4 contas</td></tr>
+    <tr><td><kbd>F11</kbd></td><td data-i18n="help.focus.5">Tela cheia liga/desliga</td></tr>
   </table>
 
-  <h2>Contas</h2>
+  <h2 data-i18n="help.accounts">Contas</h2>
   <table>
-    <tr><td><b>⏻</b> na barra da conta</td><td>Liga/desliga esta conta. Desligada, ela não usa CPU nem memória; o login continua salvo e a conta fica desligada ao reabrir o app</td></tr>
-    <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>1</kbd>…<kbd>4</kbd></td><td>Reseta a sessão da conta da posição (pede confirmação)</td></tr>
+    <tr><td data-i18n-html="help.accounts.1.k"><b>⏻</b> na barra da conta</td><td data-i18n-html="help.accounts.1">Liga/desliga esta conta. Desligada, ela não usa CPU nem memória; o login continua salvo e a conta fica desligada ao reabrir o app</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>1</kbd>…<kbd>4</kbd></td><td data-i18n="help.accounts.2">Reseta a sessão da conta da posição (pede confirmação)</td></tr>
   </table>
 
-  <h2>Barra de cada conta</h2>
+  <h2 data-i18n="help.bar">Barra de cada conta</h2>
   <table>
-    <tr><td>🛒 <span class="or">(botão)</span></td><td>Auto-reposição: repõe pokébolas, revives e poções no Mercado do NPC quando o estoque cai. Gasta ouro do jogo; ⚙ configura. Desligada por padrão</td></tr>
+    <tr><td data-i18n-html="help.bar.1.k">🛒 <span class="or">(botão)</span></td><td data-i18n-html="help.bar.1">Auto-reposição: repõe pokébolas, revives e poções no Mercado do NPC quando o estoque cai. Gasta ouro do jogo; ⚙ configura. Desligada por padrão</td></tr>
   </table>
 
-  <h2>Outros</h2>
+  <h2 data-i18n="help.other">Outros</h2>
   <table>
-    <tr><td><kbd>F5</kbd></td><td>Recarrega a conta com o teclado (contas desligadas são ignoradas)</td></tr>
-    <tr><td><kbd>Ctrl</kbd>+<kbd>F5</kbd></td><td>Força a atualização (limpa o cache) da conta</td></tr>
-    <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F5</kbd></td><td>Força a atualização de todas as contas ligadas (desligadas são ignoradas)</td></tr>
-    <tr><td><kbd>Ctrl</kbd>+<kbd>T</kbd></td><td>Abre o menu Lives (contas com lives, entrar na Twitch/Kick, detalhes, registro dos resgates e config)</td></tr>
-    <tr><td><kbd>Ctrl</kbd>+<kbd>U</kbd></td><td>Liga/desliga o modo ULTRA do jogo em todas as contas</td></tr>
-    <tr><td><kbd>Ctrl</kbd>+<kbd>L</kbd></td><td>Mostra/esconde a janela de logs</td></tr>
-    <tr><td><b>Configurações › Animações</b> (botão ⚙ da barra superior)</td><td>Liga/desliga as animações reduzidas do jogo, em todas as contas (ligado por padrão, gasta menos CPU)</td></tr>
-    <tr><td><b>Configurações › Vigia</b> (botão ⚙ da barra superior)</td><td>Se a conta fica uns 45 s sem capturar com Ultra ou Beast Ball, havendo alvo na lista, mostra um aviso vermelho na tela dela e toca um som (o som sai mesmo com a conta silenciada). Some sozinho quando ela volta a capturar</td></tr>
-    <tr><td><b>Configurações › Auto-bola sem VIP</b> (botão ⚙ da barra superior)</td><td>Liga o Auto-bola sozinho nas contas sem VIP, ao entrar no jogo. Contas VIP não ligam sozinhas. Se você desligar o Auto-bola de uma conta, o app não o religa até ser fechado</td></tr>
-    <tr><td><kbd>Ctrl</kbd>+<kbd>M</kbd></td><td>Mostra/esconde a barra de RAM do rodapé (total e por conta)</td></tr>
-    <tr><td><kbd>F1</kbd></td><td>Mostra/esconde esta ajuda</td></tr>
+    <tr><td><kbd>F5</kbd></td><td data-i18n="help.other.f5">Recarrega a conta com o teclado (contas desligadas são ignoradas)</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>F5</kbd></td><td data-i18n="help.other.cf5">Força a atualização (limpa o cache) da conta</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F5</kbd></td><td data-i18n="help.other.csf5">Força a atualização de todas as contas ligadas (desligadas são ignoradas)</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>T</kbd></td><td data-i18n="help.other.ct">Abre o menu Lives (contas com lives, entrar na Twitch/Kick, detalhes, registro dos resgates e config)</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>U</kbd></td><td data-i18n="help.other.cu">Liga/desliga o modo ULTRA do jogo em todas as contas</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>L</kbd></td><td data-i18n="help.other.cl">Mostra/esconde a janela de logs</td></tr>
+    <tr><td data-i18n-html="help.other.motion.k"><b>Configurações › Animações</b> (botão ⚙ da barra superior)</td><td data-i18n-html="help.other.motion">Liga/desliga as animações reduzidas do jogo, em todas as contas (ligado por padrão, gasta menos CPU)</td></tr>
+    <tr><td data-i18n-html="help.other.watch.k"><b>Configurações › Vigia</b> (botão ⚙ da barra superior)</td><td data-i18n-html="help.other.watch">Se a conta fica uns 45 s sem capturar com Ultra ou Beast Ball, havendo alvo na lista, mostra um aviso vermelho na tela dela e toca um som (o som sai mesmo com a conta silenciada). Some sozinho quando ela volta a capturar</td></tr>
+    <tr><td data-i18n-html="help.other.novip.k"><b>Configurações › Auto-bola sem VIP</b> (botão ⚙ da barra superior)</td><td data-i18n-html="help.other.novip">Liga o Auto-bola sozinho nas contas sem VIP, ao entrar no jogo. Contas VIP não ligam sozinhas. Se você desligar o Auto-bola de uma conta, o app não o religa até ser fechado</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>M</kbd></td><td data-i18n="help.other.cm">Mostra/esconde a barra de RAM do rodapé (total e por conta)</td></tr>
+    <tr><td><kbd>F1</kbd></td><td data-i18n="help.other.f1">Mostra/esconde esta ajuda</td></tr>
   </table>
 
-  <h2>Voto no TopIdle</h2>
-  <div class="note">O botão <b>🗳</b> de cada conta mostra quando o voto no TopIdle libera e quanto falta. Verde = já pode votar. Clique para abrir a página de voto com o nick do personagem preenchido: o captcha e o voto você conclui nessa janela. O app só percebe quando o voto foi registrado.</div>
-  <h2>Pontos (barra superior)</h2>
+  <h2 data-i18n="help.vote">Voto no TopIdle</h2>
+  <div class="note" data-i18n-html="help.vote.note">O botão <b>🗳</b> de cada conta mostra quando o voto no TopIdle libera e quanto falta. Verde = já pode votar. Clique para abrir a página de voto com o nick do personagem preenchido: o captcha e o voto você conclui nessa janela. O app só percebe quando o voto foi registrado.</div>
+  <h2 data-i18n="help.points">Pontos (barra superior)</h2>
   <table>
-    <tr><td><b>Pontos da Twitch</b> / <b>Pontos da Kick</b></td><td>Painel embaixo com o chat de cada live que está no ar (só o rodapé, com o botão dos pontos). Resgate à mão. "Próxima conta ▶" troca de live; "Página completa" mostra a página toda. A borda do painel muda a altura.</td></tr>
-    <tr><td><b>Lives</b> (barra superior)</td><td>Marque a conta vinculada à sua Twitch/Kick (a main): ela assiste às lives dos canais da lista que estiverem no ar, sem vídeo, e resgata sozinha o bônus escolhido com os pontos (XP, Captura, Shiny). Em <b>Entrar na Twitch/Kick</b> faça o login uma vez; em <b>Config…</b> ficam os canais, as vagas, o bônus por conta, o baú da Twitch e a guarda do bônus; <b>Detalhes…</b> mostra o saldo por canal.</td></tr>
-    <tr><td><b>Configurações › Resgate automático</b></td><td>Abre a configuração das lives (canais, vagas e o bônus resgatado por conta e por site).</td></tr>
-    <tr><td><b>Configurações › Log de resgates</b></td><td>Cada resgate, recusa e parada, com hora, conta, site e canal.</td></tr>
+    <tr><td data-i18n-html="help.points.1.k"><b>Pontos da Twitch</b> / <b>Pontos da Kick</b></td><td data-i18n-html="help.points.1">Painel embaixo com o chat de cada live que está no ar (só o rodapé, com o botão dos pontos). Resgate à mão. "Próxima conta ▶" troca de live; "Página completa" mostra a página toda. A borda do painel muda a altura.</td></tr>
+    <tr><td data-i18n-html="help.points.2.k"><b>Lives</b> (barra superior)</td><td data-i18n-html="help.points.2">Marque a conta vinculada à sua Twitch/Kick (a main): ela assiste às lives dos canais da lista que estiverem no ar, sem vídeo, e resgata sozinha o bônus escolhido com os pontos (XP, Captura, Shiny). Em <b>Entrar na Twitch/Kick</b> faça o login uma vez; em <b>Config…</b> ficam os canais, as vagas, o bônus por conta, o baú da Twitch e a guarda do bônus; <b>Detalhes…</b> mostra o saldo por canal.</td></tr>
+    <tr><td data-i18n-html="help.points.3.k"><b>Configurações › Resgate automático</b></td><td data-i18n-html="help.points.3">Abre a configuração das lives (canais, vagas e o bônus resgatado por conta e por site).</td></tr>
+    <tr><td data-i18n-html="help.points.4.k"><b>Configurações › Log de resgates</b></td><td data-i18n-html="help.points.4">Cada resgate, recusa e parada, com hora, conta, site e canal.</td></tr>
   </table>
 
-  <div class="note">Os números são a <b>posição</b> na grade (esquerda→direita, cima→baixo), não o número da conta.</div>
-  <div class="close"><kbd>F1</kbd> ou <kbd>Esc</kbd> ou clique fora para fechar</div>
+  <div class="note" data-i18n-html="help.note">Os números são a <b>posição</b> na grade (esquerda→direita, cima→baixo), não o número da conta.</div>
+  <div class="close" data-i18n-html="help.close"><kbd>F1</kbd> ou <kbd>Esc</kbd> ou clique fora para fechar</div>
 </div>
 <script>
   document.body.addEventListener('mousedown', (e) => { if (e.target === document.body) window.help.close(); });

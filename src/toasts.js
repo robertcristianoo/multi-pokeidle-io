@@ -4,6 +4,7 @@
 //   show({ kind: 'ok' | 'fail' | 'info', title, text, openPath?: print que abre ao clicar, ms?: duração (máx. 5000) })
 const path = require('path');
 const { WebContentsView, ipcMain, shell } = require('electron');
+const { loadPage } = require('./i18n');
 
 const WIDTH = 260;
 const MARGIN = 6;
@@ -13,7 +14,7 @@ function createToasts({ mainWin, getTop }) {
   view.setBackgroundColor('#00000000');
   view.setVisible(false);
   mainWin.contentView.addChildView(view);
-  view.webContents.loadFile(path.join(__dirname, 'ui', 'toasts.html'));
+  loadPage(view.webContents, path.join(__dirname, 'ui', 'toasts.html'));
 
   let height = 0;
   let winWidth = 0;

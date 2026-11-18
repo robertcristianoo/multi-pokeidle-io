@@ -19,11 +19,17 @@
   },
   "build": {
     "appId": "com.pokeidle.multi",
-    "files": ["**/*", "!dist-release/**", "!test/**", "!err.txt"],
+    "files": ["**/*", "!dist-release/**", "!test/**", "!build/**", "!err.txt"],
     "asarUnpack": ["extensions/**"],
     "win": {
       "target": ["portable", "nsis"],
       "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "multiLanguageInstaller": true,
+      "displayLanguageSelector": true,
+      "installerLanguages": ["en_US", "pt_BR", "es_ES"],
+      "include": "build/installer.nsh"
     }
   }
 }

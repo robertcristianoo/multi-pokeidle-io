@@ -2,7 +2,8 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<title>Configurações</title>
+<title data-i18n="settings.title">Settings</title>
+<script src="../i18n/core.js"></script><script src="../i18n/areas/app.js"></script><script src="../i18n/areas/common.js"></script><script src="i18n.js"></script>
 <style>
   * { box-sizing: border-box; }
   body { margin: 0; font: 13px "Segoe UI", sans-serif; background: #161118; color: #e6e0ea; padding: 16px 20px; user-select: none; }
@@ -22,65 +23,87 @@
   table.ext td.nome b { display: block; font-weight: 600; }
   table.ext td.nome span { color: #a99bb8; font-size: 12px; line-height: 1.4; }
   table.ext button { min-width: 56px; padding: 3px 6px; }
+  select { background: #2a2030; color: #e6e0ea; border: 1px solid #ffffff33; border-radius: 6px; padding: 4px 8px; font: inherit; min-width: 160px; }
   .acts { display: flex; justify-content: flex-end; margin-top: 18px; }
   .acts button { background: #2f6fed; border-color: #6c9bff; color: #fff; }
 </style>
 </head>
 <body>
-<h1>Configurações</h1>
+<h1 data-i18n="settings.title">Settings</h1>
 
-<h2>Jogo</h2>
+<h2 data-i18n="settings.language">Language</h2>
 <div class="row">
-  <div class="txt"><b>Animações reduzidas</b><span>Reduz as animações do jogo em todas as contas (menos CPU). Vale na hora, sem recarregar.</span></div>
+  <div class="txt"><b data-i18n="settings.language.name">Interface language</b><span data-i18n="settings.language.desc"></span></div>
+  <select id="lang"></select>
+</div>
+
+<h2 data-i18n="settings.game">Game</h2>
+<div class="row">
+  <div class="txt"><b data-i18n="settings.motion.name"></b><span data-i18n="settings.motion.desc"></span></div>
   <button data-toggle="reduceMotion" id="reduceMotion"></button>
 </div>
 
-<h2>Captura</h2>
+<h2 data-i18n="settings.capture">Capture</h2>
 <div class="row">
-  <div class="txt"><b>Vigia de captura</b><span>Avisa na tela da conta e com som quando ela fica cerca de 45 s sem capturar com Ultra ou Beast Ball, havendo alvo.</span></div>
+  <div class="txt"><b data-i18n="settings.watch.name"></b><span data-i18n="settings.watch.desc"></span></div>
   <button data-toggle="vigia" id="vigia"></button>
 </div>
 <div class="row">
-  <div class="txt"><b>Auto-bola sem VIP</b><span>Liga o Auto-bola sozinho nas contas sem VIP, ao entrar no jogo (contas VIP não ligam sozinhas).</span></div>
+  <div class="txt"><b data-i18n="settings.novip.name"></b><span data-i18n="settings.novip.desc"></span></div>
   <button data-toggle="autoNoVip" id="autoNoVip"></button>
 </div>
 
-<h2>Pontos (Twitch e Kick)</h2>
+<h2 data-i18n="settings.points">Points</h2>
 <div class="row">
-  <div class="txt"><b>Resgate automático</b><span>Escolhe, por conta e por site, o bônus resgatado sozinho (desligado de fábrica).</span></div>
-  <button data-open="redeemConfig">Configurar…</button>
+  <div class="txt"><b data-i18n="settings.redeem.name"></b><span data-i18n="settings.redeem.desc"></span></div>
+  <button data-open="redeemConfig" data-i18n="settings.redeem.btn"></button>
 </div>
 <div class="row">
-  <div class="txt"><b>Log de resgates</b><span>Registro de cada resgate, recusa e parada.</span></div>
-  <button data-open="redeemLog">Abrir…</button>
+  <div class="txt"><b data-i18n="settings.log.name"></b><span data-i18n="settings.log.desc"></span></div>
+  <button data-open="redeemLog" data-i18n="settings.log.btn"></button>
 </div>
 
-<h2>Extensões por conta</h2>
-<p class="ajuda" style="color:#a99bb8;font-size:12px;margin:0 0 6px">Liga ou desliga cada extensão em cada conta. Ao mudar, a página daquela conta recarrega para a extensão entrar (ou sair).</p>
+<h2 data-i18n="settings.ext">Extensions</h2>
+<p class="ajuda" data-i18n="settings.ext.help" style="color:#a99bb8;font-size:12px;margin:0 0 6px"></p>
 <table class="ext" id="ext"></table>
 
-<div class="acts"><button id="close">Fechar</button></div>
+<div class="acts"><button id="close" data-i18n="common.close"></button></div>
 <script>
+  const LANGS = PKI18N.LANGS;
   const FLAGS = { reduceMotion: (s) => s.reduceMotion, vigia: (s) => s.watch, autoNoVip: (s) => s.autoNoVip };
   function paint(s) {
     if (!s) return;
+    paintLang(s.lang);
     paintExt(s.extensions);
     for (const [id, get] of Object.entries(FLAGS)) {
       const b = document.getElementById(id);
       const on = !!get(s);
-      b.textContent = on ? 'Ligado' : 'Desligado';
+      b.textContent = on ? t('common.on') : t('common.off');
       b.classList.toggle('on', on);
     }
   }
+  // seletor de idioma: a escolha vale na hora (o main recarrega todas as telas, esta inclusive)
+  function paintLang(cur) {
+    const sel = document.getElementById('lang');
+    if (!cur || sel.dataset.lang === cur) return;
+    sel.textContent = '';
+    for (const l of LANGS) {
+      const o = document.createElement('option');
+      o.value = l.code; o.textContent = l.native;
+      sel.append(o);
+    }
+    sel.value = sel.dataset.lang = cur;
+  }
+  document.getElementById('lang').onchange = (e) => cfg.setLang(e.target.value);
   function paintExt(ex) {
-    const t = document.getElementById('ext');
+    const tbl = document.getElementById('ext');
     if (!ex) return;
-    t.textContent = '';
-    const head = t.insertRow();
+    tbl.textContent = '';
+    const head = tbl.insertRow();
     head.insertCell().outerHTML = '<th></th>';
-    for (let a = 1; a <= ex.max; a++) head.insertCell().outerHTML = `<th>Conta ${a}</th>`;
+    for (let a = 1; a <= ex.max; a++) head.insertCell().outerHTML = `<th>${t('settings.ext.account', { id: a })}</th>`;
     for (const it of ex.items) {
-      const tr = t.insertRow();
+      const tr = tbl.insertRow();
       const c = tr.insertCell();
       c.className = 'nome';
       const b = document.createElement('b'); b.textContent = it.name;
@@ -89,11 +112,11 @@
       for (let a = 1; a <= ex.max; a++) {
         const on = !!it.accounts[a];
         const btn = document.createElement('button');
-        btn.textContent = on ? 'Ligada' : 'Off';
+        btn.textContent = on ? t('settings.ext.on') : t('settings.ext.off');
         btn.classList.toggle('on', on);
         btn.dataset.ext = it.id;
         btn.dataset.acc = String(a);
-        btn.title = `${it.name} na conta ${a}: ${on ? 'ligada' : 'desligada'} — clique para alternar`;
+        btn.title = t('settings.ext.tip', { name: it.name, id: a, state: t(on ? 'settings.ext.state.on' : 'settings.ext.state.off') });
         btn.onclick = async () => { btn.disabled = true; paint(await cfg.ext(it.id, a, !on)); };
         tr.insertCell().append(btn);
       }

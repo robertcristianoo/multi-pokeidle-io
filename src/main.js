@@ -17,6 +17,8 @@ const { createChromeExt } = require('./chrome-ext');
 const { createGamePatch } = require('./game-patch');
 const { app, BaseWindow, BrowserWindow, WebContentsView, dialog, ipcMain, nativeImage, screen, session, shell } = require('electron');
 const { createPoints } = require('./points');
+const i18n = require('./i18n');
+const { t } = i18n;
 
 // Evita o Chromium tratar views como "ocultas/oclusas" (afeta captcha e timers do jogo)
 app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
@@ -36,7 +38,7 @@ let logWin = null;
 const logBuffer = [];
 
 function sendLog(entry) {
-  entry.t = new Date().toLocaleTimeString('pt-BR');
+  entry.t = new Date().toLocaleTimeString(i18n.getLang());
   logBuffer.push(entry);
   if (logBuffer.length > 2000) logBuffer.shift();
   if (logWin && !logWin.isDestroyed()) logWin.webContents.send('log', entry);
@@ -51,11 +53,11 @@ function toggleLogWindow() {
   logWin = new BrowserWindow({
     width: 1100,
     height: 600,
-    title: 'Logs - Multi PokeIdle IO',
+    title: t('app.log.time'),
     autoHideMenuBar: true,
     webPreferences: { preload: path.join(__dirname, 'preload', 'logs.js') },
   });
-  logWin.loadFile(path.join(__dirname, 'ui', 'logs.html'));
+  i18n.loadPage(logWin.webContents, path.join(__dirname, 'ui', 'logs.html'));
   logWin.webContents.on('did-finish-load', () => {
     logBuffer.forEach((e) => logWin.webContents.send('log', e));
   });
@@ -70,13 +72,13 @@ function attachLogging(id, view) {
     sendLog({ acc, kind: 'console', level: lv, text: `${message}  (${sourceId}:${line})` });
   });
   wc.on('did-fail-load', (_e, code, desc, url, isMainFrame) => {
-    sendLog({ acc, kind: 'load', level: 'error', text: `falha ao carregar ${isMainFrame ? '(página)' : '(frame)'}: ${desc} (${code}) ${url}` });
+    sendLog({ acc, kind: 'load', level: 'error', text: t('app.log.load.fail', { what: isMainFrame ? t('app.log.load.page') : t('app.log.load.frame'), desc, code, url }) });
   });
   wc.on('render-process-gone', (_e, d) => {
-    sendLog({ acc, kind: 'load', level: 'error', text: `renderer encerrou: ${d.reason}` });
+    sendLog({ acc, kind: 'load', level: 'error', text: t('app.log.gone', { reason: d.reason }) });
   });
   wc.on('did-navigate', (_e, url, code) => {
-    sendLog({ acc, kind: 'load', level: 'info', text: `navegou para ${url} [${code}]` });
+    sendLog({ acc, kind: 'load', level: 'info', text: t('app.log.nav', { url, code }) });
   });
 
   const ses = wc.session;
@@ -88,7 +90,7 @@ function attachLogging(id, view) {
   });
   ses.webRequest.onErrorOccurred((d) => {
     if (d.webContentsId !== wc.id) return;
-    sendLog({ acc, kind: 'net', level: 'error', text: `${d.method} FALHOU: ${d.error} [${d.resourceType}] ${d.url}` });
+    sendLog({ acc, kind: 'net', level: 'error', text: t('app.log.net.fail', { method: d.method, error: d.error, type: d.resourceType, url: d.url }) });
   });
 }
 
@@ -227,7 +229,7 @@ function createHelpView() {
   helpView.setBackgroundColor('#00000000');
   helpView.setVisible(false);
   mainWin.contentView.addChildView(helpView);
-  helpView.webContents.loadFile(path.join(__dirname, 'ui', 'help.html'));
+  i18n.loadPage(helpView.webContents, path.join(__dirname, 'ui', 'help.html'));
   helpView.webContents.on('before-input-event', (event, input) => {
     if (input.type === 'keyDown' && (input.code === 'F1' || input.code === 'Escape')) {
       event.preventDefault();
@@ -297,7 +299,7 @@ const appIcon = nativeImage.createFromPath(path.join(__dirname, '..', 'assets', 
 
 function updateTitle() {
   mainWin.setTitle(
-    focused === null ? 'PokeIdle Multi' : `PokeIdle Multi - posição ${focused + 1} (conta ${slots[focused].id})`
+    focused === null ? t('app.title') : t('app.title.focus', { pos: focused + 1, id: slots[focused].id })
   );
 }
 
@@ -326,14 +328,12 @@ async function resetAccount(index) {
   const { id, view } = slots[index];
   const { response } = await dialog.showMessageBox({
     type: 'warning',
-    buttons: ['Cancelar', 'Resetar'],
+    buttons: [t('app.reset.cancel'), t('app.reset.ok')],
     defaultId: 0,
     cancelId: 0,
-    title: 'Resetar conta',
-    message: `Resetar a sessão da conta ${id} (posição ${index + 1})?`,
-    detail:
-      'Apaga cookies, login e dados locais desse quadrante (inclusive o login da Twitch e da Kick das lives) e recarrega o jogo. ' +
-      'A conta criada no jogo continua existindo no servidor.',
+    title: t('app.reset.title'),
+    message: t('app.reset.message', { id, pos: index + 1 }),
+    detail: t('app.reset.detail'),
   });
   if (response !== 1) return;
   // a sessão é a da partição da conta (a página de desligada não tem uma própria)
@@ -481,7 +481,7 @@ function buildGameView(id) {
       return {
         action: 'allow',
         overrideBrowserWindowOptions: {
-          width: 520, height: 760, autoHideMenuBar: true, title: 'Vincular - conta ' + id,
+          width: 520, height: 760, autoHideMenuBar: true, title: t('app.link.title', { id }),
           webPreferences: { partition: `persist:conta${id}` },
         },
       };
@@ -608,7 +608,7 @@ function createWindow() {
     height: 900,
     ...(st.bounds ?? {}),
     autoHideMenuBar: true,
-    title: 'PokeIdle Multi',
+    title: t('app.title'),
     icon: appIcon,
     fullscreen: st.fullscreen && !process.env.PKMULTI_TEST,
     show: !process.env.PKMULTI_TEST, // os testes (test/) rodam com a janela escondida
@@ -672,7 +672,7 @@ function createWindow() {
   });
   settingsCtl = createSettings({
     mainWin,
-    getState: () => ({ extensions: chromeExt.state(), reduceMotion: motion.isOn(), ...(captureCtl?.state() ?? { watch: true, autoNoVip: true }) }),
+    getState: () => ({ lang: i18n.getLang(), extensions: chromeExt.state(), reduceMotion: motion.isOn(), ...(captureCtl?.state() ?? { watch: true, autoNoVip: true }) }),
     toggles: {
       reduceMotion: () => motion.toggle(),
       vigia: () => captureCtl?.toggleWatch(),
@@ -680,6 +680,7 @@ function createWindow() {
     },
     extensions: { state: () => chromeExt.state(), set: (ext, acc, on) => chromeExt.setEnabled(ext, acc, on) },
     open: { redeemConfig: () => livesCtl?.showConfig(), redeemLog: () => livesCtl?.showLog() },
+    setLang: (code) => setLanguage(code),
   });
   for (const id of loadOrder(loadAccountCount())) createSlot(id);
   const lastFocus = slots.findIndex((x) => x.id === loadConfig().focusedId); // volta ao quadrante que estava em foco
@@ -707,7 +708,7 @@ function createWindow() {
   });
   updater = createUpdater({
     currentVersion: releaseVersion(),
-    onAvailable: (u) => toastsCtl?.show({ kind: 'info', title: `Versão nova: v${u.latest}`, text: 'Use o botão Atualizar na barra para baixar', ms: 10000 }),
+    onAvailable: (u) => toastsCtl?.show({ kind: 'info', title: t('app.update.title', { version: u.latest }), text: t('app.update.text'), ms: 10000 }),
   });
   createHelpView();
   pointsCtl = createPoints({
@@ -737,7 +738,27 @@ function createWindow() {
   updateTitle();
 }
 
+// ---- Idioma ----
+// Idioma inicial: o salvo em config.json; senão o que o instalador gravou (install-lang.txt, ao lado do executável);
+// senão o do sistema; senão inglês. Só é salvo quando o usuário escolhe em Configurações.
+function installLang() {
+  try {
+    return fs.readFileSync(path.join(path.dirname(process.execPath), 'install-lang.txt'), 'utf8').trim();
+  } catch {
+    return null;
+  }
+}
+
+function setLanguage(code) {
+  if (!i18n.isLang(code) || code === i18n.getLang()) return;
+  saveConfig({ lang: code });
+  i18n.setLang(code); // recarrega as páginas de interface já abertas
+  if (mainWin && !mainWin.isDestroyed()) updateTitle();
+  tbs?.push();
+}
+
 app.whenReady().then(async () => {
+  i18n.init({ saved: loadConfig().lang, installLang: installLang(), locale: app.getLocale() });
   loadExtensions();
   // extensões que precisam estar prontas antes de as contas abrirem o jogo (ex.: as que carregam extensão do Chromium)
   await Promise.all([chromeExt.ready(), ...exts.map((x) => x.ready?.())]);
