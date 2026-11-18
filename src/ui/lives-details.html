@@ -31,7 +31,7 @@
     const tbody = document.getElementById('rows');
     tbody.replaceChildren(...rows.map((r) => {
       const tr = document.createElement('tr');
-      tr.append(td(`Conta ${r.acc}`), td(r.site, r.site.toLowerCase()), td(r.channel), td(r.light, 'muted'), td(r.points));
+      tr.append(td(r.accLabel || `Conta ${r.acc}`), td(r.site, r.site.toLowerCase()), td(r.channel), td(r.light, 'muted'), td(r.points));
       return tr;
     }));
     document.getElementById('empty').hidden = rows.length > 0 || notes.length > 0;

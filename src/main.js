@@ -458,6 +458,9 @@ function makeShortcutHandler(id) {
   };
 }
 
+// Endereços de login de vincular a Kick/Twitch (OAuth) que o jogo abre
+const isLinkLogin = (url) => /^https:\/\/(id\.kick\.com|kick\.com\/(oauth|auth)|id\.twitch\.tv|(www\.)?twitch\.tv\/(login|oauth))/i.test(String(url));
+
 // View do jogo de uma conta (ainda não adicionada à janela nem carregada)
 function buildGameView(id) {
   // "persist:" mantém cookies/localStorage em disco, separados por conta
@@ -472,9 +475,27 @@ function buildGameView(id) {
   view.webContents.setWindowOpenHandler(({ url }) => {
     if (google.intercept(url)) return { action: 'deny' };
     if (topidle?.handleLink(id, url)) return { action: 'deny' }; // o "votar" do jogo abre a janela de voto
+    // Vincular a Kick/Twitch no jogo: o login tem que ser o da sessão desta conta. No navegador padrão entraria o login de
+    // outra conta (o que esse navegador já tem aberto), então abre numa janela do app, na sessão da conta.
+    if (isLinkLogin(url)) {
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          width: 520, height: 760, autoHideMenuBar: true, title: 'Vincular - conta ' + id,
+          webPreferences: { partition: `persist:conta${id}` },
+        },
+      };
+    }
     // links/popups abrem no navegador padrão do sistema (nova aba)
     if (/^(https?|mailto):/i.test(url)) shell.openExternal(url).catch(() => {});
     return { action: 'deny' };
+  });
+  view.webContents.on('did-create-window', (popup) => {
+    // Voltou ao jogo (a vinculação terminou): fecha a janela e recarrega o jogo para ele ler o vínculo novo.
+    popup.webContents.on('did-navigate', (_e, u) => {
+      if (!/^https:\/\/([a-z0-9-]+\.)*pokeidle\.io(\/|$)/i.test(u)) return;
+      setTimeout(() => { if (!popup.isDestroyed()) popup.close(); if (!view.webContents.isDestroyed()) view.webContents.reload(); }, 1500);
+    });
   });
   attachLogging(id, view);
   gamePatch?.attach(id, view); // antes de carregar: serve o app.js do jogo com a marcação da arte
