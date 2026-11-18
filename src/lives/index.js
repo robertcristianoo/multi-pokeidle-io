@@ -96,8 +96,31 @@ function createLives({
     return cfg().accounts.filter((a) => on.has(a));
   };
   const openOf = (site, acc) => open[site].get(acc) ?? [];
-  // "Conta 4 (posição 1)": o número da conta é fixo (define a sessão e o login), a posição é a da grade e muda quando se move a conta.
+  // O nome do jogador de cada conta (lido do jogo): é como as contas aparecem nos menus e janelas das lives. Sem o nome ainda,
+  // "Conta 4 (posição 1)": o número da conta é fixo (define a sessão e o login), a posição é a da grade e muda quando se move.
+  const names = new Map();
+  const NAME_SCRIPT = String.raw`(() => { try {
+    if (window.__lives && window.__lives.name) return window.__lives.name;
+    for (const el of document.querySelectorAll('div,span,p,b,strong')) {
+      if (el.children.length || !/^Nv\s*[\d.,]+$/.test(el.textContent.trim())) continue;
+      const prev = el.previousElementSibling;
+      const nm = prev && prev.textContent.trim();
+      if (nm && nm.length <= 30) return nm;
+    }
+  } catch {} return null; })()`;
+  async function refreshNames() {
+    for (const slot of getSlots()) {
+      const wc = slot.view?.webContents;
+      if (!wc || wc.isDestroyed() || wc.isLoading()) continue;
+      try {
+        const n = await wc.executeJavaScript(NAME_SCRIPT);
+        if (typeof n === 'string' && n.trim()) names.set(slot.id, n.trim());
+      } catch {}
+    }
+  }
   const tag = (acc) => {
+    const known = names.get(acc);
+    if (known && [...names.entries()].every(([a, n]) => a === acc || n !== known)) return known;
     const i = getSlots().findIndex((s) => s.id === acc);
     return i >= 0 ? `Conta ${acc} (posição ${i + 1})` : `Conta ${acc}`;
   };
@@ -626,6 +649,7 @@ function createLives({
     seconds++;
     const c = cfg();
     if (seconds % 5 === 0) sleepless(syncAccounts());
+    if (seconds % 30 === 5 || seconds === 3) sleepless(refreshNames());
     if (!active.size) return;
     if (!liveChecking && Date.now() >= liveCheckAt) sleepless(checkLives());
     if (seconds % 30 === 10) for (const acc of active) sleepless(refreshBonus(acc));

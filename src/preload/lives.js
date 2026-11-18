@@ -26,6 +26,11 @@ function hook() {
     let m;
     try { m = JSON.parse(d); } catch { return; }
     const e = m.estado;
+    // O nome do jogador, se o servidor mandar com um destes nomes (senão o app lê da tela)
+    for (const o of [m, e, m.perfil, m.jogador, m.usuario]) {
+      const n = o && typeof o === 'object' ? [o.apelido, o.nick, o.nickname, o.username, o.nomeJogador, o.nome].find((v) => typeof v === 'string' && v.trim() && v.length <= 30) : null;
+      if (n) { L.name = n.trim(); break; }
+    }
     if (!e || typeof e !== 'object') return;
     // O estado vem em delta: a chave só aparece quando muda (null = apagou); `cheio` (welcome, reconexão) recomeça do zero
     if (m.t === 'welcome' || e.cheio || !L.me) L.me = {};
