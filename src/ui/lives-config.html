@@ -204,7 +204,7 @@
     $('osrc').textContent = 'Listas ordenadas por status. Salve para valer.';
   };
 
-  lc.get().then(({ config, accounts, bonuses, live }) => {
+  lc.get().then(({ config, accounts, bonuses, live, labels }) => {
     state = config;
     lists.twitch = [...config.twitchChannels];
     lists.kick = [...config.kickChannels];
@@ -224,7 +224,7 @@
       const kick = reward(bonuses, config.redeemKick[acc]); kick.className = 'kick';
       const tw = reward(bonuses, config.redeemTwitch[acc]); tw.className = 'twitch';
       const guard = document.createElement('input'); guard.type = 'checkbox'; guard.checked = config.guard[acc] !== false; guard.className = 'guard';
-      const name = document.createElement('td'); name.textContent = 'Conta ' + acc;
+      const name = document.createElement('td'); name.textContent = (labels && labels[acc]) || 'Conta ' + acc;
       tr.append(name, cell(on), cell(kick), cell(tw), cell(guard));
       rows.append(tr);
     }

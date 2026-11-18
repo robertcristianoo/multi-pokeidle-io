@@ -96,6 +96,11 @@ function createLives({
     return cfg().accounts.filter((a) => on.has(a));
   };
   const openOf = (site, acc) => open[site].get(acc) ?? [];
+  // "Conta 4 (posição 1)": o número da conta é fixo (define a sessão e o login), a posição é a da grade e muda quando se move a conta.
+  const tag = (acc) => {
+    const i = getSlots().findIndex((s) => s.id === acc);
+    return i >= 0 ? `Conta ${acc} (posição ${i + 1})` : `Conta ${acc}`;
+  };
   const slotOf = (acc) => getSlots().find((s) => s.id === acc);
 
   // ---- registro e avisos ----
@@ -108,7 +113,7 @@ function createLives({
 
   function note(acc, text) {
     if (!text) return;
-    try { notify({ kind: noteKind(text), title: `Conta ${acc}`, text, ms: 5000 }); } catch {}
+    try { notify({ kind: noteKind(text), title: `${tag(acc)}`, text, ms: 5000 }); } catch {}
   }
 
   function redeemerOf(site, acc) {
@@ -638,9 +643,9 @@ function createLives({
     const login = [];
     for (const acc of active) {
       const why = stoppedOf(acc);
-      if (why) stopped.push(`Conta ${acc}: resgate parado (${why})`);
-      if (twitchLogin.get(acc) === false) login.push(`Conta ${acc}: entre na Twitch (Lives → Entrar)`);
-      else for (const s of SITE_ORDER) if (redeemers[s].get(acc)?.noLogin && openOf(s, acc).length) login.push(`Conta ${acc}: entre na ${SITES[s].label} (Lives → Entrar)`);
+      if (why) stopped.push(`${tag(acc)}: resgate parado (${why})`);
+      if (twitchLogin.get(acc) === false) login.push(`${tag(acc)}: entre na Twitch (Lives → Entrar)`);
+      else for (const s of SITE_ORDER) if (redeemers[s].get(acc)?.noLogin && openOf(s, acc).length) login.push(`${tag(acc)}: entre na ${SITES[s].label} (Lives → Entrar)`);
     }
     return { stopped, login };
   }
@@ -649,7 +654,7 @@ function createLives({
   function state() {
     if (!active.size) return { kind: 'none', text: 'Lives desligadas', detail: 'Clique para ligar as lives na conta vinculada à Twitch/Kick' };
     const { stopped, login } = problems();
-    const summary = [...active].map((a) => `Conta ${a}: Twitch ${openOf('twitch', a).length} · Kick ${openOf('kick', a).length}`).join('\n');
+    const summary = [...active].map((a) => `${tag(a)}: Twitch ${openOf('twitch', a).length} · Kick ${openOf('kick', a).length}`).join('\n');
     if (stopped.length) return { kind: 'changed', text: `Lives: ${stopped.length} resgate(s) parado(s)`, detail: `${[...stopped, ...login].join('\n')}\n\n${summary}` };
     if (login.length) return { kind: 'idle', text: 'Lives: falta entrar na Twitch/Kick', detail: `${login.join('\n')}\n\n${summary}` };
     return { kind: 'ok', text: 'Lives ligadas', detail: summary };
@@ -683,15 +688,15 @@ function createLives({
       for (const site of SITE_ORDER) {
         for (const channel of openOf(site, acc)) {
           const w = site === 'twitch' ? watchers.get(acc) : kickWatchers.get(acc);
-          rows.push({ acc, site: SITES[site].label, channel, light: w?.status(channel) ?? '', points: redeemers[site].get(acc)?.text(channel) ?? '' });
+          rows.push({ acc, accLabel: tag(acc), site: SITES[site].label, channel, light: w?.status(channel) ?? '', points: redeemers[site].get(acc)?.text(channel) ?? '' });
         }
       }
       const stopped = stoppedOf(acc);
-      if (stopped) notes.push(`Conta ${acc}: resgate parado: ${stopped}`);
-      if (twitchLogin.get(acc) === false) notes.push(`Conta ${acc}: entre na Twitch (Lives → Entrar)`);
-      if (bonusInfo.has(acc)) notes.push(`Conta ${acc}: ${bonusInfo.get(acc)}`);
+      if (stopped) notes.push(`${tag(acc)}: resgate parado: ${stopped}`);
+      if (twitchLogin.get(acc) === false) notes.push(`${tag(acc)}: entre na Twitch (Lives → Entrar)`);
+      if (bonusInfo.has(acc)) notes.push(`${tag(acc)}: ${bonusInfo.get(acc)}`);
       const ps = pubsubs.get(acc);
-      if (ps?.error) notes.push(`Conta ${acc}: avisos da Twitch: ${ps.error}`);
+      if (ps?.error) notes.push(`${tag(acc)}: avisos da Twitch: ${ps.error}`);
     }
     return { rows, notes };
   }
@@ -702,7 +707,7 @@ function createLives({
     if (!SITES[site]) return;
     if (loginWin && !loginWin.isDestroyed()) loginWin.close();
     loginWin = new BrowserWindow({
-      width: 1000, height: 760, title: `Entrar na ${SITES[site].label} - Conta ${acc}`, autoHideMenuBar: true,
+      width: 1000, height: 760, title: `Entrar na ${SITES[site].label} - ${tag(acc)}`, autoHideMenuBar: true,
       webPreferences: { partition: partitionOf(site, acc) },
     });
     const google = googleLogin.attach(loginWin.webContents, GOOGLE_SITES[site]); // "Entrar com Google" da Kick
@@ -827,20 +832,20 @@ function createLives({
     const template = [
       { label: 'Marque a conta vinculada à sua Twitch/Kick (a main):', enabled: false },
       ...accountIds().map((acc) => ({
-        label: `Conta ${acc}${!on.has(acc) ? ' — conta desligada (as lives voltam ao ligar)' : active.has(acc) ? ` — ${short(acc)}` : ''}`,
+        label: `${tag(acc)}${!on.has(acc) ? ' — conta desligada (as lives voltam ao ligar)' : active.has(acc) ? ` — ${short(acc)}` : ''}`,
         type: 'checkbox',
         checked: c.accounts.includes(acc),
         click: () => toggleAccount(acc),
       })),
       { type: 'separator' },
-      ...[...active].sort((a, b) => a - b).flatMap((acc) => SITE_ORDER.map((s) => ({ label: `Lives da ${SITES[s].label} · Conta ${acc}`, submenu: liveItems(acc, s) }))),
+      ...[...active].sort((a, b) => a - b).flatMap((acc) => SITE_ORDER.map((s) => ({ label: `Lives da ${SITES[s].label} · ${tag(acc)}`, submenu: liveItems(acc, s) }))),
       {
         label: 'Entrar na Twitch/Kick (para resgatar pontos)',
-        submenu: accountIds().flatMap((acc) => SITE_ORDER.map((s) => ({ label: `Conta ${acc} · ${SITES[s].label}`, click: () => showLogin(acc, s) }))),
+        submenu: accountIds().flatMap((acc) => SITE_ORDER.map((s) => ({ label: `${tag(acc)} · ${SITES[s].label}`, click: () => showLogin(acc, s) }))),
       },
       {
         label: 'Sair da Twitch/Kick (limpar o login da conta)',
-        submenu: accountIds().flatMap((acc) => SITE_ORDER.map((s) => ({ label: `Conta ${acc} · ${SITES[s].label}`, click: () => logout(acc, s) }))),
+        submenu: accountIds().flatMap((acc) => SITE_ORDER.map((s) => ({ label: `${tag(acc)} · ${SITES[s].label}`, click: () => logout(acc, s) }))),
       },
       { label: 'Detalhes… (Twitch leve, baús, pontos por hora)', enabled: active.size > 0, click: showDetails },
       { label: `Registro dos resgates… (${today} hoje)`, click: showLog },
@@ -862,6 +867,7 @@ function createLives({
   ipcMain.handle('lives:config-get', () => ({
     config: cfg(),
     accounts: accountIds(),
+    labels: Object.fromEntries(accountIds().map((a) => [a, tag(a)])),
     bonuses: BONUSES,
     limits: { max: cfgLib.MAX_SLOTS },
     live: { twitch: { ...liveNow.twitch }, kick: { ...liveNow.kick } },
