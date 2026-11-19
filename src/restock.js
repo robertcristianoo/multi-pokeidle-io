@@ -5,6 +5,8 @@
 const fs = require('fs');
 const path = require('path');
 const { app, BrowserWindow, ipcMain } = require('electron');
+const accountNames = require('./account-names');
+const { createRestockLog } = require('./restock-log');
 
 const TICK_MS = 1000;
 const MAX_ACCOUNTS = 4;
@@ -52,6 +54,7 @@ module.exports = function init({ getSlots, sendLog }) {
   const windowPreload = path.join(__dirname, 'preload', 'restock-window.js');
   const windowPage = path.join(__dirname, 'ui', 'restock.html');
 
+  const hist = createRestockLog(app.getPath('userData')); // registro de compras, mantido entre sessões e versões
   const cfgs = new Map(); // id -> configuração sanitizada
   const status = new Map(); // id -> resumo que a página devolveu no último ciclo
   const pushed = new Map(); // id -> último JSON empurrado para a página
@@ -93,6 +96,7 @@ module.exports = function init({ getSlots, sendLog }) {
         text: `[reposição] ${t}`,
       });
     }
+    hist.append(id, lines.slice(i + 1));
     seen.set(id, lines[lines.length - 1]);
   }
 
@@ -158,7 +162,7 @@ module.exports = function init({ getSlots, sendLog }) {
     const win = new BrowserWindow({
       width: 640,
       height: 800,
-      title: `Reposição - conta ${id} - Multi PokeIdle IO`,
+      title: `Reposição - ${accountNames.label(id)} - Multi PokeIdle IO`,
       autoHideMenuBar: true,
       webPreferences: { preload: windowPreload },
     });
@@ -170,10 +174,14 @@ module.exports = function init({ getSlots, sendLog }) {
   const idOf = (e) => [...wins].find(([, w]) => !w.isDestroyed() && w.webContents === e.sender)?.[0];
 
   load();
+  // o nome da conta pode ser lido depois de a janela abrir: atualiza o título
+  accountNames.onChange((id) => { const w = wins.get(id); if (w && !w.isDestroyed()) w.setTitle(`Reposição - ${accountNames.label(id)} - Multi PokeIdle IO`); });
   ipcMain.handle('rst:get', (e) => {
     const id = idOf(e);
     if (id === undefined) return null;
-    return { id, cfg: cfgOf(id), status: status.get(id) ?? null };
+    const st = status.get(id) ?? null;
+    if (st) logNew(id, st.log); // grava já o que a página tem de novo, para o histórico estar completo ao abrir
+    return { id, label: accountNames.label(id), cfg: cfgOf(id), status: st, history: hist.read(id) };
   });
   ipcMain.handle('rst:save', (e, raw) => {
     const id = idOf(e);
@@ -187,6 +195,7 @@ module.exports = function init({ getSlots, sendLog }) {
 
   const feature = {
     id: 'reposicao',
+    order: 20,
     label: '🛒',
     title: 'Auto-reposição: repõe pokébolas, revives e poções no Mercado do NPC quando o estoque cai (gasta ouro do jogo)',
     isOn: (id) => !!cfgOf(id).on,

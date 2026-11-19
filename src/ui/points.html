@@ -25,10 +25,12 @@
 <div id="bar">
   <div id="title">Pontos</div>
   <span class="sp"></span>
-  <button id="next" title="Vai para a próxima conta (com a live no ar)">Próxima conta ▶</button>
+  <button id="login" title="Entra na Twitch/Kick nesta conta">Entrar</button>
+  <button id="logout" title="Sai da Twitch/Kick nesta conta">Sair</button>
+  <button id="next" title="Próxima live desta conta (com a live no ar)">Próxima live ▶</button>
   <button id="full" class="" title="Mostra só o rodapé do chat (botão dos pontos) ou a página inteira">Página completa</button>
-  <button id="config" title="Resgate automático, por conta e por site">Config…</button>
-  <button id="log" title="Registro dos resgates">Registro…</button>
+  <button id="config" title="Configuração do resgate automático das lives">Config…</button>
+  <button id="log" title="Registro dos resgates">Registro</button>
   <button id="close" title="Fecha o painel e libera as páginas da memória">Fechar ✕</button>
 </div>
 <div id="notice"></div>
@@ -42,6 +44,8 @@
   grip.addEventListener('pointerup', stopDrag);
   grip.addEventListener('pointercancel', stopDrag);
 
+  $('login').onclick = () => pts.cmd('login');
+  $('logout').onclick = () => pts.cmd('logout');
   $('next').onclick = () => pts.cmd('next');
   $('full').onclick = () => pts.cmd('full');
   $('config').onclick = () => pts.cmd('config');
@@ -49,12 +53,13 @@
   $('close').onclick = () => pts.cmd('close');
 
   pts.onState((s) => {
-    const cont = s.total ? `${s.index + 1}/${s.total}` : '0';
-    const t = $('title');
-    t.textContent = `Pontos da ${s.label}`;
-    if (s.title) {
+        const t = $('title');
+    // o nome da conta vem sempre no título: o painel é de uma conta só
+    t.textContent = `Pontos ${s.label} · ${s.account}`;
+    t.title = t.textContent;
+    if (s.live) {
       const sm = document.createElement('small');
-      sm.textContent = `${s.title} (${cont})`;
+      sm.textContent = s.live;
       t.append(sm);
     }
     $('next').disabled = s.total < 2;

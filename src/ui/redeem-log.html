@@ -39,7 +39,7 @@
   function visible(r) {
     const q = document.getElementById('q').value.trim().toLowerCase();
     if (!q) return true;
-    return [r.acc, r.site, r.channel, r.evento, r.detalhe].join(' ').toLowerCase().includes(q);
+    return [r.accLabel, r.site, r.channel, r.evento, r.detalhe].join(' ').toLowerCase().includes(q);
   }
 
   function render() {
@@ -56,7 +56,7 @@
       const d = document.createElement('div');
       d.className = 'row ' + r.evento;
       const cells = [
-        ['t', hora(r.t)], ['acc', `Conta ${r.acc}`], ['site', r.site === 'kick' ? 'Kick' : 'Twitch'],
+        ['t', hora(r.t)], ['acc', r.accLabel || `Conta ${r.acc}`], ['site', r.site === 'kick' ? 'Kick' : 'Twitch'],
         ['canal', r.channel], ['ev', r.evento], ['det', r.detalhe],
       ];
       for (const [cls, txt] of cells) {

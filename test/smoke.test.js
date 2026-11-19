@@ -58,7 +58,8 @@ app.whenReady().then(async () => {
     // botões em drop ("Grupo ▾") abrem um menu nativo em vez de ligar direto: ficam fora do liga/desliga abaixo
     const dropBtns = l0.filter((x) => x.endsWith(' ▾'));
     // controles fixos da barra (zoom, som, recarregar) não são funcionalidades liga/desliga
-    const fixos = (x) => ['Foco', '⚙', '−', '+', '🔊', '🔇', '⟳', '⏻', '⏻ Ligar'].includes(x) || /^[0-9]+%$/.test(x) || /^🗳/.test(x);
+    // 'Sniper' abre uma janela (não é liga/desliga); nome e tempo da conta não são botões
+    const fixos = (x) => ['Sniper', 'Foco', '⚙', '−', '+', '🔊', '🔇', '⟳', '⏻', '⏻ Ligar'].includes(x) || /^[0-9]+%$/.test(x) || /^🗳/.test(x) || /^(Lives( ✓)?|⚠ Lives)$/.test(x);
     const featureBtns = l0.filter((x) => !fixos(x) && !dropBtns.includes(x));
     if (slotBars[0]) check(['−', '+', '⟳'].every((x) => l0.includes(x)) && l0.some((x) => /^[0-9]+%$/.test(x)), `barra da conta tem zoom, som e recarregar: ${JSON.stringify(l0)}`);
     console.log(`  funcionalidades vistas na barra: ${featureBtns.join(', ') || '(nenhuma)'}${dropBtns.length ? ` | drops: ${dropBtns.join(', ')}` : ''}`);
@@ -67,21 +68,26 @@ app.whenReady().then(async () => {
       const l = await labels(appBar);
       check(l.some((x) => x.startsWith('Lives')), `botão Lives na barra do app: ${JSON.stringify(l)}`);
       check(l.some((x) => x.includes('ULTRA')), `botão ULTRA na barra do app: ${JSON.stringify(l)}`);
-      check(l.some((x) => x.includes('Configurações')), `botão Configurações na barra do app: ${JSON.stringify(l)}`);
-      check(!l.some((x) => /Auto-bola s\/|Vigia|Animações|Resgate auto|Log de resgates/.test(x)), 'opções agrupadas saíram da barra do app');
+      check(l.includes('⚙'), `botão ⚙ Configurações na barra do app: ${JSON.stringify(l)}`);
+      check(!l.some((x) => /Vigia|Animações|Resgate auto|Log de resgates/.test(x)), 'opções agrupadas saíram da barra do app');
       // o modal abre, mostra o estado das três opções e fecha
       const modal = () => BrowserWindow.getAllWindows().find((w) => /settings\.html/.test(w.webContents.getURL()));
-      await appBar.webContents.executeJavaScript('[...document.querySelectorAll("button")].find(b => b.textContent.includes("Configurações")).click()');
+      await appBar.webContents.executeJavaScript('[...document.querySelectorAll("button")].find(b => b.title.startsWith("Configurações")).click()');
       check(await waitFor(() => !!modal(), 4000), 'Configurações abre o modal');
       await waitFor(async () => (await modal()?.webContents.executeJavaScript('document.getElementById("vigia").textContent').catch(() => '')) !== '', 4000);
-      const est = await modal()?.webContents.executeJavaScript('["reduceMotion","vigia","autoNoVip"].map(i => document.getElementById(i).textContent).join(",")');
-      check(/^(Ligado|Desligado),(Ligado|Desligado),(Ligado|Desligado)$/.test(est ?? ''), `modal mostra as três opções: ${est}`);
-      const antes = await modal()?.webContents.executeJavaScript('document.getElementById("autoNoVip").textContent');
-      await modal()?.webContents.executeJavaScript('document.getElementById("autoNoVip").click()');
-      await waitFor(async () => (await modal()?.webContents.executeJavaScript('document.getElementById("autoNoVip").textContent')) !== antes, 3000);
-      const depois = await modal()?.webContents.executeJavaScript('document.getElementById("autoNoVip").textContent');
-      check(depois !== antes, `alternar no modal muda o estado (${antes} -> ${depois})`);
-      await modal()?.webContents.executeJavaScript('document.getElementById("autoNoVip").click()'); // devolve ao que era
+      const est = await modal()?.webContents.executeJavaScript('["reduceMotion","vigia"].map(i => document.getElementById(i).textContent).join(",")');
+      check(/^(Ligado|Desligado),(Ligado|Desligado)$/.test(est ?? ''), `modal mostra as opções da barra: ${est}`);
+      // linhas dos módulos adicionais (só existem com a licença válida nesta máquina): alternam no modal
+      const temExtra = await modal()?.webContents.executeJavaScript('!!document.querySelector("#rows-extra [data-toggle]")');
+      const antes = temExtra ? await modal()?.webContents.executeJavaScript('document.querySelector("#rows-extra [data-toggle]").textContent') : null;
+      if (temExtra) {
+        const botao = 'document.querySelector("#rows-extra [data-toggle]")';
+        await modal()?.webContents.executeJavaScript(`${botao}.click()`);
+        await waitFor(async () => (await modal()?.webContents.executeJavaScript(`${botao}.textContent`)) !== antes, 3000);
+        const depois = await modal()?.webContents.executeJavaScript(`${botao}.textContent`);
+        check(depois !== antes, `alternar no modal muda o estado (${antes} -> ${depois})`);
+        await modal()?.webContents.executeJavaScript(`${botao}.click()`); // devolve ao que era
+      }
       modal()?.close();
       await waitFor(() => !modal(), 3000);
     }
@@ -108,7 +114,7 @@ app.whenReady().then(async () => {
       // liga/desliga por conta, pelo modal: desligar na conta 1 não mexe na conta 2 e volta a ligar depois
       const modalExt = () => BrowserWindow.getAllWindows().find((w) => /settings\.html/.test(w.webContents.getURL()));
       if (appBar) {
-        await appBar.webContents.executeJavaScript('[...document.querySelectorAll("button")].find(b => b.textContent.includes("Configurações")).click()');
+        await appBar.webContents.executeJavaScript('[...document.querySelectorAll("button")].find(b => b.title.startsWith("Configurações")).click()');
         await waitFor(async () => !!(await modalExt()?.webContents.executeJavaScript('document.querySelector("button[data-ext=hunt][data-acc=\\"1\\"]")').catch(() => null)), 5000);
         const clica = (acc) => modalExt()?.webContents.executeJavaScript(`document.querySelector('button[data-ext="hunt"][data-acc="${acc}"]').click()`);
         await clica(1);
@@ -126,9 +132,10 @@ app.whenReady().then(async () => {
     // liga/desliga é POR CONTA: clicar na conta 1 não pode acender a 2
     if (featureBtns.length && slotBars.length === 2) {
       const [b1, b2] = slotBars;
-      const name = featureBtns[0];
-      const isOn = (v) => v.webContents.executeJavaScript(`[...document.querySelectorAll("button")].find(b => b.textContent === ${JSON.stringify(name)}).classList.contains("on")`);
-      const click = (v) => v.webContents.executeJavaScript(`[...document.querySelectorAll("button")].find(b => b.textContent === ${JSON.stringify(name)}).click()`);
+      // o Sniper só abre o cockpit (não liga/desliga): usa o primeiro botão que alterna
+      const name = featureBtns.find((n) => n !== 'Sniper') ?? featureBtns[0];
+      const isOn = (v) => v.webContents.executeJavaScript(`[...document.querySelectorAll("button")].find(b => b.textContent.startsWith(${JSON.stringify(name)})).classList.contains("on")`);
+      const click = (v) => v.webContents.executeJavaScript(`[...document.querySelectorAll("button")].find(b => b.textContent.startsWith(${JSON.stringify(name)})).click()`);
       await click(b1);
       check(await waitFor(() => isOn(b1), 3000), `"${name}" liga na conta clicada`);
       check(!(await isOn(b2)), `"${name}" continua desligado na outra conta`);
@@ -143,6 +150,20 @@ app.whenReady().then(async () => {
       check(/posição 1/.test(win.getTitle()), `modo foco ativo (título: "${win.getTitle()}")`);
       const isGame = (v) => v.webContents && !/(toolbar|lives|help|logs|ram|offline).html/.test(v.webContents.getURL());
       check(!!win.contentView.children.find((v) => isGame(v) && v.getBounds().width === content.width), 'a conta em foco ocupa a largura inteira da janela');
+      // em foco: o Foco fica ativo (azul) e < / > trocam de conta, desativados na primeira e na última posição
+      const estado = (v) => v.webContents.executeJavaScript('(() => { const f = (t) => [...document.querySelectorAll("button")].find((b) => b.textContent === t); return { foco: f("Foco")?.classList.contains("on"), prev: f("<")?.disabled, next: f(">")?.disabled }; })()');
+      const e1 = await estado(slotBars[0]);
+      check(e1.foco === true && e1.prev === true && e1.next === false, `foco na primeira conta: Foco ativo, < desativado, > ativo (${JSON.stringify(e1)})`);
+      if (slotBars[1]) {
+        await slotBars[0].webContents.executeJavaScript('[...document.querySelectorAll("button")].find(b => b.textContent === ">").click()');
+        await sleep(600);
+        check(/posição 2/.test(win.getTitle()), `">" passa o foco para a conta seguinte (título: "${win.getTitle()}")`);
+        const e2 = await waitFor(async () => (await estado(slotBars[1])).foco === true, 3000) && await estado(slotBars[1]);
+        check(e2 && e2.next === true && e2.prev === false, `foco na última conta: > desativado, < ativo (${JSON.stringify(e2)})`);
+        await slotBars[1].webContents.executeJavaScript('[...document.querySelectorAll("button")].find(b => b.textContent === "<").click()');
+        await sleep(600);
+        check(/posição 1/.test(win.getTitle()), '"<" volta o foco para a conta anterior');
+      }
       const appb = win.contentView.children.find((v) => /kind=app/.test(v.webContents?.getURL() ?? ''));
       await appb.webContents.executeJavaScript('[...document.querySelectorAll("button")].find(b => b.textContent === "Voltar à grade").click()');
       await sleep(600);

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'">
+<title>Convide pelo Discord</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; padding: 20px; background: #161019; color: #eee; font: 14px "Segoe UI", sans-serif; }
+  h1 { margin: 0 0 6px; font-size: 19px; text-align: center; }
+  h2 { margin: 18px 0 6px; font-size: 15px; }
+  p, li { margin: 6px 0; color: #cdbfd8; line-height: 1.4; }
+  ol, ul { margin: 6px 0; padding-left: 20px; }
+  b { color: #fff; }
+  .link { font: 13px Consolas, monospace; color: #9db4ff; text-align: center; margin: 10px 0; word-break: break-all; user-select: all; }
+  .row { text-align: center; }
+  button { background: #3a2a4b; color: #fff; border: 1px solid #ffffff33; border-radius: 8px; padding: 8px 12px; cursor: pointer; font: inherit; margin: 4px; }
+  button:hover { background: #4b3763; }
+  .ok { color: #7ee08a; min-height: 18px; font-size: 13px; text-align: center; }
+  .tag { background: #231a2d; border: 1px solid #ffffff1f; border-radius: 10px; padding: 4px 14px 8px; margin-top: 14px; }
+  .small { font-size: 12px; color: #a99bb7; }
+  .fechar { background: transparent; }
+</style>
+</head>
+<body>
+  <h1>💬 Convide pelo Discord</h1>
+  <p>Link do servidor do jogo para passar a amigos: quem entra por ele conta no <b>Convide &amp; Ganhe</b> de quem o gerou (conta de Discord com mais de 1 ano).</p>
+  <p class="small">Para as <b>suas contas</b>, use o botão <b>💬 Discord</b> da barra de cada conta: ele abre o convite na sessão daquela conta, confere se o Discord está logado e se a tag IDLE está ativa.</p>
+  <div class="link" id="link"></div>
+  <div class="row">
+    <button id="copiar">Copiar link</button>
+    <button id="abrir">Abrir no navegador</button>
+  </div>
+  <div class="ok" id="ok" role="status"></div>
+  <p class="small">O link expira todo dia. Se ele não funcionar, peça a quem te indicou o link do dia, ou atualize o app.</p>
+
+  <div class="tag">
+    <h2>🏷️ Depois de entrar: ative a tag IDLE</h2>
+    <p>Quem usa a tag IDLE do servidor ganha <b>5 💎 na hora</b> e mais <b>5 💎 a cada 10 dias seguidos</b>, sem limite. Dá para ajudar a pagar o VIP.</p>
+    <ol>
+      <li>No Discord: <b>Configurações de Usuário → Perfis → Tag do servidor</b> e escolha <b>IDLE</b>.</li>
+      <li>No Discord do jogo, clique em <b>Resgatar Recompensa de TAG</b> e pegue o código de vínculo.</li>
+      <li>No chat do jogo, digite <b>/resgatar &lt;codigo&gt;</b> (uma vez só). Quem entra no jogo com “Continuar com Discord” já fica vinculado.</li>
+    </ol>
+    <ul class="small">
+      <li>Os 5 💎 da hora valem uma vez por conta de Discord: tirar e pôr a tag, ou sair e voltar ao servidor, não paga de novo.</li>
+      <li>Tirou a tag, trocou pela de outro servidor ou saiu do servidor: o relógio zera e recomeça quando ela voltar.</li>
+      <li>Um Discord por conta do jogo, e o vínculo não troca.</li>
+    </ul>
+  </div>
+  <div class="row"><button class="fechar" id="fechar">Fechar</button></div>
+  <script src="convite.js"></script>
+</body>
+</html>

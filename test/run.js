@@ -24,7 +24,8 @@ for (const f of jsFiles) {
 }
 console.log(`sintaxe: ${jsFiles.length - failed}/${jsFiles.length} arquivos ok`);
 
-const testDirs = [__dirname];
+// test/_x: módulos adicionais locais (ausente no repositório público; roda quando a pasta existir)
+const testDirs = [__dirname, path.join(__dirname, '_x')].filter((d) => fs.existsSync(d));
 const tests = testDirs.flatMap((d) => fs.readdirSync(d).filter((f) => f.endsWith('.test.js')).sort().map((f) => path.join(d, f)));
 for (const t of tests) {
   console.log(`\n== ${path.relative(root, t)}`);

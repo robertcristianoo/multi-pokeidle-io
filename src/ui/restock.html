@@ -147,7 +147,7 @@
 
   function mostrar(d) {
     const s = d.status;
-    $('titulo').textContent = `Reposição — conta ${d.id}`;
+    $('titulo').textContent = `Reposição — ${d.label}`;
     const st = $('status');
     if (!s) {
       st.className = 'status alerta';
@@ -180,7 +180,12 @@
       else opcoes($('potionsId'), POTIONS, d.cfg.potions.id);
     }
     const log = $('log');
-    const linhas = s?.log ?? [];
+    // Histórico gravado no app (sobrevive ao fechar o app e a novas versões); a data aparece nas linhas de outros dias
+    const hoje = new Date().toDateString();
+    const linhas = (d.history ?? []).map((h) => {
+      const dt = new Date(h.t);
+      return (dt.toDateString() === hoje ? '' : dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' ') + h.texto;
+    });
     const perto = log.scrollTop + log.clientHeight >= log.scrollHeight - 20;
     log.textContent = linhas.length ? linhas.join('\n') : 'Nenhuma compra ainda.';
     if (perto) log.scrollTop = log.scrollHeight;

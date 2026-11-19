@@ -3,7 +3,7 @@ const path = require('path');
 const { createLives } = require('./lives');
 const { createToolbars } = require('./toolbar');
 const { createToasts } = require('./toasts');
-const { createTopIdle } = require('./topidle');
+const { createIdleHub } = require('./idlehub');
 const { createGoogleLogin, sites: GOOGLE_SITES } = require('./google-login');
 const googleLogin = createGoogleLogin();
 const { createUpdater } = require('./updates');
@@ -13,10 +13,16 @@ const { createRamBar } = require('./ram');
 const { createPower } = require('./power');
 const { createCaptureWatch } = require('./capture-watch');
 const { createSettings } = require('./settings');
+const { createCafe } = require('./cafe'); // "pague-me um café" (PIX)
+const { createDiscord } = require('./discord'); // Discord de cada conta (login, convite e tag IDLE)
+const { createConvite } = require('./convite'); // convite do Discord do jogo + tag IDLE
 const { createChromeExt } = require('./chrome-ext');
 const { createGamePatch } = require('./game-patch');
-const { app, BaseWindow, BrowserWindow, WebContentsView, dialog, ipcMain, nativeImage, screen, session, shell } = require('electron');
+const { createLicense } = require('./license'); // licença por máquina (src/license.js)
+const { carregarExtras } = require('./extras'); // módulos adicionais, opcionais (src/extras.js)
+const { app, BaseWindow, BrowserWindow, WebContentsView, dialog, ipcMain, nativeImage, safeStorage, screen, session, shell } = require('electron');
 const { createPoints } = require('./points');
+const accountNames = require('./account-names');
 
 // Evita o Chromium tratar views como "ocultas/oclusas" (afeta captcha e timers do jogo)
 app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
@@ -36,6 +42,8 @@ let logWin = null;
 const logBuffer = [];
 
 function sendLog(entry) {
+  const m = /^conta(d+)$/.exec(entry.acc ?? ''); // o registro mostra o nome da conta (o campo acc continua com o id)
+  if (m && !entry.accLabel) entry = { ...entry, accLabel: accountNames.label(Number(m[1])) };
   entry.t = new Date().toLocaleTimeString('pt-BR');
   logBuffer.push(entry);
   if (logBuffer.length > 2000) logBuffer.shift();
@@ -195,17 +203,26 @@ const power = createPower({
 // ---- Ajuda (sobreposição) ----
 // View própria, por cima das contas e isolada das páginas do jogo (o site não enxerga nem altera).
 let livesCtl = null; // gerenciador de lives: resgate automático dos pontos por conta (src/lives)
-let topidle = null; // voto no TopIdle (botão 🗳 de cada conta)
+let idlehub = null; // voto no IdleHub (botão 🗳 de cada conta)
 let pointsCtl = null; // painel de pontos Twitch/Kick, para resgatar à mão (src/points)
 let toastsCtl = null; // avisos no canto superior direito
 let updater = null; // aviso de versão nova (só em pacote de Release)
 let ultraCtl = null; // Modo ULTRA do jogo em todas as contas (ver src/ultra.js)
 let ramCtl = null; // barra de RAM no rodapé (src/ram.js)
 let gamePatch = null; // marca a arte dos pokémon para o atalho da /hunt (src/game-patch.js)
+let license = null; // licença por máquina (src/license.js), lida antes de carregar os módulos
 let chromeExt = null; // extensões do Chromium por conta (src/chrome-ext.js)
+let cafeCtl = null; // janela do PIX (src/cafe.js)
+let discordCtl = null; // Discord por conta (src/discord.js)
+let conviteCtl = null; // janela de convite do Discord (src/convite.js)
 let settingsCtl = null; // modal de Configurações (src/settings.js)
-let captureCtl = null; // vigia de captura e Auto-bola sem VIP (src/capture-watch.js)
-let autoBallExt = null; // API do Auto-bola (extensão local), usada pelo vigia
+let captureCtl = null; // vigia de captura (src/capture-watch.js)
+
+// Ganchos para os módulos adicionais (ver montarHost). Ficam aqui porque o carregamento acontece antes da janela.
+const extrasRows = []; // linhas de Configurações deles
+const extrasToggles = {}; // alternâncias dessas linhas (nome -> função)
+const pageHooks = []; // (contaId, view) no dom-ready de cada conta
+const capturePendentes = []; // ganchos do vigia, entregues quando ele for criado (em createWindow)
 
 // Versão do Release que gerou este pacote (o workflow grava release-info.json); nula em desenvolvimento/build local
 // Pacote sem release-info.json (build local de `npm run dist`) usa a versão do package.json, para o aviso também funcionar nele.
@@ -297,7 +314,7 @@ const appIcon = nativeImage.createFromPath(path.join(__dirname, '..', 'assets', 
 
 function updateTitle() {
   mainWin.setTitle(
-    focused === null ? 'PokeIdle Multi' : `PokeIdle Multi - posição ${focused + 1} (conta ${slots[focused].id})`
+    focused === null ? 'PokeIdle Multi' : `PokeIdle Multi - ${accountNames.label(slots[focused].id)} (posição ${focused + 1})`
   );
 }
 
@@ -330,7 +347,7 @@ async function resetAccount(index) {
     defaultId: 0,
     cancelId: 0,
     title: 'Resetar conta',
-    message: `Resetar a sessão da conta ${id} (posição ${index + 1})?`,
+    message: `Resetar a sessão da conta ${accountNames.label(id)} (posição ${index + 1})?`,
     detail:
       'Apaga cookies, login e dados locais desse quadrante (inclusive o login da Twitch e da Kick das lives) e recarrega o jogo. ' +
       'A conta criada no jogo continua existindo no servidor.',
@@ -353,7 +370,7 @@ const URL = ['https://pokeidle.io/', '?r', 'ef=', 'Z5TU3', 'TS'].join('');
 // `features()` devolve [{ id, label, title, isOn(contaId), set(contaId, on), settings?() }]: viram botões
 // liga/desliga na barra de cada conta (ver toolbar.js).
 // `onSlotCreated(id, view)` roda antes de a conta carregar a página (dá para registrar preloads).
-const APP_EXTENSIONS = ['./autoball.js', './sniper.js', './autocatch.js', './autopvp.js'];
+const APP_EXTENSIONS = ['./sniper.js', './autocatch.js'];
 const exts = [];
 function loadExtensions() {
   chromeExt = createChromeExt({
@@ -370,9 +387,7 @@ function loadExtensions() {
         sendLog,
         notify: (n) => toastsCtl?.show(n),
         chromeExt,
-        onUserToggle: (id, on) => captureCtl?.autoBallToggled(id, on), // escolha manual do Auto-bola (o vigia não o religa à força)
       });
-      if (file === './autoball.js') autoBallExt = ext;
       exts.push(ext);
     } catch (err) {
       if (err.code !== 'MODULE_NOT_FOUND' || !String(err.message).includes(file.slice(3))) console.error(`falha ao carregar ${file}:`, err);
@@ -384,13 +399,40 @@ function loadExtensions() {
   } catch (err) {
     console.error('falha ao carregar a auto-reposição:', err);
   }
+  // Módulos adicionais (pasta ignorada pelo git; sem ela, nada é carregado)
+  exts.push(...carregarExtras(montarHost()));
+}
+
+// O que os módulos adicionais recebem (contrato em src/_x/index.js). Não dá acesso a nada além disso.
+function montarHost() {
+  return {
+    license,
+    getSlots: () => liveSlots(),
+    allSlots: () => slots,
+    sendLog,
+    notify: (n) => toastsCtl?.show(n),
+    label: (id) => accountNames.label(id),
+    timers: !process.env.PKMULTI_TEST,
+    mainWin: () => mainWin,
+    config: { get: (chave) => loadConfig()[chave], set: (chave, valor) => saveConfig({ [chave]: valor }) },
+    chromeExt,
+    capture: { add: (l) => (captureCtl ? captureCtl.addListener(l) : capturePendentes.push(l)) },
+    gamePatch: { addPatch: (fn) => gamePatch?.addPatch(fn) },
+    pageHooks: { add: (fn) => pageHooks.push(fn) },
+    settings: {
+      addRow(row) {
+        extrasRows.push(row);
+        extrasToggles[row.id] = row.toggle;
+      },
+    },
+  };
 }
 
 // Atalhos locais (só valem com o app em foco). Usa input.code para independer do layout/Shift.
 //   Ctrl+1..4          foca a conta da posição
 //   Ctrl+0             volta à grade
 //   Ctrl+L             mostra/esconde logs
-//   Ctrl+T             abre o menu Lives (contas, entrar na Twitch/Kick, detalhes, registro, config)
+//   Ctrl+T             abre a configuração das lives (o mesmo que o botão Lives da barra superior)
 //   F5 / Ctrl+F5 / Ctrl+Shift+F5   recarrega / ignora o cache / todas as contas
 //   Ctrl+Shift+1..4    reseta a sessão da conta da posição (com confirmação)
 //   Ctrl+Alt+←/→       move a conta atual na grade (a em foco, ou a que tem o teclado)
@@ -450,7 +492,7 @@ function makeShortcutHandler(id) {
       toggleLogWindow();
     } else if (!input.alt && !input.shift && input.code === 'KeyT') {
       event.preventDefault();
-      livesCtl?.showMenu();
+      livesCtl?.showConfig();
     } else if (!input.alt && !input.shift && input.code === 'KeyM') {
       event.preventDefault();
       ramCtl?.toggle();
@@ -474,14 +516,14 @@ function buildGameView(id) {
   const google = googleLogin.attach(view.webContents, GOOGLE_SITES.game); // login com Google pelo Chrome/Edge instalado
   view.webContents.setWindowOpenHandler(({ url }) => {
     if (google.intercept(url)) return { action: 'deny' };
-    if (topidle?.handleLink(id, url)) return { action: 'deny' }; // o "votar" do jogo abre a janela de voto
+    if (idlehub?.handleLink(id, url)) return { action: 'deny' }; // o "votar" do jogo abre a janela de voto
     // Vincular a Kick/Twitch no jogo: o login tem que ser o da sessão desta conta. No navegador padrão entraria o login de
     // outra conta (o que esse navegador já tem aberto), então abre numa janela do app, na sessão da conta.
     if (isLinkLogin(url)) {
       return {
         action: 'allow',
         overrideBrowserWindowOptions: {
-          width: 520, height: 760, autoHideMenuBar: true, title: 'Vincular - conta ' + id,
+          width: 520, height: 760, autoHideMenuBar: true, title: 'Vincular - ' + accountNames.label(id),
           webPreferences: { partition: `persist:conta${id}` },
         },
       };
@@ -498,9 +540,11 @@ function buildGameView(id) {
     });
   });
   attachLogging(id, view);
+  accountNames.attach(id, view); // lê o nome do jogador ao carregar a conta
   gamePatch?.attach(id, view); // antes de carregar: serve o app.js do jogo com a marcação da arte
   ultraCtl?.attach(id, view);
-  captureCtl?.attach(id, view); // antes de carregar: pega o `welcome` do jogo (estado VIP e contagem de captura)
+  captureCtl?.attach(id, view); // antes de carregar: pega o `welcome` do jogo (contagem de captura)
+  view.webContents.on('dom-ready', () => pageHooks.forEach((f) => { try { f(id, view); } catch (err) { console.error('gancho de página falhou:', err); } }));
   // o zoom é reaplicado a cada carga (a navegação pode zerá-lo)
   view.webContents.setAudioMuted(slotPrefs(id).muted);
   view.webContents.on('did-finish-load', () => view.webContents.setZoomFactor(slotZoom(id)));
@@ -614,6 +658,13 @@ function createWindow() {
     show: !process.env.PKMULTI_TEST, // os testes (test/) rodam com a janela escondida
   });
   const win = mainWin;
+  // nomes dos jogadores: salvos em config.json (userData, por instalação), lidos para a janela aparecer já com eles
+  accountNames.configure({
+    store: { get: () => loadConfig().accountNames ?? {}, set: (v) => saveConfig({ accountNames: v }) },
+    getSlots: () => slots,
+  });
+  accountNames.start();
+  accountNames.onChange(() => { updateTitle(); tbs?.push(); });
   if (st.maximized && !process.env.PKMULTI_TEST) win.maximize();
 
   tbs = createToolbars({
@@ -621,9 +672,9 @@ function createWindow() {
     getSlots: () => slots,
     getFeatures: () => exts.flatMap((x) => x.features?.() ?? []),
     getAccountInfo: () => ({ count: slots.length, max: MAX_ACCOUNTS, focused, lives: livesCtl?.state() ?? { kind: 'none', text: '' }, ultra: !!ultraCtl?.isOn(),
-      version: releaseVersion(), update: updater?.state() ?? null, reduceMotion: motion.isOn(), votes: topidle?.summary() ?? null, points: pointsCtl?.state() ?? { open: null },
-      capture: captureCtl?.state() ?? { watch: true, autoNoVip: true } }),
-    getSlotState: (id) => ({ zoom: slotZoom(id), muted: slotPrefs(id).muted, ...power.stateOf(id), vote: topidle?.info(id) ?? null }),
+      version: releaseVersion(), update: updater?.state() ?? null, reduceMotion: motion.isOn(), votes: idlehub?.summary() ?? null, points: pointsCtl?.state() ?? { open: null },
+      capture: captureCtl?.state() ?? { watch: true } }),
+    getSlotState: (id) => ({ focused: focused !== null && slots[focused]?.id === id, label: accountNames.label(id), zoom: slotZoom(id), muted: slotPrefs(id).muted, ...power.stateOf(id), vote: idlehub?.info(id) ?? null, discord: discordCtl?.info(id) ?? null, lives: livesCtl?.stateOf(id) ?? null }),
     actions: {
       accounts: () => setAccountCount(slots.length >= MAX_ACCOUNTS ? 2 : MAX_ACCOUNTS),
       grid: () => setFocus(null),
@@ -631,11 +682,13 @@ function createWindow() {
         const pos = slots.findIndex((s) => s.id === id);
         if (pos >= 0) setFocus(focused === pos ? null : pos);
       },
+      focusPrev: (id) => { const pos = slots.findIndex((s) => s.id === id); if (focused !== null && pos > 0) setFocus(pos - 1); },
+      focusNext: (id) => { const pos = slots.findIndex((s) => s.id === id); if (focused !== null && pos >= 0 && pos < slots.length - 1) setFocus(pos + 1); },
       logs: toggleLogWindow,
-      lives: () => livesCtl?.showMenu(),
-      vote: (id) => topidle?.open(id),
-      pointsTwitch: () => pointsCtl?.toggle('twitch'),
-      pointsKick: () => pointsCtl?.toggle('kick'),
+      lives: () => livesCtl?.showConfig(),
+      vote: (id) => idlehub?.open(id),
+      discord: (id) => discordCtl?.open(id),
+      pointsAll: () => pointsCtl?.showAccounts(null),
       redeemConfig: () => livesCtl?.showConfig(),
       redeemLog: () => livesCtl?.showLog(),
       update: async () => {
@@ -645,6 +698,8 @@ function createWindow() {
       },
       help: () => toggleHelp(),
       settings: () => settingsCtl?.show(),
+      cafe: () => cafeCtl?.show(),
+      convite: () => conviteCtl?.show(),
       ultra: () => ultraCtl?.toggle(),
       zoomIn: (id) => setSlotZoom(id, slotZoom(id) + ZOOM_STEP),
       zoomOut: (id) => setSlotZoom(id, slotZoom(id) - ZOOM_STEP),
@@ -653,6 +708,21 @@ function createWindow() {
       reload: (id) => { if (!power.isOff(id)) slots.find((s) => s.id === id)?.view.webContents.reload(); },
       power: (id) => setAccountPower(id, power.isOff(id)),
       refocus: (id) => slots.find((s) => s.id === id)?.view.webContents.focus(),
+    },
+    // Menus nativos da barra de cada conta (botões Lives e Pontos): só mexem na conta da barra
+    appMenus: {
+      // Lives (geral): configurar as lives de todas as contas e o painel de Pontos, no mesmo botão
+      lives: () => [
+        { label: 'Configurar lives…', click: () => livesCtl?.showConfig() },
+        { label: 'Pontos (login, saldo e resgate)…', click: () => pointsCtl?.showAccounts(null) },
+      ],
+    },
+    menus: {
+      // Lives e Pontos da conta no mesmo menu: os pontos ficam num submenu
+      lives: (id) => {
+        const pontos = pointsCtl?.menu(id) ?? [];
+        return [...(livesCtl?.accountMenu(id) ?? []), ...(pontos.length ? [{ type: 'separator' }, { label: 'Pontos', submenu: pontos }] : [])];
+      },
     },
   });
   ultraCtl = createUltra({
@@ -664,22 +734,30 @@ function createWindow() {
   captureCtl = createCaptureWatch({
     mainWin,
     getSlots: () => liveSlots(),
-    getAutoBall: () => autoBallExt,
     sendLog,
     notify: (n) => toastsCtl?.show(n),
     store: { get: () => loadConfig().captureWatch !== false, set: (on) => saveConfig({ captureWatch: on }) },
-    storeAuto: { get: () => loadConfig().autoBallNoVip !== false, set: (on) => saveConfig({ autoBallNoVip: on }) },
   });
+  capturePendentes.splice(0).forEach((l) => captureCtl.addListener(l));
+  cafeCtl = createCafe({ mainWin });
+  conviteCtl = createConvite({ mainWin });
   settingsCtl = createSettings({
     mainWin,
-    getState: () => ({ extensions: chromeExt.state(), reduceMotion: motion.isOn(), ...(captureCtl?.state() ?? { watch: true, autoNoVip: true }) }),
+    getState: () => ({
+      extensions: chromeExt.state(),
+      accountLabels: accountNames.labels(slots.map((s) => s.id)),
+      reduceMotion: motion.isOn(),
+      ...(captureCtl?.state() ?? { watch: true }),
+      rows: extrasRows.map((r) => ({ id: r.id, label: r.label, desc: r.desc, on: !!r.on() })),
+    }),
+    license,
     toggles: {
       reduceMotion: () => motion.toggle(),
       vigia: () => captureCtl?.toggleWatch(),
-      autoNoVip: () => captureCtl?.toggleAutoNoVip(),
+      ...extrasToggles,
     },
     extensions: { state: () => chromeExt.state(), set: (ext, acc, on) => chromeExt.setEnabled(ext, acc, on) },
-    open: { redeemConfig: () => livesCtl?.showConfig(), redeemLog: () => livesCtl?.showLog() },
+    open: { redeemConfig: () => livesCtl?.showConfig(), redeemLog: () => livesCtl?.showLog(), logs: () => toggleLogWindow() },
   });
   for (const id of loadOrder(loadAccountCount())) createSlot(id);
   const lastFocus = slots.findIndex((x) => x.id === loadConfig().focusedId); // volta ao quadrante que estava em foco
@@ -694,7 +772,18 @@ function createWindow() {
     maxAccounts: MAX_ACCOUNTS,
     timers: !process.env.PKMULTI_TEST,
   });
-  topidle = createTopIdle({ getSlots: () => liveSlots(), notify: (n) => toastsCtl?.show(n), timers: !process.env.PKMULTI_TEST });
+  idlehub = createIdleHub({
+    getSlots: () => liveSlots(),
+    notify: (n) => toastsCtl?.show(n),
+    store: { get: () => loadConfig().idlehubVotes ?? {}, set: (v) => saveConfig({ idlehubVotes: v }) }, // horários de liberação, só neste computador
+    timers: !process.env.PKMULTI_TEST,
+  });
+  discordCtl = createDiscord({
+    getSlots: () => liveSlots(),
+    notify: (n) => toastsCtl?.show(n),
+    store: { get: () => loadConfig().discord ?? {}, set: (v) => saveConfig({ discord: v }) }, // login e tag por conta, só neste computador
+    timers: !process.env.PKMULTI_TEST,
+  });
   toastsCtl = createToasts({ mainWin, getTop: () => tbs.appBarH });
   ramCtl = createRamBar({
     mainWin,
@@ -725,6 +814,10 @@ function createWindow() {
     },
     onConfig: () => livesCtl?.showConfig(),
     onLog: () => livesCtl?.showLog(),
+    // a janela "Pontos das contas" lê as linhas do gerenciador de lives e age sempre na conta da linha
+    getRows: () => livesCtl?.pointsRows() ?? [],
+    onAccount: (acc, site, action) => (action === 'login' ? livesCtl?.showLogin(acc, site) : livesCtl?.logout(acc, site)),
+    maxAccounts: MAX_ACCOUNTS,
   });
   win.on('focus', () => updater?.check({ force: false })); // voltou à janela: confere se saiu versão nova
 
@@ -738,6 +831,8 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
+  license = createLicense({ dataDir: app.getPath('userData'), storage: safeStorage });
+  await license.prepare();
   loadExtensions();
   // extensões que precisam estar prontas antes de as contas abrirem o jogo (ex.: as que carregam extensão do Chromium)
   await Promise.all([chromeExt.ready(), ...exts.map((x) => x.ready?.())]);
