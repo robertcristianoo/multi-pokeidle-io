@@ -18,7 +18,7 @@ const ascii = (s) => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(
 // chave: e-mail, telefone, CPF/CNPJ ou chave aleatória (UUID). nome <= 25 e cidade <= 15 caracteres.
 function brCode({ chave, nome = 'PokeIdle Multi', cidade = 'BRASIL', txid = '***' }) {
   const k = String(chave ?? '').trim();
-  if (!k || k.length > 77) throw new Error('chave PIX inválida');
+  if (!k || k.length > 77) throw new Error('invalid PIX key');
   const conta = campo('00', 'br.gov.bcb.pix') + campo('01', k);
   const base = campo('00', '01') + campo('01', '11') + campo('26', conta) + campo('52', '0000') + campo('53', '986')
     + campo('58', 'BR') + campo('59', ascii(nome).slice(0, 25) || 'PIX') + campo('60', ascii(cidade).slice(0, 15) || 'BRASIL')

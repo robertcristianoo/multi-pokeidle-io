@@ -3,6 +3,7 @@
 //  2. o caminho real: um servidor WebSocket local (mesmo host da página, como o jogo), o protocolo de rede do DevTools
 //     que o app usa para ler o socket e o aviso injetado na página.
 const { app, sleep, check, finish, waitFor } = require('./helpers');
+require('../src/i18n').setLang('pt-BR'); // the texts checked here are in Portuguese
 const path = require('path');
 const { BaseWindow, WebContentsView } = require('electron');
 const { createCaptureWatch, createMonitor } = require('../src/capture-watch');

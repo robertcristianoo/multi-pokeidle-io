@@ -2,7 +2,11 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<title>Pontos</title>
+<script src="../i18n/core.js"></script>
+<script src="../i18n/areas/lives.js"></script>
+<script src="../i18n/areas/common.js"></script>
+<script src="i18n.js"></script>
+<title data-i18n="lives.points.title">Pontos</title>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: #1b1220; color: #eee; font: 12px "Segoe UI", sans-serif; overflow: hidden; user-select: none; }
@@ -21,17 +25,17 @@
 </style>
 </head>
 <body>
-<div id="grip" title="Arraste para mudar a altura do painel"></div>
+<div id="grip" title="Arraste para mudar a altura do painel" data-i18n-title="lives.points.grip"></div>
 <div id="bar">
-  <div id="title">Pontos</div>
+  <div id="title" data-i18n="lives.points.title">Pontos</div>
   <span class="sp"></span>
-  <button id="login" title="Entra na Twitch/Kick nesta conta">Entrar</button>
-  <button id="logout" title="Sai da Twitch/Kick nesta conta">Sair</button>
-  <button id="next" title="Próxima live desta conta (com a live no ar)">Próxima live ▶</button>
-  <button id="full" class="" title="Mostra só o rodapé do chat (botão dos pontos) ou a página inteira">Página completa</button>
-  <button id="config" title="Configuração do resgate automático das lives">Config…</button>
-  <button id="log" title="Registro dos resgates">Registro</button>
-  <button id="close" title="Fecha o painel e libera as páginas da memória">Fechar ✕</button>
+  <button id="login" title="Entra na Twitch/Kick nesta conta" data-i18n-title="lives.points.loginTitle" data-i18n="lives.points.login">Entrar</button>
+  <button id="logout" title="Sai da Twitch/Kick nesta conta" data-i18n-title="lives.points.logoutTitle" data-i18n="lives.points.logout">Sair</button>
+  <button id="next" title="Próxima live desta conta (com a live no ar)" data-i18n-title="lives.points.nextTitle" data-i18n="lives.points.next">Próxima live ▶</button>
+  <button id="full" class="" title="Mostra só o rodapé do chat (botão dos pontos) ou a página inteira" data-i18n-title="lives.points.fullTitle" data-i18n="lives.points.full">Página completa</button>
+  <button id="config" title="Configuração do resgate automático das lives" data-i18n-title="lives.points.configTitle" data-i18n="lives.points.config">Config…</button>
+  <button id="log" title="Registro dos resgates" data-i18n-title="lives.points.logTitle" data-i18n="lives.points.log">Registro</button>
+  <button id="close" title="Fecha o painel e libera as páginas da memória" data-i18n-title="lives.points.closeTitle" data-i18n="lives.points.close">Fechar ✕</button>
 </div>
 <div id="notice"></div>
 <script>
@@ -53,19 +57,19 @@
   $('close').onclick = () => pts.cmd('close');
 
   pts.onState((s) => {
-        const t = $('title');
-    // o nome da conta vem sempre no título: o painel é de uma conta só
-    t.textContent = `Pontos ${s.label} · ${s.account}`;
-    t.title = t.textContent;
+    const head = $('title');
+    // account name is always in the title: the panel belongs to a single account
+    head.textContent = t('lives.points.heading', { site: s.label, account: s.account });
+    head.title = head.textContent;
     if (s.live) {
       const sm = document.createElement('small');
       sm.textContent = s.live;
-      t.append(sm);
+      head.append(sm);
     }
     $('next').disabled = s.total < 2;
-    $('full').textContent = s.full ? 'Só o rodapé' : 'Página completa';
+    $('full').textContent = s.full ? t('lives.points.footer') : t('lives.points.full');
     $('full').classList.toggle('on', !!s.full);
-    const avisos = [s.stopped ? `Resgate parado: ${s.stopped}` : '', s.notice, s.text && !s.stopped ? s.text : ''].filter(Boolean);
+    const avisos = [s.stopped ? t('lives.points.stopped', { why: s.stopped }) : '', s.notice, s.text && !s.stopped ? s.text : ''].filter(Boolean);
     $('notice').textContent = avisos.join('  ·  ');
     $('notice').title = avisos.join('\n');
   });

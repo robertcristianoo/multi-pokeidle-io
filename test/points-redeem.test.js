@@ -1,6 +1,7 @@
 // Resgate automático (src/points/redeem.js, porte do PointsRedeemer da referência): menor duração liberada, parada
 // quando os pontos voltam, queda de saldo só no registro, espera de 30 min na recusa, baú, avisos e textos.
 const { app, check, finish } = require('./helpers');
+require('../src/i18n').setLang('pt-BR'); // the texts checked below are the Portuguese ones
 const { createRedeemer, claimProblem, keysOf, rewardFor, planRound, kickReadAsync, twitchReadAsync, RETRY_MS, REFUND_WINDOW_MS } = require('../src/points/redeem');
 
 const MIN = 60 * 1000;

@@ -3,6 +3,7 @@
 // instalado (src/browser-login.js) e traz de volta só o login do site daquela janela (cookies e, se houver, localStorage).
 const { BrowserWindow, dialog } = require('electron');
 const { loginViaBrowser } = require('./browser-login');
+const { t } = require('./i18n');
 
 const isGoogleLogin = (url) => /^https:\/\/accounts\.google\.com(\/|$)/i.test(String(url));
 
@@ -24,16 +25,15 @@ function createGoogleLogin({ login = loginViaBrowser, showBox = (p, o) => dialog
     let parent;
     try { parent = BrowserWindow.fromWebContents(wc) ?? undefined; } catch { /* view sem janela própria: diálogo sem pai */ }
     if (running.has(ses)) {
-      showBox(parent, { type: 'info', title: 'Login pelo navegador', message: 'Já há um login em andamento nesta conta.', detail: 'Conclua o login na janela do Chrome (ou Edge) e feche-a: é ao fechar que o login volta para o app.', buttons: ['Entendi'] }).catch(() => {});
+      showBox(parent, { type: 'info', title: t('login.browser.title'), message: t('login.busy.message'), detail: t('login.busy.detail'), buttons: [t('login.gotIt')] }).catch(() => {});
       return null;
     }
     const { response } = await showBox(parent, {
       type: 'info',
-      title: 'Login com Google',
-      message: 'O Google não permite login dentro deste app.',
-      detail: `Posso abrir o Chrome (ou o Edge) só para você entrar em ${site.label} e trazer o login para esta conta. `
-        + `Entre normalmente (inclusive com Google), depois feche a janela do navegador. Só os dados de ${site.label} são copiados.`,
-      buttons: ['Entrar pelo navegador', 'Cancelar'],
+      title: t('login.google.title'),
+      message: t('login.google.message'),
+      detail: t('login.google.detail', { site: site.label }),
+      buttons: [t('login.google.go'), t('common.cancel')],
       defaultId: 0,
       cancelId: 1,
     });
@@ -46,7 +46,7 @@ function createGoogleLogin({ login = loginViaBrowser, showBox = (p, o) => dialog
       running.delete(ses);
     }
     if (!r.ok) {
-      showBox(parent, { type: 'warning', title: 'Login pelo navegador', message: 'Não foi possível trazer o login.', detail: `${r.reason || 'Tente de novo'}. Se preferir, entre com outro método na janela do app.`, buttons: ['Entendi'] }).catch(() => {});
+      showBox(parent, { type: 'warning', title: t('login.browser.title'), message: t('login.fail.message'), detail: t('login.fail.detail', { reason: r.reason || t('login.fail.retry') }), buttons: [t('login.gotIt')] }).catch(() => {});
       return r;
     }
     if (!wc.isDestroyed()) {

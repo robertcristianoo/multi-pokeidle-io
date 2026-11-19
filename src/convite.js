@@ -6,6 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const { BrowserWindow, clipboard, ipcMain, shell } = require('electron');
+const { t, loadPage } = require('./i18n');
 
 const DEFAULT_INVITE = 'https://discord.gg/y2y3XyPc';
 const PRELOAD = path.join(__dirname, 'preload', 'convite.js');
@@ -38,13 +39,13 @@ function createConvite({ mainWin, infoFile, openExternal = (u) => shell.openExte
       resizable: false,
       parent: mainWin,
       modal: true,
-      title: 'Convide pelo Discord',
+      title: t('convite.title'),
       autoHideMenuBar: true,
       minimizable: false,
       webPreferences: { preload: PRELOAD },
     });
     win.on('closed', () => { win = null; });
-    win.loadFile(PAGE);
+    loadPage(win.webContents, PAGE);
   }
 
   const fromWin = (e) => !!win && !win.isDestroyed() && e.sender === win.webContents;

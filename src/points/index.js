@@ -10,6 +10,7 @@ const path = require('path');
 const { BrowserWindow, WebContentsView, ipcMain, shell } = require('electron');
 const { SITES, partitionOf, footerScript } = require('./sites');
 const { createGoogleLogin, sites: GOOGLE_SITES } = require('../google-login');
+const { t, loadPage } = require('../i18n');
 const accountNames = require('../account-names');
 const googleLogin = createGoogleLogin();
 
@@ -102,7 +103,7 @@ function createPoints({
       const mode = panel.full ? 'full' : 'footer';
       view.webContents.executeJavaScript(footerScript(mode)).then((r) => {
         if (panel?.view !== view) return;
-        const aviso = !panel.full && r === 'nao-achou' ? 'Não achei o botão dos pontos: use "Página completa".' : '';
+        const aviso = !panel.full && r === 'nao-achou' ? t('lives.points.noButton') : '';
         if (aviso !== panel.notice) { panel.notice = aviso; pushState(); }
       }).catch(() => {});
     };
@@ -125,12 +126,12 @@ function createPoints({
     const host = new WebContentsView({ webPreferences: { preload: PRELOAD('points.js') } });
     host.setBackgroundColor('#1b1220');
     mainWin.contentView.addChildView(host);
-    host.webContents.loadFile(UI('points.html'), { query: { site } });
+    loadPage(host.webContents, UI('points.html'), { site });
     host.webContents.on('did-finish-load', () => pushState());
     panel = { site, acc, items: itemsFor(site, acc), index: 0, full: false, notice: '', host, view: null };
     raise();
     if (!panel.items.length) {
-      panel.notice = `Nenhuma live de ${SITES[site].label} nesta conta agora. Entrar e Sair seguem valendo.`;
+      panel.notice = t('lives.points.noLives', { site: SITES[site].label });
       relayout();
       pushState();
       return;
@@ -159,7 +160,7 @@ function createPoints({
     panel.items = itemsFor(panel.site, panel.acc);
     if (!panel.items.length) {
       dropChannelView();
-      panel.notice = `Nenhuma live de ${SITES[panel.site].label} nesta conta agora.`;
+      panel.notice = t('lives.points.noLivesNow', { site: SITES[panel.site].label });
       relayout();
       return pushState();
     }
@@ -199,7 +200,7 @@ function createPoints({
       { label: 'Twitch', type: 'checkbox', checked: on('twitch'), click: () => toggle('twitch', acc) },
       { label: 'Kick', type: 'checkbox', checked: on('kick'), click: () => toggle('kick', acc) },
       { type: 'separator' },
-      { label: 'Todas as contas', click: () => showAccounts(acc) },
+      { label: t('lives.points.allAccounts'), click: () => showAccounts(acc) },
     ];
   }
 
@@ -211,10 +212,10 @@ function createPoints({
       return accountsWin.focus();
     }
     accountsWin = new BrowserWindow({
-      width: 820, height: 520, title: 'Pontos das contas - Multi PokeIdle IO', autoHideMenuBar: true,
+      width: 820, height: 520, title: t('lives.pc.winTitle'), autoHideMenuBar: true,
       webPreferences: { preload: PRELOAD('pontos-contas.js') },
     });
-    accountsWin.loadFile(UI('pontos-contas.html'), { query: focus ? { acc: String(focus) } : {} });
+    loadPage(accountsWin.webContents, UI('pontos-contas.html'), focus ? { acc: String(focus) } : {});
     accountsWin.on('closed', () => { accountsWin = null; });
   }
 

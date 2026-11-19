@@ -17,6 +17,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFile } = require('child_process');
+const { t } = require('./i18n');
 
 // Chave pública de verificação (o par foi gerado pelo dono; a privada fica fora do repositório).
 const PUBLIC_KEY_PEM = `-----BEGIN PUBLIC KEY-----
@@ -28,14 +29,15 @@ const SAL = 'multi-pokeidle-io/maquina/v1';
 const ARQUIVO = 'license.json';
 const MAX_CHAVE = 2048;
 const RE_B64U = /^[A-Za-z0-9_-]+$/;
+// Messages shown to the user, translated when read (the language can change while the app runs)
 const MSG = {
-  ok: 'Licença válida.',
-  invalida: 'Chave inválida.',
-  outra: 'Chave inválida para esta máquina.',
-  expirada: 'Licença expirada.',
-  vazia: 'Cole a chave de licença.',
-  semLicenca: 'Sem licença.',
-  naoSalvou: 'Não foi possível guardar a licença neste computador.',
+  get ok() { return t('license.ok'); },
+  get invalida() { return t('license.invalid'); },
+  get outra() { return t('license.otherMachine'); },
+  get expirada() { return t('license.expired'); },
+  get vazia() { return t('license.empty'); },
+  get semLicenca() { return t('license.none'); },
+  get naoSalvou() { return t('license.saveFail'); },
 };
 
 const sha256 = (texto) => crypto.createHash('sha256').update(texto).digest('hex');

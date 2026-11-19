@@ -1,9 +1,15 @@
 {
   "appId": "com.pokeidle.multi",
   "directories": { "output": "dist-release" },
-  "files": ["**/*", "!test/**", "!tools/_x/**", "!.claude/**", "!dist/**", "!dist-backup/**", "!dist-release/**", "!err.txt"],
+  "files": ["**/*", "!test/**", "!build/**", "!tools/_x/**", "!.claude/**", "!dist/**", "!dist-backup/**", "!dist-release/**", "!err.txt"],
   "asarUnpack": ["extensions/**"],
   "win": { "target": ["portable", "nsis"], "icon": "assets/icon.ico" },
   "portable": { "artifactName": "multi-pokeidle-io-Portable-${version}.${ext}" },
-  "nsis": { "artifactName": "multi-pokeidle-io-Setup-${version}.${ext}" }
+  "nsis": {
+    "artifactName": "multi-pokeidle-io-Setup-${version}.${ext}",
+    "multiLanguageInstaller": true,
+    "displayLanguageSelector": true,
+    "installerLanguages": ["en_US", "pt_BR", "es_ES"],
+    "include": "build/installer.nsh"
+  }
 }

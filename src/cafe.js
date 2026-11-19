@@ -3,6 +3,7 @@
 const path = require('path');
 const { BrowserWindow, clipboard, ipcMain } = require('electron');
 const { brCode } = require('./pix');
+const { t, loadPage } = require('./i18n');
 
 const PIX_KEY = '9ea62c54-f23c-45e3-816b-6bb71d48e803'; // chave PIX aleatória do autor (feita para ser compartilhada)
 const PRELOAD = path.join(__dirname, 'preload', 'cafe.js');
@@ -21,13 +22,13 @@ function createCafe({ mainWin }) {
       resizable: false,
       parent: mainWin,
       modal: true,
-      title: 'Pague-me um café',
+      title: t('cafe.title'),
       autoHideMenuBar: true,
       minimizable: false,
       webPreferences: { preload: PRELOAD },
     });
     win.on('closed', () => { win = null; });
-    win.loadFile(PAGE);
+    loadPage(win.webContents, PAGE);
   }
 
   const fromWin = (e) => !!win && !win.isDestroyed() && e.sender === win.webContents;

@@ -2,7 +2,8 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<title>Barra</title>
+<title data-i18n="toolbar.title">Bar</title>
+<script src="../i18n/core.js"></script><script src="../i18n/areas/app.js"></script><script src="../i18n/areas/common.js"></script><script src="i18n.js"></script>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: #1b1220; color: #eee; font: 12px "Segoe UI", sans-serif; overflow: hidden; user-select: none; }
@@ -53,7 +54,7 @@
   };
 
   // Rótulos do botão Lives (geral e de cada conta): o estado aparece na cor e no rótulo
-  const LIVES_LABEL = { none: 'Lives', idle: 'Lives', ok: 'Lives', changed: '⚠ Lives' };
+  const LIVES_LABEL = () => ({ none: t('toolbar.lives'), idle: t('toolbar.lives'), ok: t('toolbar.lives'), changed: t('toolbar.lives.changed') });
 
   // Barra de uma conta: o lado direito (zoom, som, recarregar e Foco) tem largura fixa; o esquerdo ocupa o que sobra e
   // ESCONDE, da direita para a esquerda, o que não couber (ver fit()).
@@ -64,23 +65,23 @@
     bar.append(left, right);
     // liga/desliga da conta: desligada não usa CPU nem memória (o jogo é descarregado); o login fica salvo
     // Nome e tempo em larguras FIXAS (nome longo é cortado com …): os botões ficam alinhados de uma conta para a outra
-    const dicaNome = s.off ? `${s.label} · posição ${s.pos + 1} na grade · desligada` : `${s.label} · posição ${s.pos + 1} na grade · rodando há ${s.uptime ?? 0} min`;
-    left.append(el('span', 'tag nome', s.label, dicaNome), el('span', 'tag tempo', s.off ? 'desligada' : s.uptime == null ? '' : `· ${s.uptime} min`, dicaNome));
+    const dicaNome = `${s.label} · ` + (s.off ? t('toolbar.tip.off', { pos: s.pos + 1 }) : t('toolbar.tip.up', { pos: s.pos + 1, min: s.uptime ?? 0 }));
+    left.append(el('span', 'tag nome', s.label, dicaNome), el('span', 'tag tempo', s.off ? t('toolbar.off') : s.uptime == null ? '' : `· ${s.uptime} min`, dicaNome));
     const pw = s.off
-      ? el('button', 'ic pw-off', '⏻ Ligar', 'Ligar esta conta (recarrega o jogo)')
-      : el('button', 'ic', '⏻', 'Desligar esta conta (libera CPU e memória; o login continua salvo)');
+      ? el('button', 'ic pw-off', t('toolbar.power.on'), t('toolbar.power.on.tip'))
+      : el('button', 'ic', '⏻', t('toolbar.power.off.tip'));
     pw.onclick = () => tb.action('power');
     left.append(pw);
     // Foco: sempre visível, no fim do lado direito
-    const foco = el('button', 'plain' + (s.focused ? ' on' : ''), 'Foco', s.focused ? 'Em foco: clique para voltar à grade' : 'Mostra só esta conta em tela cheia (de novo: volta à grade)');
+    const foco = el('button', 'plain' + (s.focused ? ' on' : ''), t('toolbar.focus'), s.focused ? t('toolbar.focus.back') : t('toolbar.focus.tip'));
     foco.onclick = () => tb.action('focus');
     // Em foco: < (esquerda) e > (direita) do Foco passam para a conta anterior/seguinte (desativados na primeira e na última posição)
     const nav = []; // [<, >]: o Foco fica no meio (< Foco >)
     if (s.focused) {
-      const prev = el('button', 'plain ic', '<', s.pos > 0 ? 'Conta anterior' : 'Já é a primeira conta');
+      const prev = el('button', 'plain ic', '<', s.pos > 0 ? t('toolbar.prev') : t('toolbar.prev.first'));
       prev.disabled = !(s.pos > 0);
       prev.onclick = () => tb.action('focusPrev');
-      const next = el('button', 'plain ic', '>', s.pos < s.count - 1 ? 'Próxima conta' : 'Já é a última conta');
+      const next = el('button', 'plain ic', '>', s.pos < s.count - 1 ? t('toolbar.next') : t('toolbar.next.last'));
       next.disabled = !(s.pos < s.count - 1);
       next.onclick = () => tb.action('focusNext');
       nav.push(prev, next);
@@ -90,7 +91,7 @@
     // Lives desta conta (com os Pontos dentro do menu): cinza = desligadas nela; verde = ligadas e em dia; azul = falta
     // entrar na Twitch/Kick; vermelho piscando = resgate parado. O clique abre o menu SÓ desta conta.
     const lv = s.lives || { kind: 'none', text: '', detail: '' };
-    const bl2 = el('button', lv.kind === 'none' ? '' : 'lives-' + lv.kind, LIVES_LABEL[lv.kind] || 'Lives', [lv.text, lv.detail].filter(Boolean).join('\n'));
+    const bl2 = el('button', lv.kind === 'none' ? '' : 'lives-' + lv.kind, LIVES_LABEL()[lv.kind] || t('toolbar.lives'), [lv.text, lv.detail].filter(Boolean).join('\n'));
     bl2.onclick = () => { const r = bl2.getBoundingClientRect(); tb.popup('lives', { x: r.left, y: r.bottom }); };
     const ul = el('span', 'unit');
     ul.append(bl2);
@@ -100,7 +101,7 @@
     const itens = [];
     for (const g of [...new Set(s.features.filter((f) => f.group).map((f) => f.group))]) {
       const fs = s.features.filter((f) => f.group === g);
-      const dica = fs.map((f) => `${f.label}: ${f.on ? 'ligado' : 'desligado'}`).join('\n');
+      const dica = fs.map((f) => `${f.label}: ${f.on ? t('toolbar.group.tip.on') : t('toolbar.group.tip.off')}`).join('\n');
       const b = el('button', fs.some((f) => f.on) ? 'on' : '', `${g} ▾`, dica);
       b.onclick = () => { const r = b.getBoundingClientRect(); tb.menu(g, { x: r.left, y: r.bottom }); };
       itens.push({ order: Math.min(...fs.map((f) => f.order ?? 100)), nodes: [b] });
@@ -108,13 +109,13 @@
     for (const f of s.features.filter((x) => !x.group)) {
       const warn = f.on && /^⚠/.test(f.badge);
       const cls = (f.on ? 'on' : '') + (warn ? ' warn' : '') + (f.on && f.badge === 'REAL' ? ' real' : '');
-      const dica = [f.title, `${f.on ? 'Ligado' : 'Desligado'} nesta conta — clique para alternar`, f.hint].filter(Boolean).join('\n');
+      const dica = [f.title, f.on ? t('toolbar.feature.on') : t('toolbar.feature.off'), f.hint].filter(Boolean).join('\n');
       const b = el('button', cls, f.on && f.badge ? `${f.label} · ${f.badge}` : f.label, dica);
       // botão que abre uma janela (sem liga/desliga): o clique só abre; o verde mostra o estado
       b.onclick = () => (f.hasOpen ? tb.action('open:' + f.id) : tb.toggle(f.id));
       const nodes = [b];
       if (f.hasSettings) {
-        const g = el('button', 'gear', '⚙', `Configurar ${f.label}`);
+        const g = el('button', 'gear', '⚙', t('toolbar.feature.settings', { name: f.label }));
         g.onclick = () => tb.action('settings:' + f.id);
         nodes.push(g);
       }
@@ -125,7 +126,7 @@
     // Voto no IdleHub (🗳), por último: verde = liberado; o resto (desconhecido ou aguardando) mostra quanto falta
     if (s.vote) {
       const cls = s.vote.kind === 'ready' ? 'vote-ready' : '';
-      const bv = el('button', cls, s.vote.label.replace('Votou · ', ''), s.vote.hint);
+      const bv = el('button', cls, s.vote.label.replace(/(✓ )[^·]*· /, '$1'), s.vote.hint);
       bv.onclick = () => tb.action('vote');
       const u = el('span', 'unit');
       u.append(bv);
@@ -144,11 +145,11 @@ ${s.discord.hint}` : s.discord.hint);
     }
     // lado direito, largura fixa: zoom da página da conta, som, recarregar e Foco
     const ic = (text, title, name, cls = '') => { const b = el('button', 'plain ic ' + cls, text, title); b.onclick = () => tb.action(name); right.append(b); };
-    ic('−', 'Diminuir o zoom', 'zoomOut');
-    ic(Math.round((s.zoom ?? 1) * 100) + '%', 'Zoom desta conta neste modo (clique para voltar ao padrão: 100% em foco, 60% na grade de 4)', 'zoomReset', 'pct');
-    ic('+', 'Aumentar o zoom', 'zoomIn');
-    ic(s.muted ? '🔇' : '🔊', s.muted ? 'Som desligado — clique para ligar' : 'Som ligado — clique para silenciar', 'mute', s.muted ? 'on warn' : '');
-    ic('⟳', 'Recarregar esta conta', 'reload');
+    ic('−', t('toolbar.zoom.out'), 'zoomOut');
+    ic(Math.round((s.zoom ?? 1) * 100) + '%', t('toolbar.zoom.reset'), 'zoomReset', 'pct');
+    ic('+', t('toolbar.zoom.in'), 'zoomIn');
+    ic(s.muted ? '🔇' : '🔊', s.muted ? t('toolbar.sound.off') : t('toolbar.sound.on'), 'mute', s.muted ? 'on warn' : '');
+    ic('⟳', t('toolbar.reload'), 'reload');
     right.append(...withFoco());
     fit();
   }
@@ -197,32 +198,32 @@ ${s.discord.hint}` : s.discord.hint);
       b.onclick = () => tb.action(name);
       return b;
     };
-    bar.append(btn('?', 'Ajuda (F1): atalhos e ajuda', 'help', 'ic'));
-    if (a.version) bar.append(el('span', 'tag', 'v' + a.version, 'Versão do app'));
+    bar.append(btn('?', t('toolbar.help.tip'), 'help', 'ic'));
+    if (a.version) bar.append(el('span', 'tag', 'v' + a.version, t('toolbar.version.tip')));
     // quem pode votar no IdleHub agora (ou quanto falta para o próximo voto)
-    if (a.votes?.text) bar.append(el('span', 'tag' + (a.votes.ready?.length ? ' vote-ok' : ''), a.votes.text, 'Voto no IdleHub: clique no 🗳 de cada conta'));
+    if (a.votes?.text) bar.append(el('span', 'tag' + (a.votes.ready?.length ? ' vote-ok' : ''), a.votes.text, t('toolbar.votes.tip')));
     bar.append(el('div', 'sp'));
     // Versão nova no GitHub: laranja piscando; o clique abre a página do Release (de lá baixa-se o instalador)
     if (a.update && a.update.kind === 'available') {
-      const dicaUpd = [`Há uma versão nova (v${a.update.latest}); a sua é a v${a.update.current}.`, 'Clique para abrir a página da versão e baixar o instalador.'].join('\n');
-      const bu = el('button', 'plain upd', 'Atualizar → v' + a.update.latest, dicaUpd);
+      const dicaUpd = t('toolbar.update.tip', { latest: a.update.latest, current: a.update.current });
+      const bu = el('button', 'plain upd', t('toolbar.update', { version: a.update.latest }), dicaUpd);
       bu.onclick = () => tb.action('update');
       bar.append(bu);
     }
-    if (a.focused !== null) bar.append(btn('Voltar à grade', 'Sai do foco e mostra todas as contas', 'grid', 'on'));
-    const bs = btn('', `Divisão de tela: alterna entre 2 e ${a.max} contas (agora ${a.count})`, 'accounts', 'ic' + (a.count >= a.max ? ' on' : ''));
+    if (a.focused !== null) bar.append(btn(t('toolbar.grid'), t('toolbar.grid.tip'), 'grid', 'on'));
+    const bs = btn('', t('toolbar.split.tip', { max: a.max, count: a.count }), 'accounts', 'ic' + (a.count >= a.max ? ' on' : ''));
     bs.append(splitIcon());
     bar.append(bs);
-    bar.append(btn('☕ Cafézin', 'Pague-me um cafézin: apoie o projeto com um PIX (opcional)', 'cafe'));
+    bar.append(btn(t('toolbar.cafe'), t('toolbar.cafe.tip'), 'cafe'));
     // ULTRA: liga/desliga o modo ULTRA Economia do próprio jogo em todas as contas (Ctrl+U)
-    bar.append(btn(a.ultra ? '⚡ ULTRA ligado' : '⚡ ULTRA', a.ultra ? 'Modo ULTRA do jogo ligado em todas as contas. Clique para desligar (Ctrl+U)' : 'Liga o modo ULTRA Economia do jogo em todas as contas (Ctrl+U)', 'ultra', a.ultra ? 'on' : ''));
+    bar.append(btn(a.ultra ? t('toolbar.ultra.on') : t('toolbar.ultra'), a.ultra ? t('toolbar.ultra.tip.on') : t('toolbar.ultra.tip.off'), 'ultra', a.ultra ? 'on' : ''));
     // Lives (geral), com o painel de Pontos dentro: o clique abre um menu (Configurar lives / Pontos). Sem cor de "ok": só o alerta de mudança e o ocioso.
     const lv = a.lives || { kind: 'none', text: '' };
-    const dica = [lv.text || 'Lives desligadas.', lv.detail, 'Clique para abrir o menu: configurar as lives e os pontos de Twitch e Kick.'].filter(Boolean).join('\n');
-    const bl = el('button', 'plain lives-' + lv.kind, (LIVES_LABEL[lv.kind] || 'Lives') + ' ▾', dica);
+    const dica = [lv.text || t('toolbar.lives.off'), lv.detail, t('toolbar.lives.menuHint')].filter(Boolean).join('\n');
+    const bl = el('button', 'plain lives-' + lv.kind, (LIVES_LABEL()[lv.kind] || t('toolbar.lives')) + ' ▾', dica);
     bl.onclick = () => { const r = bl.getBoundingClientRect(); tb.popup('lives', { x: r.left, y: r.bottom }); };
     bar.append(bl);
-    bar.append(btn('⚙', 'Configurações: animações, vigia de captura, resgate de pontos, logs e licença', 'settings', 'ic'));
+    bar.append(btn('⚙', t('toolbar.settings.tip'), 'settings', 'ic'));
   }
 
   // quadrante estreito (grade de 4 em tela pequena): alguns botões ficam compactos; ao cruzar o limite, desenha de novo

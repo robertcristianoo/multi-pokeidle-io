@@ -3,6 +3,7 @@
 //  2. interceptação: só o app.js de pokeidle.io é servido com a marcação (o restante do tráfego não é tocado);
 //  3. atalho: aparece sobre as artes grandes marcadas, abre o painel com o pokémon certo e não aparece nas pequenas.
 const { app, check, finish, waitFor } = require('./helpers');
+require('../src/i18n').setLang('pt-BR'); // os textos conferidos aqui estão em português
 const fs = require('fs');
 const path = require('path');
 const http = require('http');

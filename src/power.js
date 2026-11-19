@@ -7,6 +7,7 @@
 // (setAccountPower), porque é ele que conhece a grade, o foco e a criação das views do jogo.
 const path = require('path');
 const { WebContentsView, ipcMain } = require('electron');
+const { loadPage } = require('./i18n');
 const accountNames = require('./account-names');
 
 const OFF_KEY = 'offAccounts';
@@ -58,7 +59,7 @@ function createPower({ loadConfig, saveConfig, shortcut, setPower }) {
       webPreferences: { preload: path.join(__dirname, 'preload', 'offline.js') },
     });
     view.setBackgroundColor('#15111a');
-    view.webContents.loadFile(path.join(__dirname, 'ui', 'offline.html'), { query: { id: String(id), label: accountNames.label(id) } });
+    loadPage(view.webContents, path.join(__dirname, 'ui', 'offline.html'), { id: String(id), label: accountNames.label(id) });
     view.webContents.on('before-input-event', shortcut(id)); // os atalhos (Ctrl+1..4, F1...) valem também aqui
     // o id é guardado antes: depois do destroyed, view.webContents já não existe
     const wcId = view.webContents.id;

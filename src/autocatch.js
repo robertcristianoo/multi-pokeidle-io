@@ -18,6 +18,8 @@
 // mapa e a automação não achar os elementos de que precisa, ela AVISA no log (erro) em vez de dar a lista
 // por concluída.
 
+const { t } = require('./i18n');
+
 const TICK_MS = process.env.PKMULTI_TEST ? 300 : 2500;
 const MAX_AREA_MIN = 20; // sem captura nesse tempo: pula a área (anotada como "pulada" até a lista acabar)
 const RECHECK_MIN = 3; // confere o mapa de tempos em tempos mesmo sem aviso de captura
@@ -53,6 +55,8 @@ module.exports = function init({ getSlots, sendLog }) {
   // Roda dentro da página. cmd: 'step' (avança a máquina) | 'off' (limpa o alvo).
   const script = (cmd, seed = []) => `(async () => {
     const MAX_AREA = ${MAX_AREA_MIN} * 60000, RECHECK = ${RECHECK_MIN} * 60000;
+    const MSG = ${JSON.stringify({ openMap: t('autocatch.err.openMap'), mapChanged: t('autocatch.err.mapChanged', { resumo: '{resumo}' }), noRegion: t('autocatch.err.noRegion', { resumo: '{resumo}' }), noList: t('autocatch.err.noList') })};
+    const comResumo = (m, r) => m.replace('{resumo}', () => r);
     const $ = (s) => document.querySelector(s);
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     const A = (window.__acx ??= { socks: new WeakSet(), captured: 0, seen: 0, target: null, targetAt: 0, checkedAt: 0, skipped: new Set(), done: new Map(), busy: false, kinds: {}, samples: {} });
@@ -182,13 +186,13 @@ module.exports = function init({ getSlots, sendLog }) {
     const prepararMapa = async () => {
       if (!mapaAberto()) {
         $('.menu-topo button[data-modal="mapa"]')?.click();
-        if (!(await ate(() => mapaAberto(), 4000))) return 'não consegui abrir o mapa (botão Mapa não encontrado?)';
+        if (!(await ate(() => mapaAberto(), 4000))) return MSG.openMap;
       }
       const btLista = $('#mapa-modo [data-modo="lista"]');
       if (btLista && !btLista.classList.contains('on')) { btLista.click(); await sleep(300); }
       // filtro Pokédex "Todos": o selo "já capturado" do jogo vale para qualquer semana, quem decide é o cache semanal
       const btTodos = $('#f-captura [data-captura=""]') || [...document.querySelectorAll('#f-captura button')].find((b) => b.textContent.trim() === 'Todos');
-      if (!btLista || !btTodos || !regOps().length) return 'mapa sem lista/filtro Pokédex/região: o jogo mudou o mapa? ' + resumo('.mapa-barra');
+      if (!btLista || !btTodos || !regOps().length) return comResumo(MSG.mapChanged, resumo('.mapa-barra'));
       if (!regAtiva(btTodos)) { btTodos.click(); await sleep(300); }
       return null;
     };
@@ -243,7 +247,7 @@ module.exports = function init({ getSlots, sendLog }) {
 
       // Regiões na ordem do menu, só as liberadas (sem cadeado) e sem "em obra"
       const regioes = regOps().filter((o) => !regTrancada(o.el)).map((o) => o.chave);
-      if (!regioes.length) return { s: 'erro', msg: 'nenhuma região liberada encontrada no menu de regiões: ' + resumo('#f-regiao') };
+      if (!regioes.length) return { s: 'erro', msg: comResumo(MSG.noRegion, resumo('#f-regiao')) };
 
       // 1) escolhe o alvo: a área liberada de menor nível que ainda tem pokémon faltando, na primeira região que tiver
       let escolhido = null;
@@ -263,7 +267,7 @@ module.exports = function init({ getSlots, sendLog }) {
         escolhido = { slug: r.dataset.slug, nome: r.querySelector('.ml-nome')?.textContent || r.dataset.slug, nv: cand[0].nv, regiao: reg, ja: r.classList.contains('on') };
         break;
       }
-      if (!escolhido && !inspecionadas) return { s: 'erro', msg: 'a lista do mapa não carregou' };
+      if (!escolhido && !inspecionadas) return { s: 'erro', msg: MSG.noList };
 
       // 2) troca de área pelo caminho limpo: Centro Pokémon primeiro, depois a hunt nova
       if (escolhido && !escolhido.ja) {
@@ -304,7 +308,7 @@ module.exports = function init({ getSlots, sendLog }) {
     return R;
   })()`;
 
-  const say = (id, text, level = 'info') => sendLog({ acc: `conta${id}`, kind: 'load', level, text: `auto-captura: ${text}` });
+  const say = (id, text, level = 'info') => sendLog({ acc: `conta${id}`, kind: 'load', level, text: t('autocatch.say', { text }) });
 
   // Junta no cache o que a página registrou como capturado na semana
   const guardar = (id, lista) => {
@@ -338,7 +342,7 @@ module.exports = function init({ getSlots, sendLog }) {
     }
     const arq = path.join(require('electron').app.getPath('userData'), 'autocatch-diagnostico.txt');
     try { fs.writeFileSync(arq, JSON.stringify(saida, null, 2)); } catch { /* sem disco */ }
-    sendLog({ acc: 'app', kind: 'load', level: 'info', text: `auto-captura: diagnóstico gravado em ${arq} (${saida.length} conta(s)); use de novo após ~30 s para ver as mensagens do servidor` });
+    sendLog({ acc: 'app', kind: 'load', level: 'info', text: t('autocatch.diag', { file: arq, n: saida.length }) });
   }
 
   // Zera as capturas da semana para recapturar tudo de novo: de uma conta (menu da barra) ou de todas (sem argumento)
@@ -353,13 +357,13 @@ module.exports = function init({ getSlots, sendLog }) {
     else delete cache.contas[`conta${so}`];
     salvar();
     limparPaginas(so);
-    if (so === undefined) sendLog({ acc: 'app', kind: 'load', level: 'info', text: 'auto-captura: capturas da semana ZERADAS em todas — vai capturar tudo de novo' });
-    else say(so, 'capturas da semana ZERADAS — vai capturar tudo de novo');
+    if (so === undefined) sendLog({ acc: 'app', kind: 'load', level: 'info', text: t('autocatch.zeroAll') });
+    else say(so, t('autocatch.zeroOne'));
     tick();
   }
 
   async function passo() {
-    if (virouSemana()) { limparPaginas(); sendLog({ acc: 'app', kind: 'load', level: 'info', text: 'auto-captura: nova semana — capturas zeradas' }); }
+    if (virouSemana()) { limparPaginas(); sendLog({ acc: 'app', kind: 'load', level: 'info', text: t('autocatch.newWeek') }); }
     for (const { id, view } of getSlots()) {
       const wc = vivo(view);
       if (!wc || wc.isLoading()) continue;
@@ -374,17 +378,20 @@ module.exports = function init({ getSlots, sendLog }) {
       try {
         const r = await wc.executeJavaScript(script('step', Object.entries(feitas(id))));
         if (!r) continue;
-        for (const nome of guardar(id, r.done)) say(id, `capturado nesta semana: ${nome} (${Object.keys(feitas(id)).length} no cache)`);
+        for (const nome of guardar(id, r.done)) say(id, t('autocatch.captured', { nome, n: Object.keys(feitas(id)).length }));
         const key = `${r.s}:${r.nome ?? ''}:${r.msg ?? ''}`;
         if (last.get(id) === key) continue;
         if (['busy', 'cacando', 'ocupado', 'travado'].includes(r.s)) { if (r.s !== 'cacando') continue; }
         last.set(id, key);
-        if (r.s === 'alvo') say(id, `${r.ja ? 'já está em' : 'indo para'} ${r.nome} (nv ${r.nv}, ${r.regiao})`);
+        if (r.s === 'alvo') say(id, t(r.ja ? 'autocatch.target.already' : 'autocatch.target.going', { nome: r.nome, nv: r.nv, regiao: r.regiao }));
         else if (r.s === 'fim') {
-          say(id, `${r.travadas ? `nada mais disponível agora (${r.travadas} área(s) ainda travadas pelo nível)` : 'lista concluída'}${r.puladas ? ` (${r.puladas} área(s) puladas por não capturar a tempo)` : ''} — desligada`);
+          say(id, t('autocatch.end.line', {
+            what: r.travadas ? t('autocatch.end.locked', { n: r.travadas }) : t('autocatch.end.done'),
+            skipped: r.puladas ? ` ${t('autocatch.end.skipped', { n: r.puladas })}` : '',
+          }));
           on.delete(id);
           wc.executeJavaScript(script('off')).catch(() => {});
-        } else if (r.s === 'erro') say(id, `erro: ${r.msg}`, 'error');
+        } else if (r.s === 'erro') say(id, t('autocatch.error', { msg: r.msg }), 'error');
       } catch {
         /* página navegando: tenta no próximo tick */
       }
@@ -400,12 +407,12 @@ module.exports = function init({ getSlots, sendLog }) {
     if (index === null) {
       const allOn = slots.every((s) => on.has(s.id));
       slots.forEach((s) => set(s.id, !allOn));
-      sendLog({ acc: 'app', kind: 'load', level: 'info', text: `auto-captura ${allOn ? 'DESLIGADA' : 'LIGADA'} em todas` });
+      sendLog({ acc: 'app', kind: 'load', level: 'info', text: t(allOn ? 'autocatch.log.allOff' : 'autocatch.log.allOn') });
     } else {
       const { id } = slots[index];
       const v = !on.has(id);
       set(id, v);
-      say(id, v ? 'LIGADA' : 'DESLIGADA');
+      say(id, t(v ? 'autocatch.on' : 'autocatch.off'));
     }
     tick();
   }
@@ -417,18 +424,20 @@ module.exports = function init({ getSlots, sendLog }) {
     features: () => [{
       id: 'autocatch',
       order: 40,
-      group: 'Capturas',
-      label: 'Auto-captura',
-      actions: [
-        { label: 'Zerar a semana', title: 'Zera as capturas da semana desta conta para recapturar tudo', run: (id) => zerar(id) },
-        { label: 'Diagnóstico', title: 'Grava o estado da tela desta conta, para investigar problemas', run: (id) => diagnostico(id) },
-      ],
-      title: 'Percorre as regiões liberadas e caça, do menor nível para o maior, as áreas cujo pokémon você ainda não tem',
+      get group() { return t('autocatch.group'); },
+      get label() { return t('autocatch.label'); },
+      get actions() {
+        return [
+          { label: t('autocatch.action.reset'), title: t('autocatch.action.reset.title'), run: (id) => zerar(id) },
+          { label: t('autocatch.action.diag'), title: t('autocatch.action.diag.title'), run: (id) => diagnostico(id) },
+        ];
+      },
+      get title() { return t('autocatch.title'); },
       isOn: (id) => on.has(id),
       set: (id, v) => {
         v ? on.add(id) : on.delete(id);
         last.delete(id);
-        say(id, v ? 'LIGADA' : 'DESLIGADA');
+        say(id, t(v ? 'autocatch.on' : 'autocatch.off'));
         tick();
       },
     }],

@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src data:">
-<title>Pague-me um café</title>
+<title data-i18n="cafe.title">Buy me a coffee</title>
 <style>
   :root { color-scheme: dark; }
   body { margin: 0; padding: 20px; background: #161019; color: #eee; font: 14px "Segoe UI", sans-serif; text-align: center; }
@@ -17,17 +17,21 @@
   .ok { color: #7ee08a; min-height: 18px; font-size: 13px; }
   .fechar { margin-top: 10px; background: transparent; }
 </style>
+<script src="../i18n/core.js"></script>
+<script src="../i18n/areas/support.js"></script>
+<script src="../i18n/areas/common.js"></script>
+<script src="i18n.js"></script>
 </head>
 <body>
-  <h1>☕ Pague-me um café</h1>
-  <p>O app é gratuito. Se ele te ajuda, um PIX de qualquer valor apoia o projeto.</p>
-  <div class="qr"><img id="qr" alt="QR Code do PIX"></div>
+  <h1 data-i18n="cafe.h1">☕ Buy me a coffee</h1>
+  <p data-i18n="cafe.desc">The app is free. If it helps you, a PIX of any amount supports the project.</p>
+  <div class="qr"><img id="qr" alt="PIX QR code"></div>
   <div class="chave" id="chave"></div>
-  <button id="cp-chave">Copiar chave PIX</button>
-  <button id="cp-copia">Copiar “copia e cola”</button>
+  <button id="cp-chave" data-i18n="cafe.copyKey">Copy PIX key</button>
+  <button id="cp-copia" data-i18n="cafe.copyPaste">Copy PIX copy-and-paste code</button>
   <div class="ok" id="ok" role="status"></div>
-  <p>Opcional e sem cobrança automática. Obrigado!</p>
-  <button class="fechar" id="fechar">Fechar</button>
+  <p data-i18n="cafe.optional">Optional, with no automatic charge. Thank you!</p>
+  <button class="fechar" id="fechar" data-i18n="common.close">Close</button>
   <script src="vendor/qrcode.js"></script>
   <script src="cafe.js"></script>
 </body>

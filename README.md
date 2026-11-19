@@ -48,6 +48,10 @@ $s.Save()
 
 Rode dentro da pasta do projeto, depois do `npm install`. Se mover a pasta, refaça o atalho.
 
+## Idiomas
+
+A interface do app está disponível em **inglês** (padrão), **português do Brasil** e **espanhol** (*The app interface is available in English, Brazilian Portuguese and Spanish*). Na primeira execução o app usa o idioma do sistema (ou o escolhido no instalador); para trocar depois, use **⚙ Configurações › Idioma**: a troca vale na hora e fica salva em `config.json`. O instalador (Setup) pergunta o idioma ao instalar. Para adicionar ou corrigir uma tradução, edite os arquivos de `src/i18n/areas/` (um por área, com as três línguas lado a lado); chave ausente cai no inglês.
+
 ## Como usar
 
 O app abre em tela cheia com **2 contas** lado a lado. Faça login uma vez em cada quadrante; a sessão fica salva em disco. Pressione **F1** a qualquer momento para ver os atalhos.

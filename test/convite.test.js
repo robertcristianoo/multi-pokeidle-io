@@ -3,6 +3,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { app, check, finish, waitFor } = require('./helpers');
+require('../src/i18n').setLang('pt-BR'); // the texts checked here are in Portuguese
 const { BrowserWindow, clipboard } = require('electron');
 const { createConvite, validInvite, readInvite, DEFAULT_INVITE } = require('../src/convite');
 

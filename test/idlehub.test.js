@@ -1,6 +1,7 @@
 // Voto no IdleHub: funções puras, controlador (janelas, depurador e tela de mentira, sem rede) e o botão 🗳 na barra.
 // Nada aqui sai para a internet nem abre a página de voto de verdade.
 const { app, check, finish, waitFor } = require('./helpers');
+require('../src/i18n').setLang('pt-BR'); // the texts checked here are in Portuguese
 const path = require('path');
 const { EventEmitter } = require('events');
 const { BrowserWindow } = require('electron');

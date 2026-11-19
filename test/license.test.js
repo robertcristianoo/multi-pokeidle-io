@@ -2,6 +2,7 @@
 // real do app não é usada). Cobre: válida, outra máquina, expirada, sem prazo, adulterada, assinada por outra chave,
 // formato inválido, persistência, desativação, o id da máquina (GUID do Windows e fallback) e o guardado com safeStorage.
 const { app, check, finish } = require('./helpers');
+require('../src/i18n').setLang('pt-BR'); // the texts checked here are in Portuguese
 const crypto = require('crypto');
 const fs = require('fs');
 const os = require('os');

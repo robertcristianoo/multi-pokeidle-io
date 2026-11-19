@@ -8,6 +8,7 @@
 //
 // Uso: `require('./account-names')` devolve a instância compartilhada; `configure({ store, getSlots })` é chamado pelo main
 // antes de abrir as contas. Sem configurar, os nomes ficam só na memória (os testes usam `createAccountNames()` direto).
+const { t } = require('./i18n');
 const MAX_NAME_LEN = 30;
 const READ_EVERY_MS = 60 * 1000; // releitura barata das contas abertas (o nome também é lido ao carregar cada conta)
 const FIRST_READS_MS = [5000, 15000, 40000]; // o nome chega com o `welcome` do jogo, depois de a página carregar
@@ -71,7 +72,7 @@ function createAccountNames() {
     const n = normalize(nome);
     if (k === null || !n || names[k] === n) return false;
     names[k] = n;
-    try { store?.set({ ...names }); } catch (err) { console.error('não foi possível salvar o nome da conta:', err); }
+    try { store?.set({ ...names }); } catch (err) { console.error('could not save the account name:', err); }
     for (const cb of listeners) { try { cb(k, n); } catch {} }
     return true;
   }
@@ -80,9 +81,9 @@ function createAccountNames() {
   function label(id) {
     const k = idOf(id);
     const n = get(k);
-    if (!n) return `Conta ${k ?? id}`;
+    if (!n) return t('common.account', { id: k ?? id });
     const repetido = Object.entries(names).some(([other, v]) => Number(other) !== k && sameName(v, n));
-    return repetido ? `${n} (conta ${k})` : n;
+    return repetido ? t('account.dup', { name: n, id: k }) : n;
   }
 
   // { id: rótulo } para as contas pedidas (ex.: labels([1, 2, 3, 4]))

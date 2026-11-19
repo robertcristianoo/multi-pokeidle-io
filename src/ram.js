@@ -7,6 +7,7 @@
 // Ocultar a barra é persistido pelo chamador (main.js, em config.json) via `onToggle`.
 const path = require('path');
 const { app, WebContentsView, ipcMain } = require('electron');
+const { getLang, loadPage } = require('./i18n');
 const accountNames = require('./account-names');
 
 const BAR_H = 22;
@@ -16,11 +17,12 @@ const KB_PER_MB = 1024;
 const TOTAL_LIMITS = { warn: 3 * 1024, danger: 4 * 1024 };
 const ACCOUNT_LIMITS = { warn: 1024, danger: 1536 };
 
-// KB -> texto curto em pt-BR: "512 MB" ou "1,4 GB"
+// KB -> texto curto: "512 MB" ou "1,4 GB" (vírgula decimal em português/espanhol, ponto em inglês)
 function formatMemory(kb) {
   const mb = Math.max(0, Number(kb) || 0) / KB_PER_MB;
   if (mb < 1024) return `${Math.round(mb)} MB`;
-  return `${(mb / 1024).toFixed(1).replace('.', ',')} GB`;
+  const gb = (mb / 1024).toFixed(1);
+  return `${getLang() === 'en' ? gb : gb.replace('.', ',')} GB`;
 }
 
 function levelOf(mb, limits) {
@@ -69,7 +71,7 @@ function createRamBar({ mainWin, getSlots, visible = true, onToggle = () => {} }
     view = new WebContentsView({ webPreferences: { preload: path.join(__dirname, 'preload', 'ram.js') } });
     view.setBackgroundColor('#1b1220');
     mainWin.contentView.addChildView(view);
-    view.webContents.loadFile(path.join(__dirname, 'ui', 'ram.html'));
+    loadPage(view.webContents, path.join(__dirname, 'ui', 'ram.html'));
     view.webContents.on('did-finish-load', () => push(true));
     return view;
   }

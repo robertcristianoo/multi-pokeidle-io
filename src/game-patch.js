@@ -13,6 +13,8 @@
 // uma função `(source) => { src, cauda? } | null` e roda na ordem de registro.
 //   createGamePatch({ isWanted(contaId), sendLog }) -> { attach(contaId, view), addPatch(fn) }
 
+const { t } = require('./i18n');
+
 const PATTERN = 'https://pokeidle.io/app.js*';
 
 // Cada ponto de encaixe renomeia a função original e põe, no lugar dela, uma que chama a original e anota o resultado.
@@ -143,11 +145,11 @@ function createGamePatch({ isWanted = () => true, sendLog = () => {} } = {}) {
         if (p.responseStatusCode !== 200) return await pass();
         const { body, base64Encoded } = await dbg.sendCommand('Fetch.getResponseBody', { requestId: p.requestId });
         const source = base64Encoded ? Buffer.from(body, 'base64').toString('utf8') : body;
-        // as marcas do /hunt só entram com o /hunt ligado; os trechos extras decidem por conta própria
+        // the /hunt marks only go in while /hunt is on; the extra patches decide on their own
         const r = aplicarPatch(source, { marcas: !!isWanted(id), extras });
         if (isWanted(id) && !r.marcas && !warned) {
           warned = true;
-          sendLog({ acc: `conta${id}`, kind: 'load', level: 'warn', text: '[hunt] não achei o ponto de encaixe no app.js (o jogo mudou?); o atalho ⚔? fica desligado nesta carga' });
+          sendLog({ acc: `conta${id}`, kind: 'load', level: 'warn', text: t('patch.noHook') });
         }
         const patched = r.texto;
         if (!patched) return await pass();

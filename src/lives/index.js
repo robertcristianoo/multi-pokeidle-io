@@ -23,6 +23,7 @@ const { createGoogleLogin, sites: GOOGLE_SITES } = require('../google-login');
 const googleLogin = createGoogleLogin();
 const { BONUSES, SITES, partitionOf } = require('../points/sites');
 const { createRedeemLog } = require('../points/log');
+const { t, getLang, loadPage } = require('../i18n');
 const accountNames = require('../account-names');
 
 const UI = (f) => path.join(__dirname, '..', 'ui', f);
@@ -38,14 +39,16 @@ const SITE_ORDER = ['twitch', 'kick'];
 const sleepless = (p) => p.catch(() => {});
 
 // Nota (texto curto do resgate) -> tipo do aviso na tela
-const noteKind = (t) => (/recusado|parei|gastos fora|não passou/i.test(t) ? 'fail' : /resgatei|pegou|entrei/i.test(t) ? 'ok' : 'info');
+// (as palavras que decidem vêm do dicionário do idioma: as mensagens já saem traduzidas)
+const matches = (key, text) => new RegExp(t(key), 'i').test(text);
+const noteKind = (text) => (matches('lives.re.note.fail', text) ? 'fail' : matches('lives.re.note.ok', text) ? 'ok' : 'info');
 
 // Classifica a linha de registro ("canal: o que houve") no evento do registro dos resgates
 function classify(detalhe) {
-  if (/^(resgatou|pegou|entrou na raid)/i.test(detalhe)) return 'resgatou';
-  if (/parei|voltaram/i.test(detalhe)) return 'parou';
-  if (/recusad|não passou|não somou|não veio|não abriu|caiu de/i.test(detalhe)) return 'recusado';
-  if (/erro|não respond|sem resposta/i.test(detalhe)) return 'erro';
+  if (matches('lives.re.log.ok', detalhe)) return 'resgatou';
+  if (matches('lives.re.log.stopped', detalhe)) return 'parou';
+  if (matches('lives.re.log.refused', detalhe)) return 'recusado';
+  if (matches('lives.re.log.error', detalhe)) return 'erro';
   return 'info';
 }
 
@@ -220,8 +223,8 @@ function createLives({
     const gone = before.filter((ch) => !now.includes(ch) && liveNow[site][ch] === false);
     const added = now.filter((ch) => !before.includes(ch));
     if (!gone.length || !added.length) return;
-    logLine(acc, site, `${gone.join(', ')}: ficou offline; abri ${added.join(', ')} no lugar`);
-    note(acc, `${SITES[site].label}: ${gone.join(', ')} ficou offline; abri ${added.join(', ')}`);
+    logLine(acc, site, t('lives.swap.log', { gone: gone.join(', '), added: added.join(', ') }));
+    note(acc, t('lives.swap.note', { site: SITES[site].label, gone: gone.join(', '), added: added.join(', ') }));
   }
 
   // Os canais oficiais que o jogo informa (no ar e offline), lidos da primeira conta ligada que tenha a lista:
@@ -312,10 +315,10 @@ function createLives({
   const waitText = (keys, eligible) => {
     const label = (k) => BONUSES[k]?.label ?? k;
     const missing = keys.filter((k) => !eligible.some((e) => e.options.some((o) => o.key === k && !o.paused)));
-    if (missing.length) return `o combo ${keys.map(label).join(' + ')} aguarda: sem canal liberado com ${missing.map(label).join(', ')}`;
-    if (!eligible.length) return `o combo ${keys.map(label).join(' + ')} aguarda saldo: nenhum canal com pontos para resgatar`;
+    if (missing.length) return t('lives.combo.noChannel', { combo: keys.map(label).join(' + '), missing: missing.map(label).join(', ') });
+    if (!eligible.length) return t('lives.combo.noPoints', { combo: keys.map(label).join(' + ') });
     const saldos = eligible.map((e) => `${e.channel} ${e.points}`).join(', ');
-    return `o combo ${keys.map(label).join(' + ')} aguarda saldo: nenhuma divisão pelos canais cobre todos os bônus (saldos: ${saldos})`;
+    return t('lives.combo.noSplit', { combo: keys.map(label).join(' + '), balances: saldos });
   };
   async function comboCheck(acc, site, redeemer, rewards, reads, scriptOf) {
     const keys = R.keysOf(rewards);
@@ -354,7 +357,7 @@ function createLives({
     let root = null;
     try { root = JSON.parse(read); } catch { root = null; }
     if (root?.failed) return root.failed;
-    return Number.isInteger(root?.points) ? null : 'resposta estranha';
+    return Number.isInteger(root?.points) ? null : t('lives.kick.weirdAnswer');
   };
 
   // ---- Kick: saldo e resgate (a cada 5 min) ----
@@ -379,9 +382,9 @@ function createLives({
             const problem = kickReadProblem(read);
             if (problem) {
               // Como antes do combo: a página lê e, com um bônus só, resgata; com vários, só lê (o combo resgata pela leitura da API)
-              logTwitchProblem(acc, channel, `a leitura do saldo sem a página não passou (${problem}); abri o player`, 'kick');
+              logTwitchProblem(acc, channel, t('lives.tw.readFail', { failed: problem }), 'kick');
               const result = await D.pages.run(acc, 'kick', channel, redeemer.kickScript(D.kickApi, channel, token, rewards[0], rewards.length === 1));
-              if (!result) logTwitchProblem(acc, channel, 'o player não abriu', 'kick');
+              if (!result) logTwitchProblem(acc, channel, t('lives.tw.playerNoOpen'), 'kick');
               note(acc, redeemer.apply(channel, result));
               continue;
             }
@@ -390,7 +393,7 @@ function createLives({
           await comboCheck(acc, 'kick', redeemer, rewards, reads, (channel, key) => redeemer.kickScript(D.kickApi, channel, token, key));
         } catch (e) {
           // Um erro aqui não pode parar o resgate da Kick em silêncio: vai para o registro e a próxima conferência tenta de novo
-          logLine(acc, 'kick', `o resgate da Kick parou por um erro (${(e && e.message) || e}); tento de novo na próxima conferência`);
+          logLine(acc, 'kick', t('lives.kick.crashed', { err: (e && e.message) || e }));
         }
       }
     } finally {
@@ -431,10 +434,10 @@ function createLives({
           const chestWaiting = read.includes('"claimId":"');
           // Leitura sem a página que falhou, ou baú esperando: a página abre só para ler o saldo e pegar o baú (sem resgatar).
           if (failed || redeemer.claimDue(channel, read, claim)) {
-            if (failed) logTwitchProblem(acc, channel, `a leitura do saldo sem a página não passou (${failed}); abri o player`);
+            if (failed) logTwitchProblem(acc, channel, t('lives.tw.readFail', { failed: R.errText(failed) }));
             const result = await D.pages.run(acc, 'twitch', channel, redeemer.twitchScript(D.twitchApi, channel, token, device, null, claim));
-            if (!result) logTwitchProblem(acc, channel, `o player não abriu${chestWaiting ? ' (com o baú esperando)' : ''}`);
-            if (chestWaiting && R.claimProblem(result)) logTwitchProblem(acc, channel, `o baú estava esperando, mas ${R.claimProblem(result)}`);
+            if (!result) logTwitchProblem(acc, channel, t(chestWaiting ? 'lives.tw.playerNoOpenChest' : 'lives.tw.playerNoOpen'));
+            if (chestWaiting && R.claimProblem(result)) logTwitchProblem(acc, channel, t('lives.tw.chestWaiting', { problem: R.claimProblem(result) }));
             note(acc, redeemer.apply(channel, result));
             continue;
           }
@@ -444,7 +447,7 @@ function createLives({
         updatePubSub(acc, token);
         updateWatcher(acc, token, device);
         for (const quiet of redeemer.newQuiet(openOf('twitch', acc))) {
-          note(acc, `Twitch: ${quiet} está aberta há ${Math.round(redeemer.quietLimit / 60000)} min sem os pontos de assistir`);
+          note(acc, t('lives.tw.quietNote', { ch: quiet, min: Math.round(redeemer.quietLimit / 60000) }));
         }
       }
     } finally {
@@ -519,9 +522,9 @@ function createLives({
   function actionError(json, ok) {
     try {
       const o = JSON.parse(json);
-      return o[ok] === true ? null : (o.error ?? 'sem resposta');
+      return o[ok] === true ? null : R.errText(o.error ?? 'sem resposta');
     } catch {
-      return 'a live não respondeu';
+      return R.errText('a live não respondeu');
     }
   }
 
@@ -548,9 +551,9 @@ function createLives({
         // O id do baú vem no aviso: a consulta de dentro da página nem sempre mostra o baú.
         const result = await D.pages.run(acc, 'twitch', channel,
           redeemer.twitchScript(D.twitchApi, channel, token, device, rewardsOf(c, 'twitch', acc)[0] ?? null, true, false, claimId));
-        if (!result) logTwitchProblem(acc, channel, 'o baú apareceu, mas o player não abriu');
+        if (!result) logTwitchProblem(acc, channel, t('lives.tw.chestAppearedNoOpen'));
         const problem = R.claimProblem(result);
-        if (problem) logTwitchProblem(acc, channel, `o baú apareceu, mas ${problem}`);
+        if (problem) logTwitchProblem(acc, channel, t('lives.tw.chestAppeared', { problem }));
         note(acc, redeemer.apply(channel, result));
       } else if (notice.topic === 'raid' && notice.type === 'raid_update_v2') {
         const raid = message.raid;
@@ -561,10 +564,11 @@ function createLives({
         if (!token) return;
         const result = await D.pages.run(acc, 'twitch', channel, R.twitchRaidScript(D.twitchApi, token, device, raid.id));
         const error = actionError(result, 'joined');
+        const target = raid.target_login ?? '?';
         logLine(acc, 'twitch', error === null
-          ? `${channel}: entrou na raid (para ${raid.target_login ?? '?'})`
-          : `${channel}: a raid (para ${raid.target_login ?? '?'}) não passou (${error})`);
-        if (error === null) note(acc, `Twitch: entrei na raid de ${channel}`);
+          ? t('lives.tw.raidJoined', { ch: channel, target })
+          : t('lives.tw.raidFail', { ch: channel, target, error }));
+        if (error === null) note(acc, t('lives.tw.raidNote', { ch: channel }));
       } else if (notice.topic === 'community-moments-channel-v1' && notice.type === 'active') {
         const momentId = message.data?.moment_id ?? '';
         const set = taken.get(acc) ?? taken.set(acc, new Set()).get(acc);
@@ -574,7 +578,7 @@ function createLives({
         if (!token) return;
         const result = await D.pages.run(acc, 'twitch', channel, R.twitchMomentScript(D.twitchApi, token, device, momentId));
         const error = actionError(result, 'claimed');
-        logLine(acc, 'twitch', error === null ? `${channel}: pegou o momento` : `${channel}: o momento não passou (${error})`);
+        logLine(acc, 'twitch', error === null ? t('lives.tw.momentOk', { ch: channel }) : t('lives.tw.momentFail', { ch: channel, error }));
       }
     } catch {
       // aviso fora do formato, ou a conta fechou no meio: ignora esse
@@ -603,10 +607,10 @@ function createLives({
       if (!info) continue;
       for (const r of rewardsOf(c, site, acc)) {
         const left = info.left?.[bonusKind(r)] ?? 0;
-        parts.push(`${SITES[site].label} ${kindName(r)}: ${!info.linked ? 'não vinculada no jogo' : left > 0 ? bonusTime(left) : 'vencido'}`);
+        parts.push(`${SITES[site].label} ${kindName(r)}: ${!info.linked ? t('lives.bonus.unlinked') : left > 0 ? bonusTime(left) : t('lives.bonus.expired')}`);
       }
     }
-    return parts.length ? `Bônus das lives: ${parts.join(' · ')}${c.guard[acc] ? ' (guarda do bônus ligada)' : ''}` : null;
+    return parts.length ? t('lives.bonus.line', { parts: parts.join(' · '), guard: c.guard[acc] ? t('lives.bonus.guardOn') : '' }) : null;
   }
 
   async function refreshBonus(acc) {
@@ -645,10 +649,10 @@ function createLives({
           const since = (Date.now() - slot.redeemedAt) / 1000;
           if (left > slot.leftBefore - since + 1800) slot.redeemedAt = null;
           else if (Date.now() - slot.redeemedAt > guard.CONFIRM_WITHIN_MS) {
-            const at = new Date(slot.redeemedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const at = new Date(slot.redeemedAt).toLocaleTimeString(getLang(), { hour: '2-digit', minute: '2-digit' });
             slot.redeemedAt = null;
             slot.holdUntil = Date.now() + 60 * 60 * 1000;
-            log(`guarda do bônus: o resgate das ${at} não somou no bônus de ${kind} do jogo (${SITES[site].label} vinculada?); paro a guarda aqui por 1 h`);
+            log(t('lives.guard.notAdded', { at, kind, site: SITES[site].label }));
             continue;
           } else continue;
         }
@@ -670,18 +674,18 @@ function createLives({
             if (site === 'kick' && kickReadProblem(read)) { semLeitura++; motivo = kickReadProblem(read); }
             guard.remember(slot, channel, read);
           }
-          const when = left > 0 ? `vence em ${bonusTime(left)}` : 'venceu';
+          const when = left > 0 ? t('lives.guard.when.in', { time: bonusTime(left) }) : t('lives.guard.when.expired');
           const pick = guard.pick(slot, candidates, info);
           if (!pick) {
             if (!slot.noneNoted) {
               slot.noneNoted = true;
-              const nao = semLeitura ? `, ${semLeitura} sem leitura da Kick: ${motivo}` : '';
-              log(`guarda do bônus: o de ${kind} ${when}, e nenhum canal fora das lives abertas tem os pontos (${candidates.length} conferidos${nao})`);
+              const extra = semLeitura ? t('lives.guard.noRead', { n: semLeitura, why: motivo }) : '';
+              log(t('lives.guard.none', { kind, when, n: candidates.length, extra }));
             }
             slot.holdUntil = Date.now() + 10 * 60 * 1000;
             continue;
           }
-          log(`${pick.channel}: guarda do bônus: o de ${kind} ${when}; resgato aqui (${pick.points} pontos${pick.live ? ')' : ', canal offline)'}`);
+          log(t(pick.live ? 'lives.guard.redeemHere' : 'lives.guard.redeemHereOff', { ch: pick.channel, kind, when, points: pick.points }));
           const script = site === 'kick'
             ? redeemer.kickScript(D.kickApi, pick.channel, token, reward)
             : redeemer.twitchScript(D.twitchApi, pick.channel, token, device, reward, false);
@@ -694,7 +698,7 @@ function createLives({
             slot.noneNoted = false;
             slot.holdUntil = Date.now() + 60 * 1000;
           } else {
-            log(`${pick.channel}: guarda do bônus: o resgate não passou (${result.length === 0 ? 'a página do canal não respondeu' : result}); tento de novo em 10 min`);
+            log(t('lives.guard.failed', { ch: pick.channel, why: result.length === 0 ? t('lives.guard.pageNoAnswer') : result }));
             slot.holdUntil = Date.now() + 10 * 60 * 1000;
           }
         } finally {
@@ -725,9 +729,9 @@ function createLives({
     const stopped = [];
     const login = [];
     const why = stoppedOf(acc);
-    if (why) stopped.push(`${tag(acc)}: resgate parado (${why})`);
-    if (twitchLogin.get(acc) === false) login.push(`${tag(acc)}: entre na Twitch (botão Lives da conta › Entrar)`);
-    else for (const s of SITE_ORDER) if (redeemers[s].get(acc)?.noLogin && openOf(s, acc).length) login.push(`${tag(acc)}: entre na ${SITES[s].label} (botão Lives da conta › Entrar)`);
+    if (why) stopped.push(t('lives.problem.stopped', { tag: tag(acc), why }));
+    if (twitchLogin.get(acc) === false) login.push(t('lives.problem.login', { tag: tag(acc), site: SITES.twitch.label }));
+    else for (const s of SITE_ORDER) if (redeemers[s].get(acc)?.noLogin && openOf(s, acc).length) login.push(t('lives.problem.login', { tag: tag(acc), site: SITES[s].label }));
     return { stopped, login };
   }
 
@@ -743,24 +747,24 @@ function createLives({
 
   // O estado do botão Lives da barra (geral): none = desligadas; ok = ligadas; idle = falta entrar na Twitch/Kick; changed = resgate parado
   function state() {
-    if (!active.size) return { kind: 'none', text: 'Lives desligadas', detail: 'Clique para abrir a configuração das lives' };
+    if (!active.size) return { kind: 'none', text: t('lives.state.none'), detail: t('lives.state.noneDetail') };
     const { stopped, login } = problems();
     const summary = [...active].map((a) => `${tag(a)}: Twitch ${openOf('twitch', a).length} · Kick ${openOf('kick', a).length}`).join('\n');
-    if (stopped.length) return { kind: 'changed', text: `Lives: ${stopped.length} resgate(s) parado(s)`, detail: `${[...stopped, ...login].join('\n')}\n\n${summary}` };
-    if (login.length) return { kind: 'idle', text: 'Lives: falta entrar na Twitch/Kick', detail: `${login.join('\n')}\n\n${summary}` };
-    return { kind: 'ok', text: 'Lives ligadas', detail: summary };
+    if (stopped.length) return { kind: 'changed', text: t('lives.state.changed', { n: stopped.length }), detail: `${[...stopped, ...login].join('\n')}\n\n${summary}` };
+    if (login.length) return { kind: 'idle', text: t('lives.state.idle'), detail: `${login.join('\n')}\n\n${summary}` };
+    return { kind: 'ok', text: t('lives.state.ok'), detail: summary };
   }
 
   // O estado do botão Lives de UMA conta (mesmos tipos de state()): só a conta dela entra aqui
   function stateOf(acc) {
     const c = cfg();
-    if (!c.accounts.includes(acc)) return { kind: 'none', text: 'Lives desligadas nesta conta', detail: '' };
-    if (!active.has(acc)) return { kind: 'none', text: 'Lives marcadas, mas a conta está desligada', detail: 'As lives voltam ao ligar a conta.' };
+    if (!c.accounts.includes(acc)) return { kind: 'none', text: t('lives.stateOf.none'), detail: '' };
+    if (!active.has(acc)) return { kind: 'none', text: t('lives.stateOf.off'), detail: t('lives.stateOf.offDetail') };
     const { stopped, login } = problemsOf(acc);
     const resumo = short(acc);
-    if (stopped.length) return { kind: 'changed', text: 'Lives: resgate parado', detail: [...stopped, ...login, resumo].join('\n') };
-    if (login.length) return { kind: 'idle', text: 'Lives: falta entrar na Twitch/Kick', detail: [...login, resumo].join('\n') };
-    return { kind: 'ok', text: 'Lives ligadas nesta conta', detail: resumo };
+    if (stopped.length) return { kind: 'changed', text: t('lives.stateOf.stopped'), detail: [...stopped, ...login, resumo].join('\n') };
+    if (login.length) return { kind: 'idle', text: t('lives.state.idle'), detail: [...login, resumo].join('\n') };
+    return { kind: 'ok', text: t('lives.stateOf.ok'), detail: resumo };
   }
 
   // O resumo curto de uma conta ("Twitch: canal 230/300 · Kick: ...")
@@ -770,9 +774,9 @@ function createLives({
       const list = openOf(s, acc).map((ch) => { const b = redeemers[s].get(acc)?.balance(ch); return b ? `${ch} ${b}` : ch; });
       if (list.length) parts.push(`${SITES[s].label}: ${list.join(', ')}`);
     }
-    if (twitchLogin.get(acc) === false) parts.unshift('⚠ entre na Twitch');
-    if (stoppedOf(acc)) parts.push('⚠ resgate parado');
-    return parts.length ? parts.join(' · ') : 'nenhuma live no ar';
+    if (twitchLogin.get(acc) === false) parts.unshift(t('lives.short.login'));
+    if (stoppedOf(acc)) parts.push(t('lives.short.stopped'));
+    return parts.length ? parts.join(' · ') : t('lives.short.none');
   }
 
   // As lives de cada conta no formato do painel de pontos: [{ acc, twitch: [{ id, nome }], kick: [...] }]
@@ -795,11 +799,11 @@ function createLives({
         }
       }
       const stopped = stoppedOf(acc);
-      if (stopped) notes.push(`${tag(acc)}: resgate parado: ${stopped}`);
-      if (twitchLogin.get(acc) === false) notes.push(`${tag(acc)}: entre na Twitch (botão Lives da conta › Entrar)`);
+      if (stopped) notes.push(t('lives.details.stopped', { tag: tag(acc), why: stopped }));
+      if (twitchLogin.get(acc) === false) notes.push(t('lives.problem.login', { tag: tag(acc), site: SITES.twitch.label }));
       if (bonusInfo.has(acc)) notes.push(`${tag(acc)}: ${bonusInfo.get(acc)}`);
       const ps = pubsubs.get(acc);
-      if (ps?.error) notes.push(`${tag(acc)}: avisos da Twitch: ${ps.error}`);
+      if (ps?.error) notes.push(t('lives.details.pubsub', { tag: tag(acc), err: ps.error }));
     }
     return { rows, notes };
   }
@@ -810,7 +814,7 @@ function createLives({
     if (!SITES[site]) return;
     if (loginWin && !loginWin.isDestroyed()) loginWin.close();
     loginWin = new BrowserWindow({
-      width: 1000, height: 760, title: `Entrar na ${SITES[site].label} - ${tag(acc)}`, autoHideMenuBar: true,
+      width: 1000, height: 760, title: t('lives.login.title', { site: SITES[site].label, tag: tag(acc) }), autoHideMenuBar: true,
       webPreferences: { partition: partitionOf(site, acc) },
     });
     const google = googleLogin.attach(loginWin.webContents, GOOGLE_SITES[site]); // "Entrar com Google" da Kick
@@ -836,9 +840,9 @@ function createLives({
       if (site === 'kick') kickWatchers.get(acc) && stopKickWatcher(acc);
       redeemers[site].get(acc)?.restart?.();
       if (site === 'twitch') twitchLogin.set(acc, false);
-      note(acc, `${SITES[site].label}: login apagado nesta conta. Use Lives › Entrar para entrar de novo.`);
+      note(acc, t('lives.logout.done', { site: SITES[site].label }));
     } catch (err) {
-      note(acc, `${SITES[site].label}: não consegui apagar o login (${err?.message ?? err})`);
+      note(acc, t('lives.logout.fail', { site: SITES[site].label, err: err?.message ?? err }));
     }
   }
   const activateLogin = async (acc) => { if (active.has(acc)) { twitchLogin.set(acc, !!(await readTwitchLogin(acc)).token); liveCheckAt = 0; } };
@@ -847,30 +851,30 @@ function createLives({
   function showDetails() {
     if (detailsWin && !detailsWin.isDestroyed()) return detailsWin.focus();
     detailsWin = new BrowserWindow({
-      width: 960, height: 480, title: 'Detalhes das lives - Multi PokeIdle IO', autoHideMenuBar: true,
+      width: 960, height: 480, title: t('lives.win.details'), autoHideMenuBar: true,
       webPreferences: { preload: PRELOAD('lives-details.js') },
     });
-    detailsWin.loadFile(UI('lives-details.html'));
+    loadPage(detailsWin.webContents, UI('lives-details.html'));
   }
 
   let cfgWin = null;
   function showConfig() {
     if (cfgWin && !cfgWin.isDestroyed()) return cfgWin.focus();
     cfgWin = new BrowserWindow({
-      width: 860, height: 700, title: 'Config das lives - Multi PokeIdle IO', autoHideMenuBar: true,
+      width: 860, height: 700, title: t('lives.win.config'), autoHideMenuBar: true,
       webPreferences: { preload: PRELOAD('lives-config.js') },
     });
-    cfgWin.loadFile(UI('lives-config.html'));
+    loadPage(cfgWin.webContents, UI('lives-config.html'));
   }
 
   let logWin = null;
   function showLog() {
     if (logWin && !logWin.isDestroyed()) return logWin.focus();
     logWin = new BrowserWindow({
-      width: 1000, height: 560, title: 'Log de resgates - Multi PokeIdle IO', autoHideMenuBar: true,
+      width: 1000, height: 560, title: t('lives.win.log'), autoHideMenuBar: true,
       webPreferences: { preload: PRELOAD('redeem-log.js') },
     });
-    logWin.loadFile(UI('redeem-log.html'));
+    loadPage(logWin.webContents, UI('redeem-log.html'));
   }
 
   // Fecha a live de `channel` nesta conta (ou todas, com null): a vaga dela vai junto, para a conferência de 2 em 2 min não abrir
@@ -883,7 +887,7 @@ function createLives({
     lim.slots = channel === null ? 0 : Math.max(0, cfgLib.slotsOf(lim, max) - 1);
     config.set(c);
     applyLives();
-    note(acc, channel === null ? `${SITES[site].label}: fechei todas as lives` : `${SITES[site].label}: fechei a live de ${channel}`);
+    note(acc, channel === null ? t('lives.closed.all', { site: SITES[site].label }) : t('lives.closed.one', { site: SITES[site].label, ch: channel }));
   }
 
   // Abre de novo a live de `channel` fechada nesta conta (ou todas, com null), com a vaga dela.
@@ -900,7 +904,7 @@ function createLives({
     }
     config.set(c);
     applyLives();
-    note(acc, channel === null ? `${SITES[site].label}: as lives voltam a abrir` : `${SITES[site].label}: ${channel} volta a abrir (se estiver no ar)`);
+    note(acc, channel === null ? t('lives.reopen.all', { site: SITES[site].label }) : t('lives.reopen.one', { site: SITES[site].label, ch: channel }));
   }
 
   // As lives de um site no menu da conta: fechar cada aberta ou todas; reabrir cada fechada ou todas
@@ -908,12 +912,12 @@ function createLives({
     const c = cfg();
     const shut = c[site][acc].closed;
     const opened = openOf(site, acc);
-    const items = opened.map((ch) => ({ label: `Fechar ${ch}`, click: () => closeLive(acc, site, ch) }));
-    if (opened.length > 1) items.push({ label: 'Fechar todas', click: () => closeLive(acc, site, null) });
+    const items = opened.map((ch) => ({ label: t('lives.menu.close', { ch }), click: () => closeLive(acc, site, ch) }));
+    if (opened.length > 1) items.push({ label: t('lives.menu.closeAll'), click: () => closeLive(acc, site, null) });
     if (shut.length) {
       if (items.length) items.push({ type: 'separator' });
-      items.push(...shut.map((ch) => ({ label: `Reabrir ${ch}`, click: () => reopenLive(acc, site, ch) })));
-      if (shut.length > 1) items.push({ label: 'Reabrir todas', click: () => reopenLive(acc, site, null) });
+      items.push(...shut.map((ch) => ({ label: t('lives.menu.reopen', { ch }), click: () => reopenLive(acc, site, ch) })));
+      if (shut.length > 1) items.push({ label: t('lives.menu.reopenAll'), click: () => reopenLive(acc, site, null) });
     }
     return items;
   }
@@ -930,20 +934,20 @@ function createLives({
   // entrar e sair da Twitch/Kick dela, detalhes e registro.
   function accountMenu(acc) {
     const c = cfg();
-    const template = [{ label: 'Lives', type: 'checkbox', checked: c.accounts.includes(acc), toolTip: 'Mantém as lives desta conta', click: () => toggleAccount(acc) }];
+    const template = [{ label: t('lives.menu.lives'), type: 'checkbox', checked: c.accounts.includes(acc), toolTip: t('lives.menu.livesTip'), click: () => toggleAccount(acc) }];
     if (active.has(acc)) {
       const sites = SITE_ORDER
         .filter((s) => openOf(s, acc).length || c[s][acc].closed.length)
-        .map((s) => ({ label: `${SITES[s].label} (${openOf(s, acc).length})`, toolTip: `Lives da ${SITES[s].label} no ar nesta conta`, submenu: liveItems(acc, s) }));
+        .map((s) => ({ label: `${SITES[s].label} (${openOf(s, acc).length})`, toolTip: t('lives.menu.siteTip', { site: SITES[s].label }), submenu: liveItems(acc, s) }));
       if (sites.length) template.push({ type: 'separator' }, ...sites);
     }
     template.push(
       { type: 'separator' },
-      { label: 'Entrar', submenu: SITE_ORDER.map((s) => ({ label: SITES[s].label, click: () => showLogin(acc, s) })) },
-      { label: 'Sair', submenu: SITE_ORDER.map((s) => ({ label: SITES[s].label, click: () => logout(acc, s) })) },
+      { label: t('lives.menu.login'), submenu: SITE_ORDER.map((s) => ({ label: SITES[s].label, click: () => showLogin(acc, s) })) },
+      { label: t('lives.menu.logout'), submenu: SITE_ORDER.map((s) => ({ label: SITES[s].label, click: () => logout(acc, s) })) },
       { type: 'separator' },
-      { label: 'Detalhes', click: showDetails },
-      { label: 'Registro', click: showLog },
+      { label: t('lives.menu.details'), click: showDetails },
+      { label: t('lives.menu.log'), click: showLog },
     );
     return template;
   }
@@ -962,7 +966,7 @@ function createLives({
         const r = redeemers[s].get(acc);
         sites[s] = {
           login: !!token,
-          bonus: rewardsOf(c, s, acc).map((k) => BONUSES[k]?.label ?? k).join(' + ') || 'nenhum',
+          bonus: rewardsOf(c, s, acc).map((k) => BONUSES[k]?.label ?? k).join(' + ') || t('lives.bonus.noneShort'),
           stopped: r?.stopped ?? null,
           channels: openOf(s, acc).map((ch) => ({ channel: ch, text: r?.text(ch) ?? '' })),
         };
@@ -994,7 +998,7 @@ function createLives({
     config: cfg(),
     accounts: accountIds(),
     labels: Object.fromEntries(accountIds().map((a) => [a, tag(a)])),
-    bonuses: BONUSES,
+    bonuses: Object.fromEntries(Object.entries(BONUSES).map(([k, b]) => [k, { ...b, label: t(`lives.bonus.${k}`) }])),
     limits: { max: cfgLib.MAX_SLOTS },
     live: { twitch: { ...liveNow.twitch }, kick: { ...liveNow.kick } },
   }));

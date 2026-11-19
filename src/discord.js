@@ -8,6 +8,7 @@
 // A tag só vale se for IDLE, estiver ativa (identity_enabled) e, quando o id do servidor é conhecido, for a do servidor do jogo.
 const { BrowserWindow, session, shell } = require('electron');
 const accountNames = require('./account-names');
+const { t } = require('./i18n');
 const { DEFAULT_INVITE, readInvite } = require('./convite');
 
 const TAG = 'IDLE';
@@ -88,19 +89,12 @@ function lerEstado(raw) {
 
 // O que o botão 💬 da conta mostra. s = { loggedIn, tag } ou null. kind = unknown | out | notag | ok
 function statusInfo(s) {
-  if (!s || (s.loggedIn == null && s.tag === 'unknown')) {
-    return { kind: 'unknown', label: '💬 Discord', hint: 'Entra no servidor do jogo pelo Discord desta conta e coloca a tag IDLE (5 💎 na hora e 5 💎 a cada 10 dias). Clique para abrir o convite nesta conta.' };
-  }
-  if (s.loggedIn === false) {
-    return { kind: 'out', label: '💬 Discord: entrar', hint: 'O Discord desta conta não está logado. Clique para entrar e aceitar o convite do servidor.' };
-  }
-  if (s.tag === 'ok') {
-    return { kind: 'ok', label: '💬 Discord ✓ IDLE', hint: 'Discord logado e com a tag IDLE ativa. Falta só vincular ao jogo uma vez: no chat do jogo, /resgatar <codigo> (o código vem em "Resgatar Recompensa de TAG").' };
-  }
-  if (s.tag === 'no') {
-    return { kind: 'notag', label: '💬 Discord: falta a tag', hint: 'Discord logado, mas sem a tag IDLE ativa. Em Configurações de Usuário → Perfis → Tag do servidor, escolha IDLE.' };
-  }
-  return { kind: 'unknown', label: '💬 Discord: logado', hint: 'Discord logado. O app ainda não viu a tag no perfil: abra o seu perfil no Discord (clique no seu avatar) para ele conferir.' };
+  const info = (kind, key) => ({ kind, label: t(`discord.${key}.label`), hint: t(`discord.${key}.hint`) });
+  if (!s || (s.loggedIn == null && s.tag === 'unknown')) return info('unknown', 'unknown');
+  if (s.loggedIn === false) return info('out', 'out');
+  if (s.tag === 'ok') return info('ok', 'ok');
+  if (s.tag === 'no') return info('notag', 'notag');
+  return info('unknown', 'loggedIn');
 }
 
 // Leitura só do endereço da página (não altera nada): login, cadastro ou o app do Discord
@@ -112,7 +106,7 @@ function defaultWindow(id, destino) {
     width: 1100,
     height: 780,
     autoHideMenuBar: true,
-    title: `Discord · ${accountNames.label(id)} · entre no servidor e coloque a tag IDLE`,
+    title: t('discord.window.title', { name: accountNames.label(id) }),
     webPreferences: { partition: `persist:discord${id}` },
   });
   win.on('page-title-updated', (e) => e.preventDefault());
@@ -151,7 +145,7 @@ function createDiscord({
     try {
       store?.set({ serverId: estado.serverId, accounts: Object.fromEntries([...estado.accounts].map(([id, v]) => [id, v])) });
     } catch (err) {
-      console.error('não foi possível salvar o estado do Discord:', err);
+      console.error('could not save the Discord state:', err);
     }
   }
 
@@ -171,7 +165,7 @@ function createDiscord({
       estado.accounts.set(id, novo);
       mudou = true;
       if (novo.tag === 'ok' && atual.tag !== 'ok') {
-        notify({ kind: 'ok', title: `${accountNames.label(id)}: tag IDLE ativa`, text: 'Falta só vincular no jogo: /resgatar <codigo> no chat (uma vez)', ms: 8000 });
+        notify({ kind: 'ok', title: t('discord.tagOk.title', { name: accountNames.label(id) }), text: t('discord.tagOk.text'), ms: 8000 });
       }
     }
     if (mudou) persistir();

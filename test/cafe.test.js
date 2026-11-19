@@ -1,5 +1,6 @@
 // "Pague-me um café": BR Code do PIX (CRC e estrutura) e a janela (QR desenhado, cópia só dos dois textos permitidos).
 const { app, check, finish, waitFor } = require('./helpers');
+require('../src/i18n').setLang('pt-BR'); // the texts checked here are in Portuguese
 const { BrowserWindow, clipboard } = require('electron');
 const { brCode, crc16 } = require('../src/pix');
 const { createCafe, PIX_KEY } = require('../src/cafe');

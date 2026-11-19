@@ -16,6 +16,7 @@
 // e createCaptureWatch (liga o monitor às contas, mostra o aviso na página e toca o som).
 const path = require('path');
 const { WebContentsView, shell } = require('electron');
+const { t: tr } = require('./i18n');
 const accountNames = require('./account-names');
 
 // Bolas que contam como captura: Ultra Ball (4, id do catálogo de bolas: src/restock.js e a lista de bolas da página)
@@ -290,8 +291,8 @@ function createCaptureWatch({
   function avisa(id, r) {
     const s = Math.round(r.acc / 1000);
     if (r.inicio) {
-      sendLog({ acc: `conta${id}`, kind: 'load', level: 'warn', text: `vigia: não está capturando com Ultra/Beast Ball há ${s} s` });
-      notify({ kind: 'fail', title: `${accountNames.label(id)}: sem captura`, text: `não está capturando há ${s} s`, ms: 5000 });
+      sendLog({ acc: `conta${id}`, kind: 'load', level: 'warn', text: tr('watch.alertLog', { s }) });
+      notify({ kind: 'fail', title: tr('watch.alertTitle', { name: accountNames.label(id) }), text: tr('watch.alertText', { s }), ms: 5000 });
     }
     if (r.soar) tocar();
   }
@@ -320,9 +321,9 @@ function createCaptureWatch({
       const r = e.mon.tick(now());
       if (r.acao === 'limpa') {
         avisoCaptura(wc, null);
-        sendLog({ acc: `conta${slot.id}`, kind: 'load', level: 'info', text: 'vigia: a conta voltou a capturar' });
+        sendLog({ acc: `conta${slot.id}`, kind: 'load', level: 'info', text: tr('watch.backLog') });
       } else if (r.acao === 'alerta') {
-        avisoCaptura(wc, `⚠ ${accountNames.label(slot.id)}: não está capturando há ${Math.round(r.acc / 1000)} s`);
+        avisoCaptura(wc, tr('watch.banner', { name: accountNames.label(slot.id), s: Math.round(r.acc / 1000) }));
         avisa(slot.id, r);
       }
     }

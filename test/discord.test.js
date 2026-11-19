@@ -1,5 +1,6 @@
 // Discord por conta: leitura das respostas do site (perfil, convite), validade da tag IDLE, estado guardado e o botão da conta.
 const { app, check, finish } = require('./helpers');
+require('../src/i18n').setLang('pt-BR'); // the texts checked here are in Portuguese
 const { createDiscord, inviteCode, tagStatus, readResponse, lerEstado, statusInfo } = require('../src/discord');
 
 const API = 'https://discord.com/api/v9';

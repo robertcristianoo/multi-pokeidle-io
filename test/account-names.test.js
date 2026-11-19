@@ -2,6 +2,7 @@
 // rótulo é "Conta N"; nomes inválidos não são gravados; nomes iguais ganham o sufixo do id; e o rótulo não depende da posição.
 // Os nomes usados aqui são fictícios.
 const { check, finish } = require('./helpers');
+require('../src/i18n').setLang('pt-BR'); // the texts checked here are in Portuguese
 const { createAccountNames, NAME_SCRIPT, MAX_NAME_LEN } = require('../src/account-names');
 
 // Armazenamento falso (no lugar de loadConfig/saveConfig do main): guarda o objeto e conta as gravações

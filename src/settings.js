@@ -4,14 +4,16 @@
 // As linhas `rows` vêm dos módulos adicionais (ver src/extras.js) e só aparecem quando eles estão carregados.
 const path = require('path');
 const { BrowserWindow, app, clipboard, dialog, ipcMain, screen } = require('electron');
+const { t, loadPage, onChange } = require('./i18n');
 
 const PRELOAD = path.join(__dirname, 'preload', 'settings.js');
 const PAGE = path.join(__dirname, 'ui', 'settings.html');
 
 // toggles: { nome: () => void } alterna a opção; open: { nome: () => void } abre uma janela auxiliar;
 // extensions: { set(ext, conta, ligada) } liga/desliga uma extensão do Chromium em uma conta (o estado vem em getState);
-// license: createLicense() (src/license.js), para a seção Licença
-function createSettings({ mainWin, getState, toggles, open, extensions, license }) {
+// license: createLicense() (src/license.js), para a seção Licença;
+// setLang(code): changes the app language (main saves it and reloads the screens)
+function createSettings({ mainWin, getState, toggles, open, extensions, license, setLang }) {
   let win = null;
 
   function show() {
@@ -23,14 +25,15 @@ function createSettings({ mainWin, getState, toggles, open, extensions, license 
       resizable: false,
       parent: mainWin,
       modal: true,
-      title: 'Configurações - Multi PokeIdle IO',
+      title: t('settings.window'),
       autoHideMenuBar: true,
       minimizable: false,
       webPreferences: { preload: PRELOAD },
     });
     win.on('closed', () => { win = null; });
-    win.loadFile(PAGE);
+    loadPage(win.webContents, PAGE);
   }
+  onChange(() => { if (win && !win.isDestroyed()) win.setTitle(t('settings.window')); });
 
   // só aceita nomes conhecidos: a página nunca escolhe o que executar
   const fromWin = (e) => !!win && !win.isDestroyed() && e.sender === win.webContents;
@@ -40,12 +43,12 @@ function createSettings({ mainWin, getState, toggles, open, extensions, license 
     if (process.env.PKMULTI_TEST || !win || win.isDestroyed()) return;
     const r = await dialog.showMessageBox(win, {
       type: 'question',
-      buttons: ['Reiniciar agora', 'Depois'],
+      buttons: [t('settings.license.restartNow'), t('settings.license.later')],
       defaultId: 0,
       cancelId: 1,
-      title: 'Licença',
-      message: 'Reinicie o app para aplicar a licença.',
-      detail: 'Os recursos liberados por ela passam a valer na próxima abertura.',
+      title: t('settings.license.title'),
+      message: t('settings.license.restartMessage'),
+      detail: t('settings.license.restartDetail'),
     });
     if (r.response === 0) {
       app.relaunch();
@@ -66,6 +69,10 @@ function createSettings({ mainWin, getState, toggles, open, extensions, license 
   });
   ipcMain.handle('cfg:ext', async (e, ext, acc, on) => {
     if (fromWin(e) && typeof ext === 'string' && Number.isInteger(acc) && typeof on === 'boolean') await extensions.set(ext, acc, on);
+    return fromWin(e) ? getState() : null;
+  });
+  ipcMain.handle('cfg:lang', (e, code) => {
+    if (fromWin(e) && typeof code === 'string') setLang(code);
     return fromWin(e) ? getState() : null;
   });
   ipcMain.on('cfg:open', (e, name) => {

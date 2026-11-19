@@ -17,6 +17,7 @@ const { BrowserWindow, dialog, session, shell } = require('electron');
 const { EventEmitter } = require('events');
 const { loginViaBrowser } = require('./browser-login');
 const accountNames = require('./account-names');
+const { t: tr, getLang } = require('./i18n');
 
 const BASE = 'https://idlehub.io';
 const IDLEHUB_HOSTS = ['idlehub.io', 'www.idlehub.io'];
@@ -104,32 +105,32 @@ function formatLeft(ms) {
 }
 
 function formatWhen(at, now) {
-  const hm = new Date(at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const hm = new Date(at).toLocaleTimeString(getLang(), { hour: '2-digit', minute: '2-digit' });
   const day = (ms) => {
     const d = new Date(ms);
     d.setHours(0, 0, 0, 0);
     return d.getTime();
   };
   const dias = Math.round((day(at) - day(now)) / (24 * 60 * MIN));
-  if (dias === 0) return `hoje às ${hm}`;
-  if (dias === 1) return `amanhã às ${hm}`;
-  return `em ${new Date(at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} às ${hm}`;
+  if (dias === 0) return tr('idlehub.today', { hm });
+  if (dias === 1) return tr('idlehub.tomorrow', { hm });
+  return tr('idlehub.onDate', { date: new Date(at).toLocaleDateString(getLang(), { day: '2-digit', month: '2-digit' }), hm });
 }
 
 // O que o botão 🗳 da conta mostra. s = { proximoEm, fonte } ou null (desconhecido).
 // kind = unknown | ready | wait
 function voteInfo(s, now) {
   if (!s || s.proximoEm == null) {
-    return { kind: 'unknown', label: '🗳 Votar', hint: 'Votar no pokeidle pelo IdleHub (o jogo dá recompensa por voto). Quem vota é você, na página do IdleHub. O app só sabe dos votos feitos por ele: se esta conta já votou fora do app, o site avisa ao enviar.' };
+    return { kind: 'unknown', label: tr('idlehub.vote.label'), hint: tr('idlehub.unknown.hint') };
   }
   if (s.proximoEm <= now) {
-    return { kind: 'ready', label: '🗳 Votar', hint: 'Voto liberado. Clique para votar: quem vota é você, na página do IdleHub.' };
+    return { kind: 'ready', label: tr('idlehub.vote.label'), hint: tr('idlehub.ready.hint') };
   }
-  const estimado = s.fonte === 'estimado' ? ' (estimado: 24 h após o voto, porque o site não informou o horário)' : '';
+  const estimado = s.fonte === 'estimado' ? tr('idlehub.wait.estimated') : '';
   return {
     kind: 'wait',
-    label: `🗳 ✓ Votou · ${formatLeft(s.proximoEm - now)}`,
-    hint: `Voto feito pelo app. O próximo libera ${formatWhen(s.proximoEm, now)}${estimado}.`,
+    label: tr('idlehub.wait.label', { left: formatLeft(s.proximoEm - now) }),
+    hint: tr('idlehub.wait.hint', { when: formatWhen(s.proximoEm, now), estimated: estimado }),
   };
 }
 
@@ -157,10 +158,10 @@ async function runBrowserLogin(parent, partition) {
   if (loginsRunning.has(partition)) {
     dialog.showMessageBox(parent ?? undefined, {
       type: 'info',
-      title: 'Login pelo navegador',
-      message: 'Já há um login em andamento para esta conta.',
-      detail: 'Conclua o login na janela do Chrome (ou Edge) e feche-a: é ao fechar que o login volta para o app.',
-      buttons: ['Entendi'],
+      title: tr('idlehub.browserLogin.title'),
+      message: tr('idlehub.browserLogin.running'),
+      detail: tr('idlehub.browserLogin.runningDetail'),
+      buttons: [tr('idlehub.browserLogin.ok')],
     }).catch(() => {});
     return null;
   }
@@ -170,7 +171,7 @@ async function runBrowserLogin(parent, partition) {
     const r = await loginViaBrowser({ url: `${BASE}/api/auth/entrar?volta=%2F`, domains: IDLEHUB_HOSTS, session: session.fromPartition(partition) });
     loginEvents.emit('done', { id: idOfPartition(partition), ...r });
     if (!r.ok) {
-      dialog.showMessageBox(parent ?? undefined, { type: 'warning', title: 'Login pelo navegador', message: 'Não foi possível trazer o login.', detail: (r.reason || 'Tente de novo') + '. O login do IdleHub só existe com conta Google.', buttons: ['Entendi'] }).catch(() => {});
+      dialog.showMessageBox(parent ?? undefined, { type: 'warning', title: tr('idlehub.browserLogin.title'), message: tr('idlehub.browserLogin.fail'), detail: tr('idlehub.browserLogin.failDetail', { reason: r.reason || tr('idlehub.browserLogin.tryAgain') }), buttons: [tr('idlehub.browserLogin.ok')] }).catch(() => {});
     }
     return r;
   } finally {
@@ -184,12 +185,10 @@ async function offerBrowserLogin(win, partition, destino) {
   if (loginsRunning.has(partition)) { runBrowserLogin(win, partition); return; }
   const { response } = await dialog.showMessageBox(win, {
     type: 'info',
-    title: 'Login com Google',
-    message: 'O Google não permite login dentro deste app.',
-    detail: 'Posso abrir o Chrome (ou o Edge) só para você entrar no IdleHub e trazer o login para esta conta. '
-      + 'Entre normalmente, depois feche a janela do navegador. Só os cookies do IdleHub são copiados. '
-      + 'Não vote no navegador: o app só percebe os votos feitos nesta janela.',
-    buttons: ['Entrar pelo navegador', 'Cancelar'],
+    title: tr('idlehub.google.title'),
+    message: tr('idlehub.google.message'),
+    detail: tr('idlehub.google.detail'),
+    buttons: [tr('idlehub.google.button'), tr('common.cancel')],
     defaultId: 0,
     cancelId: 1,
   });
@@ -205,7 +204,7 @@ function defaultWindow(id, destino) {
     width: 1100,
     height: 820,
     autoHideMenuBar: true,
-    title: `Votar · ${accountNames.label(id)} · quem vota é você, nesta página do IdleHub`,
+    title: tr('idlehub.window.title', { name: accountNames.label(id) }),
     webPreferences: { partition },
   });
   // O site pode manter o título; o aviso de quem vota fica no título da janela
@@ -283,7 +282,7 @@ function createIdleHub({
     persistir();
     if (reg) {
       reg.registrado = true;
-      if (!reg.win.isDestroyed()) reg.win.setTitle(`✓ Voto registrado (${accountNames.label(id)})! Pode fechar esta janela`);
+      if (!reg.win.isDestroyed()) reg.win.setTitle(tr('idlehub.window.voted', { name: accountNames.label(id) }));
     }
   }
 
@@ -369,7 +368,7 @@ function createIdleHub({
     for (const [id, v] of estado) {
       if (v.avisado || v.proximoEm > t || !abertos.has(id)) continue;
       v.avisado = true;
-      notify({ kind: 'ok', title: `${accountNames.label(id)}: voto liberado`, text: 'Clique em 🗳 para votar de novo', ms: 6000 });
+      notify({ kind: 'ok', title: tr('idlehub.ready.title', { name: accountNames.label(id) }), text: tr('idlehub.ready.text'), ms: 6000 });
     }
     for (const [id, reg] of wins) {
       if (reg.registrado || reg.win.isDestroyed()) continue;
@@ -389,7 +388,7 @@ function createIdleHub({
   // Login trazido pelo navegador: avisa o resultado (a janela já volta para a página de voto)
   loginEvents.on('done', (r) => {
     if (!getSlots().some((s) => s.id === r.id)) return;
-    if (r.ok) notify({ kind: 'ok', title: `${accountNames.label(r.id)}: login do IdleHub trazido`, text: 'Clique em 🗳 para votar', ms: 5000 });
+    if (r.ok) notify({ kind: 'ok', title: tr('idlehub.loginBrought.title', { name: accountNames.label(r.id) }), text: tr('idlehub.loginBrought.text'), ms: 5000 });
   });
 
   if (timers) setInterval(() => { tick(); }, TICK_MS).unref?.();
@@ -414,8 +413,8 @@ function createIdleHub({
       const proximos = ids.map((id) => estado.get(id)).filter((v) => v && v.proximoEm > t).map((v) => v.proximoEm);
       const falta = proximos.length ? Math.min(...proximos) - t : null;
       const texto = ready.length
-        ? `🗳 Voto liberado: ${ready.map((id) => accountNames.label(id)).join(', ')}`
-        : falta != null ? `🗳 Próximo voto em ${formatLeft(falta)}` : null;
+        ? tr('idlehub.summary.ready', { accounts: ready.map((id) => accountNames.label(id)).join(', ') })
+        : falta != null ? tr('idlehub.summary.next', { left: formatLeft(falta) }) : null;
       return { ready, text: texto };
     },
     tick,

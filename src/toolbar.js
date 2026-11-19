@@ -4,6 +4,7 @@
 //  - uma barra global fina no topo da janela, com o que é do app (contas, logs, lives, ajuda).
 const path = require('path');
 const { WebContentsView, ipcMain, Menu } = require('electron');
+const { loadPage } = require('./i18n');
 
 const SLOT_BAR_H = 30;
 const APP_BAR_H = 30;
@@ -19,7 +20,7 @@ function createToolbars({ mainWin, getSlots, getFeatures, getAccountInfo, getSlo
     view.setBackgroundColor('#1b1220');
     mainWin.contentView.addChildView(view);
     const query = kind === 'app' ? { kind: 'app' } : { kind: 'slot', id: String(kind) };
-    view.webContents.loadFile(path.join(__dirname, 'ui', 'toolbar.html'), { query });
+    loadPage(view.webContents, path.join(__dirname, 'ui', 'toolbar.html'), query);
     const bar = { view, last: '' };
     bars.set(kind, bar);
     view.webContents.on('did-finish-load', () => push(kind, true));

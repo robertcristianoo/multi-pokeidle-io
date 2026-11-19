@@ -3,6 +3,7 @@
 // abertos, a raid e o "momento". Assim o app pega o baú sem esperar a conferência, entra na raid e sabe se as lives
 // estão rendendo. A conexão que cai volta sozinha (5 s, 10 s… até 2 min); o login recusado (ERR_BADAUTH) para de vez.
 const crypto = require('crypto');
+const { t: tl } = require('../i18n');
 
 const TWITCH_PUBSUB_URL = 'wss://pubsub-edge.twitch.tv/v1';
 
@@ -113,7 +114,7 @@ class TwitchPubSub {
     return new Promise((resolve, reject) => {
       const socket = new WebSocket(this._url);
       socket.addEventListener('open', () => resolve(socket), { once: true });
-      socket.addEventListener('error', (e) => reject(new Error(e?.message || 'não deu para conectar na Twitch')), { once: true });
+      socket.addEventListener('error', (e) => reject(new Error(e?.message || tl('lives.watch.twitchConnect'))), { once: true });
       this._pending = socket;
     });
   }
@@ -164,7 +165,7 @@ class TwitchPubSub {
         case 'RESPONSE': {
           const error = root.error;
           if (!error) return null;
-          this._error = error === 'ERR_BADAUTH' ? 'a Twitch recusou o login da conta nos avisos' : error;
+          this._error = error === 'ERR_BADAUTH' ? tl('lives.watch.badAuth') : error;
           return error === 'ERR_BADAUTH' ? true : null;
         }
         case 'MESSAGE': {

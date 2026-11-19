@@ -4,6 +4,7 @@
 // Fluxo esperado: Kanto do menor nível ao maior (sem as travadas) -> Johto -> Outland -> fim; depois do reset, tudo de novo.
 // Hoenn (cadeado) e Sinnoh (em obra) não podem ser visitadas. Um clique recusado pela "trava de combate" é repetido.
 const { app, sleep, check, finish, waitFor } = require('./helpers');
+require('../src/i18n').setLang('pt-BR'); // os textos conferidos aqui estão em português
 const path = require('path');
 const { BrowserWindow } = require('electron');
 
