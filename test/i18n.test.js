@@ -62,7 +62,12 @@ app.whenReady().then(async () => {
     await waitFor(async () => (await text(settingsWin.webContents, 'document.getElementById("lang")?.options.length')) === 3, 8000);
     check(await text(settingsWin.webContents, 'document.getElementById("lang").options.length') === 3, 'seletor de idioma com 3 idiomas');
 
-    // parte de um idioma conhecido (o inicial depende do sistema onde o teste roda)
+    // parte de um idioma conhecido: o app ignora a escolha do idioma que já está ativo, então sai do inglês antes
+    // (o idioma inicial depende do sistema onde o teste roda: o CI começa em inglês)
+    if (i18n.getLang() === 'en') {
+      await text(settingsWin.webContents, 'window.cfg.setLang("pt-BR")');
+      await waitFor(() => i18n.getLang() === 'pt-BR');
+    }
     await text(settingsWin.webContents, 'window.cfg.setLang("en")');
     check(await waitFor(() => i18n.getLang() === 'en' && savedLang() === 'en'), 'escolher inglês salva em config.json');
     check(await waitFor(async () => (await text(settingsWin.webContents, 'document.querySelector("h1").textContent')) === 'Settings', 8000), 'a janela de Configurações recarrega em inglês');
