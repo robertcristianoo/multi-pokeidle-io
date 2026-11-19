@@ -94,6 +94,10 @@ The app does not collect telemetry and does not send game data to third parties 
 ### Does the app modify the game?
 It embeds the official site and does not change the game's behaviour. Its features read data the game already sends to the page and use the game's own controls. The one local change is for the /hunt extension's shortcut: the app serves the game's `app.js` with a small addition that only annotates each Pokémon sprite, and nothing is sent anywhere. If the game changes and the insertion point is not found, the original script is used unmodified and a warning is written to the log.
 
+## License activation and optional modules
+
+**⚙ Settings › License** shows this computer's ID and lets you activate a per-machine license key. The app can also load optional modules that are **not part of the public source code**. Without a license nothing changes: every feature described above keeps working. The check is entirely offline and sends nothing anywhere.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
