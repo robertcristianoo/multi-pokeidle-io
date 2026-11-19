@@ -63,7 +63,7 @@
     const d = document.createElement('div');
     d.className = `row ${e.level} ${e.acc}`;
     const t = document.createElement('span'); t.className = 't'; t.textContent = e.t;
-    const a = document.createElement('span'); a.className = 'acc'; a.textContent = e.acc;
+    const a = document.createElement('span'); a.className = 'acc'; a.textContent = e.accLabel || e.acc;
     const k = document.createElement('span'); k.className = 'kind'; k.textContent = e.kind;
     d.append(t, a, k, document.createTextNode(e.text));
     logEl.appendChild(d);

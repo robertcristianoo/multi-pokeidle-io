@@ -8,6 +8,7 @@
 const path = require('path');
 const { app, WebContentsView, ipcMain } = require('electron');
 const { getLang, loadPage } = require('./i18n');
+const accountNames = require('./account-names');
 
 const BAR_H = 22;
 const POLL_MS = 5000;
@@ -46,7 +47,7 @@ function sampleMemory(slots, metrics = app.getAppMetrics()) {
     const ok = pid !== null && byPid.has(pid) && !claimed.has(pid);
     if (ok) claimed.add(pid);
     const mb = Math.round(ok ? kbOf(byPid.get(pid)) / KB_PER_MB : 0);
-    return { id: slot.id, pos, mb, txt: formatMemory(mb * KB_PER_MB), level: levelOf(mb, ACCOUNT_LIMITS) };
+    return { id: slot.id, label: accountNames.label(slot.id), pos, mb, txt: formatMemory(mb * KB_PER_MB), level: levelOf(mb, ACCOUNT_LIMITS) };
   });
   const totalKb = metrics.reduce((s, m) => s + kbOf(m), 0);
   const accountsKb = accounts.reduce((s, a) => s + a.mb * KB_PER_MB, 0);

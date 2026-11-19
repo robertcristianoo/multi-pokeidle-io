@@ -29,10 +29,12 @@
 <div id="bar">
   <div id="title" data-i18n="lives.points.title">Pontos</div>
   <span class="sp"></span>
-  <button id="next" title="Vai para a próxima conta (com a live no ar)" data-i18n-title="lives.points.nextTitle" data-i18n="lives.points.next">Próxima conta ▶</button>
+  <button id="login" title="Entra na Twitch/Kick nesta conta" data-i18n-title="lives.points.loginTitle" data-i18n="lives.points.login">Entrar</button>
+  <button id="logout" title="Sai da Twitch/Kick nesta conta" data-i18n-title="lives.points.logoutTitle" data-i18n="lives.points.logout">Sair</button>
+  <button id="next" title="Próxima live desta conta (com a live no ar)" data-i18n-title="lives.points.nextTitle" data-i18n="lives.points.next">Próxima live ▶</button>
   <button id="full" class="" title="Mostra só o rodapé do chat (botão dos pontos) ou a página inteira" data-i18n-title="lives.points.fullTitle" data-i18n="lives.points.full">Página completa</button>
-  <button id="config" title="Resgate automático, por conta e por site" data-i18n-title="lives.points.configTitle" data-i18n="lives.points.config">Config…</button>
-  <button id="log" title="Registro dos resgates" data-i18n-title="lives.points.logTitle" data-i18n="lives.points.log">Registro…</button>
+  <button id="config" title="Configuração do resgate automático das lives" data-i18n-title="lives.points.configTitle" data-i18n="lives.points.config">Config…</button>
+  <button id="log" title="Registro dos resgates" data-i18n-title="lives.points.logTitle" data-i18n="lives.points.log">Registro</button>
   <button id="close" title="Fecha o painel e libera as páginas da memória" data-i18n-title="lives.points.closeTitle" data-i18n="lives.points.close">Fechar ✕</button>
 </div>
 <div id="notice"></div>
@@ -46,6 +48,8 @@
   grip.addEventListener('pointerup', stopDrag);
   grip.addEventListener('pointercancel', stopDrag);
 
+  $('login').onclick = () => pts.cmd('login');
+  $('logout').onclick = () => pts.cmd('logout');
   $('next').onclick = () => pts.cmd('next');
   $('full').onclick = () => pts.cmd('full');
   $('config').onclick = () => pts.cmd('config');
@@ -53,12 +57,13 @@
   $('close').onclick = () => pts.cmd('close');
 
   pts.onState((s) => {
-    const cont = s.total ? `${s.index + 1}/${s.total}` : '0';
     const head = $('title');
-    head.textContent = t('lives.points.heading', { site: s.label });
-    if (s.title) {
+    // account name is always in the title: the panel belongs to a single account
+    head.textContent = t('lives.points.heading', { site: s.label, account: s.account });
+    head.title = head.textContent;
+    if (s.live) {
       const sm = document.createElement('small');
-      sm.textContent = `${s.title} (${cont})`;
+      sm.textContent = s.live;
       head.append(sm);
     }
     $('next').disabled = s.total < 2;

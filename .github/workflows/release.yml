@@ -74,9 +74,13 @@ jobs:
       - name: Carimbar a versão
         if: steps.plan.outputs.skip == 'false'
         shell: bash
+        # DISCORD_INVITE_URL (Settings > Secrets and variables > Actions > Variables) é o link de convite do dia, gerado no
+        # Discord pelo botão "Gerar meu convite"; o app o mostra em "Convidar". O app só aceita links discord.gg/discord.com/invite.
+        env:
+          DISCORD_INVITE_URL: ${{ vars.DISCORD_INVITE_URL }}
         run: |
           npm version "${{ steps.plan.outputs.version }}" --no-git-tag-version --allow-same-version
-          node -e "require('fs').writeFileSync('release-info.json', JSON.stringify({ version: '${{ steps.plan.outputs.version }}', tag: '${{ steps.plan.outputs.tag }}', commit: '${{ github.sha }}' }, null, 2))"
+          node -e "const i = { version: '${{ steps.plan.outputs.version }}', tag: '${{ steps.plan.outputs.tag }}', commit: '${{ github.sha }}' }; if (process.env.DISCORD_INVITE_URL) i.discordInvite = process.env.DISCORD_INVITE_URL; require('fs').writeFileSync('release-info.json', JSON.stringify(i, null, 2))"
 
       # `dist:release` roda `npm test` antes (predist:release): teste quebrado = nenhum Release.
       - name: Testar e gerar os executáveis

@@ -70,7 +70,7 @@ app.whenReady().then(async () => {
     check(await waitFor(() => i18n.getLang() === 'pt-BR' && savedLang() === 'pt-BR'), 'escolher pt-BR troca o idioma e salva em config.json');
     check(await waitFor(() => win.getTitle() === 'PokeIdle Multi'), 'título da janela segue o idioma');
     check(await waitFor(async () => (await text(settingsWin.webContents, 'document.querySelector("h1").textContent')) === 'Configurações', 8000), 'a janela de Configurações recarrega em pt-BR');
-    check(await waitFor(async () => /Configurações/.test(await text(appBar.webContents, 'document.body.innerText') ?? ''), 8000), 'a barra do app recarrega em pt-BR');
+    check(await waitFor(async () => /Configurações/.test(await text(appBar.webContents, '[...document.querySelectorAll("button")].map((b) => b.title).join(" ")') ?? ''), 8000), 'a barra do app recarrega em pt-BR');
     check(await text(settingsWin.webContents, 'document.getElementById("lang").value') === 'pt-BR', 'o seletor mostra o idioma atual');
 
     await text(settingsWin.webContents, 'window.cfg.setLang("es")');

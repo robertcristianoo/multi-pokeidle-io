@@ -40,7 +40,7 @@
     bar.append(item('RAM', s.total.txt, s.total.level, t('ram.total.title')));
     bar.append(item(t('ram.other.label'), s.app.txt, 'ok', t('ram.other.title')));
     for (const a of s.accounts) {
-      bar.append(item(t('common.account', { id: a.id }), a.txt, a.level, t('ram.account.title', { pos: a.pos + 1 })));
+      bar.append(item(a.label, a.txt, a.level, t('ram.account.title', { pos: a.pos + 1 })));
     }
     const x = document.createElement('button');
     x.className = 'hide';

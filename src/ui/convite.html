@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'">
+<title data-i18n="convite.title">Invite through Discord</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; padding: 20px; background: #161019; color: #eee; font: 14px "Segoe UI", sans-serif; }
+  h1 { margin: 0 0 6px; font-size: 19px; text-align: center; }
+  h2 { margin: 18px 0 6px; font-size: 15px; }
+  p, li { margin: 6px 0; color: #cdbfd8; line-height: 1.4; }
+  ol, ul { margin: 6px 0; padding-left: 20px; }
+  b { color: #fff; }
+  .link { font: 13px Consolas, monospace; color: #9db4ff; text-align: center; margin: 10px 0; word-break: break-all; user-select: all; }
+  .row { text-align: center; }
+  button { background: #3a2a4b; color: #fff; border: 1px solid #ffffff33; border-radius: 8px; padding: 8px 12px; cursor: pointer; font: inherit; margin: 4px; }
+  button:hover { background: #4b3763; }
+  .ok { color: #7ee08a; min-height: 18px; font-size: 13px; text-align: center; }
+  .tag { background: #231a2d; border: 1px solid #ffffff1f; border-radius: 10px; padding: 4px 14px 8px; margin-top: 14px; }
+  .small { font-size: 12px; color: #a99bb7; }
+  .fechar { background: transparent; }
+</style>
+<script src="../i18n/core.js"></script>
+<script src="../i18n/areas/support.js"></script>
+<script src="../i18n/areas/common.js"></script>
+<script src="i18n.js"></script>
+</head>
+<body>
+  <h1 data-i18n="convite.h1">💬 Invite through Discord</h1>
+  <p data-i18n-html="convite.intro"></p>
+  <p class="small" data-i18n-html="convite.accounts"></p>
+  <div class="link" id="link"></div>
+  <div class="row">
+    <button id="copiar" data-i18n="convite.copy">Copy link</button>
+    <button id="abrir" data-i18n="convite.open">Open in the browser</button>
+  </div>
+  <div class="ok" id="ok" role="status"></div>
+  <p class="small" data-i18n="convite.expires"></p>
+
+  <div class="tag">
+    <h2 data-i18n="convite.tag.h2"></h2>
+    <p data-i18n-html="convite.tag.intro"></p>
+    <ol>
+      <li data-i18n-html="convite.tag.step1"></li>
+      <li data-i18n-html="convite.tag.step2"></li>
+      <li data-i18n-html="convite.tag.step3"></li>
+    </ol>
+    <ul class="small">
+      <li data-i18n="convite.tag.note1"></li>
+      <li data-i18n="convite.tag.note2"></li>
+      <li data-i18n="convite.tag.note3"></li>
+    </ul>
+  </div>
+  <div class="row"><button class="fechar" id="fechar" data-i18n="common.close">Close</button></div>
+  <script src="convite.js"></script>
+</body>
+</html>

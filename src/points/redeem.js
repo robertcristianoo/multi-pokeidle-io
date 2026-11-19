@@ -3,7 +3,8 @@
 // que roda os scripts (kickScript/twitchScript) na página do canal e devolve o JSON para `apply`.
 //
 // Regras:
-//  - a cada conferência, no máximo 1 resgate por canal (Kick a cada 5 min, Twitch a cada 2 min: ver KICK_INTERVAL_MS);
+//  - a cada conferência (Kick a cada 5 min, Twitch a cada 2 min: ver KICK_INTERVAL_MS): com um bônus, resgata o seu em cada
+//    canal que cobre; com vários, uma rodada (1 de cada bônus, em canais que somam o saldo), só se o combo inteiro couber (planRound);
 //  - resgate (ou baú) recusado: espera 30 min para tentar de novo naquele canal;
 //  - sem o site vinculado no jogo o PokeIdle devolve os pontos: o saldo que sobe logo depois de um resgate para o
 //    resgate desta conta (`stopped`); `restart()` (ao salvar a configuração) volta a resgatar;
@@ -72,12 +73,75 @@ function pickBonus(matching, shut) {
   return { bonus: matching.find((m) => !shut(m.r)) ?? matching[0], cheapest: matching[0].cost };
 }
 
+// As chaves de bônus escolhidas (lista na ordem de prioridade; um texto só também vale). Sem chave válida, nenhuma.
+const keysOf = (v) => {
+  const arr = Array.isArray(v) ? v : typeof v === 'string' && v ? [v] : [];
+  return arr.filter((k, i) => typeof k === 'string' && BONUSES[k] && arr.indexOf(k) === i);
+};
+
+// A opção que a leitura escolheu: a primeira da lista que o saldo cobre (e não pausada); sem nenhuma, a primeira.
+function chooseOption(options, points) {
+  return options.find((o) => !o.paused && points >= o.cost) ?? options[0];
+}
+
+// Para cada bônus escolhido, o mais barato liberado que casa com o título (null se o canal não tem o bônus). `matches(key)`
+// devolve { cost, title, paused, cheapest, r } ou null.
+function optionsFor(keys, matches) {
+  return keys.map((key) => {
+    const m = matches(key);
+    return m ? { key, ...m } : null;
+  }).filter(Boolean);
+}
+
+// A chave do bônus que o resgate deve usar, a partir da leitura (a que ela escolheu); sem leitura útil, a primeira da lista.
+// A rodada dos bônus escolhidos (combo "tudo ou nada"). `reads` = [{ channel, points, options }] dos canais que podem gastar
+// agora, na ordem da config (`options`: as opções lidas no canal, com key, cost e paused). Com um bônus só, cada canal que
+// cobre o seu resgata o seu (como antes). Com vários, uma rodada é 1 resgate de cada bônus, na ordem da lista, cada um num
+// canal que o oferece (não pausado): os custos que caem no mesmo canal somam e precisam caber no saldo dele. A atribuição é
+// determinística: cada bônus vai para o primeiro canal da config que couber; se um bônus não couber, volta atrás e tenta
+// outro canal para o anterior (assim acha qualquer atribuição que exista). Sem atribuição possível, devolve null (não resgata).
+function planRound(keys, reads) {
+  const list = keysOf(keys);
+  if (!list.length) return null;
+  const left = new Map(reads.map((r) => [r.channel, r.points]));
+  const cands = list.map((key) => reads.flatMap((r) => {
+    const o = (r.options ?? []).find((x) => x.key === key && !x.paused && Number.isInteger(x.cost));
+    return o ? [{ key, channel: r.channel, cost: o.cost, title: o.title }] : [];
+  }));
+  if (list.length === 1) {
+    const pay = cands[0].filter((c) => left.get(c.channel) >= c.cost);
+    return pay.length ? pay : null;
+  }
+  const out = [];
+  const place = (i) => {
+    if (i === list.length) return true;
+    for (const c of cands[i]) {
+      if (left.get(c.channel) < c.cost) continue;
+      left.set(c.channel, left.get(c.channel) - c.cost);
+      out.push(c);
+      if (place(i + 1)) return true;
+      out.pop();
+      left.set(c.channel, left.get(c.channel) + c.cost);
+    }
+    return false;
+  };
+  return place(0) ? out : null;
+}
+
+function rewardFor(json, rewards) {
+  try {
+    const k = JSON.parse(json)?.key;
+    if (typeof k === 'string' && BONUSES[k]) return k;
+  } catch {}
+  return keysOf(rewards)[0] ?? null;
+}
+
 /**
  * Na Twitch leve, a leitura sem a página: a mesma consulta do twitchScript (consultas não passam pela checagem
  * anti-robô). Devolve o mesmo JSON que o script devolveria sem agir (com "claimId" quando o baú está esperando), ou
  * { failed } quando o pedido não passou (aí se usa a página).
  */
-async function twitchReadAsync(api, channel, token, device, rewardKey) {
+async function twitchReadAsync(api, channel, token, device, rewards) {
   try {
     const headers = { 'User-Agent': USER_AGENT, 'Client-Id': TWITCH_CLIENT_ID, Authorization: 'OAuth ' + token, 'Content-Type': 'text/plain' };
     if (device) headers['X-Device-Id'] = device;
@@ -102,15 +166,21 @@ async function twitchReadAsync(api, channel, token, device, rewardKey) {
     }
     const points = cp.balance;
     const claimId = cp.availableClaim?.id ?? null;
-    if (!rewardKey) return JSON.stringify({ points, me, channelId, claimId });
-    const word = new RegExp(rewardWord(rewardKey), 'i');
-    const matching = (ch.communityPointsSettings?.customRewards ?? [])
-      .filter((r) => r.isEnabled === true && word.test(r.title ?? '') && /pokeidle/i.test(`${r.title ?? ''} ${r.prompt ?? ''}`) && isInt(r.cost))
-      .map((r) => ({ cost: r.cost, r }));
-    if (!matching.length) return JSON.stringify({ points, me, channelId, claimId, error: 'canal sem o bônus' });
+    const keys = keysOf(rewards);
+    if (!keys.length) return JSON.stringify({ points, me, channelId, claimId });
     const shut = (r) => r.isPaused === true || r.isInStock === false || typeof r.cooldownExpiresAt === 'string';
-    const { bonus, cheapest } = pickBonus(matching, shut);
-    return JSON.stringify({ points, me, channelId, claimId, cost: bonus.cost, title: bonus.r.title, paused: shut(bonus.r), cheapest });
+    const options = optionsFor(keys, (key) => {
+      const word = new RegExp(rewardWord(key), 'i');
+      const matching = (ch.communityPointsSettings?.customRewards ?? [])
+        .filter((r) => r.isEnabled === true && word.test(r.title ?? '') && /pokeidle/i.test(`${r.title ?? ''} ${r.prompt ?? ''}`) && isInt(r.cost))
+        .map((r) => ({ cost: r.cost, r }));
+      if (!matching.length) return null;
+      const { bonus, cheapest } = pickBonus(matching, shut);
+      return { cost: bonus.cost, title: bonus.r.title, paused: shut(bonus.r), cheapest };
+    });
+    if (!options.length) return JSON.stringify({ points, me, channelId, claimId, error: 'canal sem o bônus' });
+    const o = chooseOption(options, points);
+    return JSON.stringify({ points, me, channelId, claimId, options, key: o.key, cost: o.cost, title: o.title, paused: o.paused, cheapest: o.cheapest });
   } catch {
     return failed('sem resposta da Twitch');
   }
@@ -120,9 +190,10 @@ async function twitchReadAsync(api, channel, token, device, rewardKey) {
  * Na Kick leve, a leitura sem a página: o saldo e o bônus escolhido (o mais barato que casa), pela API com o login da
  * conta. Devolve o mesmo JSON que o kickScript devolveria sem resgatar, ou { failed } quando o pedido não passou.
  */
-async function kickReadAsync(api, channel, token, rewardKey) {
+async function kickReadAsync(api, channel, token, rewards, fetchFn = fetch) {
+  // `fetchFn`: o pedido pela sessão do Chromium da conta (o fetch do Node recebe 403 da Kick); sem ela, o fetch comum
   const get = async (path) => {
-    const res = await fetch(`${api}/api/v2/channels/${encodeURIComponent(channel)}${path}`, {
+    const res = await fetchFn(`${api}/api/v2/channels/${encodeURIComponent(channel)}${path}`, {
       headers: { 'User-Agent': USER_AGENT, Accept: 'application/json', 'x-app-platform': 'web', Authorization: 'Bearer ' + token },
       signal: AbortSignal.timeout(READ_TIMEOUT_MS),
     });
@@ -135,14 +206,21 @@ async function kickReadAsync(api, channel, token, rewardKey) {
     if (!isInt(points)) return failed('sem os pontos na resposta');
     const rw = await get('/rewards');
     if (!rw.json) return JSON.stringify({ points, error: `bônus: erro ${rw.status}` });
-    const word = new RegExp(rewardWord(rewardKey), 'i');
     const list = Array.isArray(rw.json?.data) ? rw.json.data : [];
-    const matching = list
-      .filter((r) => r.is_enabled === true && word.test(r.title ?? '') && /pokeidle/i.test(`${r.title ?? ''} ${r.description ?? ''}`) && isInt(r.cost))
-      .map((r) => ({ cost: r.cost, r }));
-    if (!matching.length) return JSON.stringify({ points, error: 'canal sem o bônus' });
-    const { bonus, cheapest } = pickBonus(matching, (r) => r.is_paused === true);
-    return JSON.stringify({ points, cost: bonus.cost, title: bonus.r.title, paused: bonus.r.is_paused === true, cheapest });
+    const keys = keysOf(rewards);
+    if (!keys.length) return JSON.stringify({ points });
+    const options = optionsFor(keys, (key) => {
+      const word = new RegExp(rewardWord(key), 'i');
+      const matching = list
+        .filter((r) => r.is_enabled === true && word.test(r.title ?? '') && /pokeidle/i.test(`${r.title ?? ''} ${r.description ?? ''}`) && isInt(r.cost))
+        .map((r) => ({ cost: r.cost, r }));
+      if (!matching.length) return null;
+      const { bonus, cheapest } = pickBonus(matching, (r) => r.is_paused === true);
+      return { cost: bonus.cost, title: bonus.r.title, paused: bonus.r.is_paused === true, cheapest };
+    });
+    if (!options.length) return JSON.stringify({ points, error: 'canal sem o bônus' });
+    const o = chooseOption(options, points);
+    return JSON.stringify({ points, options, key: o.key, cost: o.cost, title: o.title, paused: o.paused, cheapest: o.cheapest });
   } catch {
     return failed('sem resposta da Kick');
   }
@@ -288,6 +366,20 @@ function createRedeemer({ site, log = () => {}, now = () => Date.now() }) {
       return c.cost != null ? `${c.points}/${c.cost}` + (c.paused ? tl('lives.rd.pausedSuffix') : '') : `${c.points}`;
     },
 
+    // Pode gastar neste canal agora, com este saldo (o resgate não está parado nem em espera, e os pontos não voltaram)
+    spendable(ch, points) {
+      const p = plan(ch);
+      return p.spend && !(p.refund != null && points >= p.refund);
+    },
+
+    // O baú esperando na leitura de fora da página e ainda não tentado (o mesmo critério de needsPage)
+    claimDue(ch, json, claim) {
+      let root;
+      try { root = JSON.parse(json); } catch { return false; }
+      const c = channels.get(ch);
+      return !!claim && !!root && typeof root.claimId === 'string' && (!c || now() >= c.claimRetryAt);
+    },
+
     // Na Twitch leve, se a leitura de fora da página pede a página: o baú esperando, um resgate que dá agora, ou a leitura que não passou
     needsPage(ch, json, claim) {
       let root;
@@ -304,10 +396,12 @@ function createRedeemer({ site, log = () => {}, now = () => Date.now() }) {
     },
 
     // O script que roda na live de `channel` da Kick: lê o saldo e o bônus escolhido e, se der, resgata 1
-    kickScript(api, channel, token, rewardKey) {
+    // `mayRedeem` falso: só lê o saldo e o bônus (o combo de vários bônus resgata pela leitura da API, não pela página)
+    kickScript(api, channel, token, rewardKey, mayRedeem = true) {
       const { spend, refund } = plan(channel);
-      if (spend) touch(channel).spendingSince = now();
-      return kickScript({ api, channel, token, word: rewardWord(rewardKey), spend, refund });
+      const go = spend && mayRedeem;
+      if (go) touch(channel).spendingSince = now();
+      return kickScript({ api, channel, token, word: rewardWord(rewardKey), spend: go, refund });
     },
 
     // O script da Twitch (API do site, com o login da conta): lê o saldo, pega o baú se tiver (`claim`) e, com
@@ -450,6 +544,6 @@ function createRedeemer({ site, log = () => {}, now = () => Date.now() }) {
 }
 
 module.exports = {
-  createRedeemer, claimProblem, errText, rewardWord, twitchReadAsync, kickReadAsync, twitchRaidScript, twitchMomentScript,
+  createRedeemer, claimProblem, errText, rewardWord, keysOf, rewardFor, planRound, twitchReadAsync, kickReadAsync, twitchRaidScript, twitchMomentScript,
   TWITCH_CLIENT_ID, KICK_INTERVAL_MS, TWITCH_INTERVAL_MS, RETRY_MS, REFUND_WINDOW_MS,
 };

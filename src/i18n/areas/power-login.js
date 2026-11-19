@@ -6,7 +6,7 @@
 })(typeof self !== 'undefined' ? self : this, {
   en: {
     'power.off.page': 'Account off',
-    'power.off.title': 'Account {id} off',
+    'power.off.title': '{name} off',
     'power.off.desc': 'The game for this account is not loaded, so it uses no CPU or memory. Your login and data stay saved and come back when you turn it on.',
     'power.off.turnOn': 'Turn account on',
     'login.browser.title': 'Browser login',
@@ -34,7 +34,7 @@
   },
   'pt-BR': {
     'power.off.page': 'Conta desligada',
-    'power.off.title': 'Conta {id} desligada',
+    'power.off.title': '{name} desligada',
     'power.off.desc': 'O jogo desta conta não está carregado, então ela não usa CPU nem memória. O login e os dados continuam salvos e voltam ao ligar.',
     'power.off.turnOn': 'Ligar conta',
     'login.browser.title': 'Login pelo navegador',
@@ -62,7 +62,7 @@
   },
   es: {
     'power.off.page': 'Cuenta apagada',
-    'power.off.title': 'Cuenta {id} apagada',
+    'power.off.title': '{name} apagada',
     'power.off.desc': 'El juego de esta cuenta no está cargado, así que no usa CPU ni memoria. El inicio de sesión y los datos siguen guardados y vuelven al encenderla.',
     'power.off.turnOn': 'Encender cuenta',
     'login.browser.title': 'Inicio de sesión por el navegador',

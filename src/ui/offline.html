@@ -25,7 +25,8 @@
   <button id="ligar" data-i18n="power.off.turnOn">Ligar conta</button>
 </div>
 <script>
-  document.getElementById('h').textContent = t('power.off.title', { id: new URLSearchParams(location.search).get('id') || '' });
+  const q = new URLSearchParams(location.search);
+  document.getElementById('h').textContent = t('power.off.title', { name: q.get('label') || t('common.account', { id: q.get('id') || '' }) });
   document.getElementById('ligar').onclick = () => off.turnOn();
 </script>
 </body>

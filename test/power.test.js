@@ -27,13 +27,13 @@ app.whenReady().then(async () => {
     const appBar = () => kids().find((v) => /kind=app/.test(urlOf(v)));
     const hasBtn = (v, label) => v.webContents.executeJavaScript(`[...document.querySelectorAll("button")].some(b => b.textContent === ${JSON.stringify(label)})`);
     const clickBtn = (v, label) => v.webContents.executeJavaScript(`[...document.querySelectorAll("button")].find(b => b.textContent === ${JSON.stringify(label)}).click()`);
-    const tagOf = (v) => v.webContents.executeJavaScript('document.querySelector(".tag").textContent');
+    const tagOf = (v) => v.webContents.executeJavaScript('[...document.querySelectorAll(".tag.nome, .tag.tempo")].map((t) => t.textContent).join(" ")');
 
     const bar1 = slotBar(1);
     const bar2 = slotBar(2);
     check(!!bar1 && !!bar2, 'uma barra por conta');
     check(await waitFor(() => hasBtn(bar2, '⏻ Ligar'), 4000), 'conta desligada na config mostra "⏻ Ligar" na barra');
-    check(/Conta 2 · desligada/.test(await tagOf(bar2)), `rótulo da conta desligada: "${await tagOf(bar2)}"`);
+    check(/Conta 2 desligada/.test(await tagOf(bar2)), `rótulo da conta desligada: "${await tagOf(bar2)}"`);
     check(games().length === 1, `só a conta ligada tem jogo carregado: ${games().length}`);
     check(placeholders().length === 1, 'a conta desligada mostra a página de desligada');
     const ph = placeholders()[0];

@@ -1,4 +1,4 @@
-// Configuração das lives (Lives → Config…): canais da Twitch e da Kick em ordem de prioridade, quantas lives abrir por
+// Configuração das lives (janela Config das lives): canais da Twitch e da Kick em ordem de prioridade, quantas lives abrir por
 // conta, quais contas mantêm lives, o bônus que cada conta resgata sozinha em cada site, o baú da Twitch e a guarda do
 // bônus. Módulo puro: só normaliza e valida o que vem do config.json (ou da janela de configuração).
 const { BONUSES } = require('../points/sites');
@@ -42,6 +42,16 @@ function perAccount(raw, max, pick) {
 
 const rewardKey = (v) => (typeof v === 'string' && BONUSES[v] ? v : undefined);
 
+// Os bônus escolhidos de uma conta num site, na ordem de prioridade (o primeiro que o saldo cobrir é o resgatado). Aceita a
+// lista nova, um bônus só (texto, como era salvo antes) ou nada; chave inválida e repetida caem fora.
+const rewardList = (v) => {
+  const arr = Array.isArray(v) ? v : typeof v === 'string' ? [v] : [];
+  const out = [];
+  for (const k of arr) if (rewardKey(k) && !out.includes(k)) out.push(k);
+  return out;
+};
+const rewardsPick = (v) => { const list = rewardList(v); return list.length ? list : undefined; };
+
 // O que o botão da conta fechou em cada site: quantas vagas (null = o limite geral) e os canais fechados.
 function limit(raw, max) {
   const closed = parseChannels(raw?.closed);
@@ -53,7 +63,7 @@ function limit(raw, max) {
 // `legacyAuto`: o resgate de antes ({ conta: { kick, twitch } }), lido uma vez enquanto não há escolha nova.
 function normalize(raw, { maxAccounts = 4, legacyAuto = null } = {}) {
   const r = raw && typeof raw === 'object' ? raw : {};
-  const legacy = (site) => perAccount(legacyAuto, maxAccounts, (v) => rewardKey(v?.[site]));
+  const legacy = (site) => perAccount(legacyAuto, maxAccounts, (v) => rewardsPick(v?.[site]));
   const twitchLives = clamp(int(r.twitchLives, DEFAULT_SLOTS), 0, MAX_SLOTS);
   const kickLives = clamp(int(r.kickLives, DEFAULT_SLOTS), 0, MAX_SLOTS);
   const accounts = Array.isArray(r.accounts)
@@ -74,8 +84,8 @@ function normalize(raw, { maxAccounts = 4, legacyAuto = null } = {}) {
     kickChannels: r.kickChannels === undefined ? [...DEFAULT_KICK] : parseChannels(r.kickChannels),
     twitchLives,
     kickLives,
-    redeemTwitch: r.redeemTwitch === undefined ? legacy('twitch') : perAccount(r.redeemTwitch, maxAccounts, rewardKey),
-    redeemKick: r.redeemKick === undefined ? legacy('kick') : perAccount(r.redeemKick, maxAccounts, rewardKey),
+    redeemTwitch: r.redeemTwitch === undefined ? legacy('twitch') : perAccount(r.redeemTwitch, maxAccounts, rewardsPick),
+    redeemKick: r.redeemKick === undefined ? legacy('kick') : perAccount(r.redeemKick, maxAccounts, rewardsPick),
     autoSort: r.autoSort === true, // mantém a lista ordenada por status (no ar primeiro): de fábrica desligado
     claimTwitch: r.claimTwitch !== false, // o baú de bônus da Twitch (+50 a cada ~15 min): de fábrica ligado
     guard,
@@ -119,4 +129,4 @@ function sortByStatus(list, live, was = {}) {
 
 const slotsOf = (lim, max) => clamp(lim.slots ?? max, 0, max);
 
-module.exports = { normalize, parseChannels, mergeOfficial, move, sortByStatus, slotsOf, MAX_SLOTS, DEFAULT_SLOTS, DEFAULT_TWITCH, DEFAULT_KICK };
+module.exports = { normalize, parseChannels, rewardList, mergeOfficial, move, sortByStatus, slotsOf, MAX_SLOTS, DEFAULT_SLOTS, DEFAULT_TWITCH, DEFAULT_KICK };

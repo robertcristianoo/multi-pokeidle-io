@@ -7,6 +7,8 @@
   "scripts": {
     "start": "electron .",
     "dist": "electron-builder --win",
+    "dist:backup": "node tools/backup-dist.js",
+    "dist:backups": "node tools/backup-dist.js --listar",
     "dist:release": "electron-builder --win --publish never --config electron-builder.release.json",
     "test": "node test/run.js",
     "predist": "npm test && node tools/dev-release-info.js",
@@ -19,7 +21,7 @@
   },
   "build": {
     "appId": "com.pokeidle.multi",
-    "files": ["**/*", "!dist-release/**", "!test/**", "!build/**", "!err.txt"],
+    "files": ["**/*", "!dist-release/**", "!test/**", "!build/**", "!tools/_x/**", "!.claude/**", "!dist/**", "!dist-backup/**", "!dist-fix/**", "!err.txt"],
     "asarUnpack": ["extensions/**"],
     "win": {
       "target": ["portable", "nsis"],

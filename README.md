@@ -66,7 +66,7 @@ O app abre em tela cheia com **2 contas** lado a lado. Faça login uma vez em ca
 | `F5` | Recarrega a conta que está com o teclado |
 | `Ctrl+F5` | Força a atualização (limpa o cache) da conta |
 | `Ctrl+Shift+F5` | Força a atualização de todas as contas |
-| `Ctrl+T` | Abre o menu **Lives** (contas com lives, entrar na Twitch/Kick, detalhes, registro dos resgates e config); o botão **Lives** da barra superior faz o mesmo |
+| `Ctrl+T` | Abre a configuração das lives (o mesmo que o botão **Lives** da barra superior) |
 | `Ctrl+U` | Liga/desliga o modo ULTRA do jogo em todas as contas (o botão **⚡ ULTRA** da barra superior faz o mesmo) |
 | `Ctrl+L` | Mostra/esconde a janela de logs (console, rede e erros de carregamento) |
 | `Ctrl+M` | Mostra/esconde a barra de RAM do rodapé |
@@ -74,6 +74,8 @@ O app abre em tela cheia com **2 contas** lado a lado. Faça login uma vez em ca
 | `F1` | Mostra/esconde a ajuda |
 
 Os números se referem à **posição** na grade (esquerda→direita, cima→baixo), não ao número da conta. Os atalhos valem com o app em foco.
+
+**Nome das contas.** Cada conta é identificada pelo **nome do jogador**, lido do próprio jogo ao carregar a conta e de tempos em tempos. O nome fica salvo no `config.json` da pasta de dados do app (chave `accountNames`, só nesta instalação e nunca enviado a lugar nenhum) e aparece já na abertura seguinte. Enquanto o nome não foi lido, a conta aparece como "Conta N", em que N é o número fixo da conta (o que define a sessão e o login). Se duas contas tiverem o mesmo nome, o rótulo ganha o número da conta ("Nome (conta 2)"). A posição na grade aparece só como informação adicional.
 
 ## Modo ULTRA
 
@@ -85,7 +87,7 @@ O botão **⚡ ULTRA** da barra superior (ou `Ctrl+U`) liga o **Modo ULTRA Econo
 
 ## Barras de botões e avisos
 
-Cada conta tem uma barra de botões no topo do próprio quadrante (liga/desliga só daquela conta, mais o **Foco**), e há uma barra do app no topo da janela (Contas 2/4, Logs, Lives, Ajuda e **⚙ Configurações**). Cada funcionalidade extra que o app carrega aparece como um botão sozinha. O botão **⚙ Configurações** abre uma janela (modal) que reúne as opções do app: animações reduzidas, vigia de captura, Auto-bola sem VIP, resgate automático e log de resgates. Em **Animações**, dá para ligar/desligar as animações reduzidas do jogo em todas as contas (ligado por padrão): é o mesmo pedido de "menos movimento" que o navegador faz com `prefers-reduced-motion`, o que diminui o uso de CPU sem mudar o que está escrito na tela. Os avisos (`src/toasts.js`) são pequenos, ficam no canto superior direito e somem em até 5 s.
+Cada conta tem uma barra de botões no topo do próprio quadrante (liga/desliga só daquela conta, **Lives**, **Pontos ▾**, mais o **Foco**, que fica azul quando a conta está em foco e, nesse modo, ganha os botões **<** e **>** para passar para a conta anterior ou seguinte; o **<** fica desativado na primeira posição e o **>** na última), e há uma barra do app no topo da janela (**?** Ajuda (F1) à esquerda e, à direita, o ícone de divisão de tela que alterna entre 2 e 4 contas, **☕ Cafézin**, **⚡ ULTRA**, **Lives ▾** (com os Pontos dentro) e, por último, **⚙ Configurações**). Cada funcionalidade extra que o app carrega aparece como um botão sozinha. O botão **⚙ Configurações** abre uma janela (modal) que reúne as opções do app: animações reduzidas, vigia de captura, resgate automático, log de resgates, os logs do app e a licença desta máquina. Em **Animações**, dá para ligar/desligar as animações reduzidas do jogo em todas as contas (ligado por padrão): é o mesmo pedido de "menos movimento" que o navegador faz com `prefers-reduced-motion`, o que diminui o uso de CPU sem mudar o que está escrito na tela. Os avisos (`src/toasts.js`) são pequenos, ficam no canto superior direito e somem em até 5 s.
 
 ### Barra de RAM
 
@@ -101,7 +103,7 @@ A lógica está em `src/ram.js` (e `src/ui/ram.html`, `src/preload/ram.js`).
 
 O botão **⏻** da barra de cada conta liga ou desliga só aquela conta:
 
-- **Desligar** destrói o jogo da conta, então ela deixa de gastar CPU e memória. No lugar do quadrante aparece a página "Conta N desligada", com o botão **Ligar conta**. O rótulo da barra mostra "Conta N · desligada".
+- **Desligar** destrói o jogo da conta, então ela deixa de gastar CPU e memória. No lugar do quadrante aparece a página "Conta N desligada" (com o nome, se já lido), com o botão **Ligar conta**. O rótulo da barra mostra "Conta N · desligada".
 - **Ligar** recria o jogo e recarrega a página. A sessão (login e dados) fica na partição `persist:contaN`, então o login volta sem precisar entrar de novo.
 - O estado fica em `config.json` (chave `offAccounts`, lista de posições 1 a 4 desligadas) e vale na próxima abertura do app: a conta continua desligada até você ligar.
 - Enquanto a conta está ligada, a barra mostra há quantos minutos ela está rodando ("Conta N · 12 min"; a dica do rótulo diz "rodando há 12 min").
@@ -128,49 +130,56 @@ funciona quando o jogo traz os atributos do pokémon do card (se faltarem, o pai
 
 ## Lives de bônus (Twitch e Kick)
 
-O jogo dá XP extra a quem assiste lives dos canais parceiros. O botão **Lives** da barra superior (ou `Ctrl+T`) abre um menu:
+O jogo dá XP extra a quem assiste lives dos canais parceiros. Cada conta tem o seu botão **Lives** na própria barra, com um menu só para ela:
 
-- **Marque a conta vinculada à sua Twitch/Kick** (normalmente a main): ela passa a manter as lives abertas. O bônus só vale para a conta do jogo vinculada à Twitch/Kick logada.
-- **Entrar na Twitch/Kick**: login feito uma vez, na sessão da própria conta (os cookies ficam salvos nela).
-- **Detalhes…**: uma linha por live aberta, com o estado da Twitch/Kick leve e o saldo de pontos; embaixo, os avisos de cada conta (resgate parado, falta entrar, tempo que falta do bônus no jogo).
-- **Registro dos resgates…** e **Config…**.
+- **Lives**: marca a conta vinculada à sua Twitch/Kick (normalmente a main), que passa a manter as lives abertas. O bônus só vale para a conta do jogo vinculada à Twitch/Kick logada. As outras contas não são afetadas.
+- **Entrar › Twitch / Kick** e **Sair › Twitch / Kick**: login e logout só desta conta (os cookies ficam na sessão dela).
+- **Twitch (n no ar)** / **Kick (n no ar)**: fechar ou reabrir as lives desta conta.
+- **Detalhes** e **Registro**.
+
+O botão **Lives** da barra superior (ou `Ctrl+T`) abre a **configuração** das lives de todas as contas. A cor do botão mostra o estado: cinza (desligadas nesta conta), verde (ligadas e em dia), azul (falta entrar na Twitch/Kick) e vermelho piscando (resgate parado).
 
 As lives são **leves**: o app abre os primeiros da lista de canais que estiverem no ar (até o número de vagas, 2 de fábrica por site) e assiste como um player, sem vídeo: na Twitch manda o aviso "minute-watched" e pede só o cabeçalho dos pedaços do vídeo; na Kick abre o websocket de espectador. Gasta quase nada de CPU e memória. Os avisos da Twitch (PubSub) chegam em tempo real: baú, pontos que entraram, raid e "momento". A página do canal só abre, escondida e muda, na hora de pegar o baú, resgatar, entrar numa raid ou pegar um momento, e fecha 1 min depois.
 
-**Config…** tem a lista de canais de cada site em ordem de prioridade (o de cima tem prioridade). Cada canal pode ser reordenado arrastando-o ou pelos botões ▲ ▼, removido (✕) ou adicionado (nome ou endereço do canal); a ordem da lista é a que fica salva em `config.json`. O botão **Atualizar com a lista oficial do jogo** lê os canais oficiais que o próprio jogo já informa à conta (os mesmos das telas Bônus Twitch e Bônus na Kick, **no ar e offline**) e acrescenta no fim da lista os que faltam, sem mexer na ordem escolhida; a bolinha ao lado de cada canal mostra se está no ar. A lista só vem de uma conta ligada e vinculada à Twitch/Kick no jogo; sem ela, a janela avisa que o jogo ainda não informou os canais.
+**Config das lives** tem a lista de canais de cada site em ordem de prioridade (o de cima tem prioridade). Cada canal pode ser reordenado arrastando-o ou pelos botões ▲ ▼, removido (✕) ou adicionado (nome ou endereço do canal); a ordem da lista é a que fica salva em `config.json`. O botão **Atualizar com a lista oficial do jogo** lê os canais oficiais que o próprio jogo já informa à conta (os mesmos das telas Bônus Twitch e Bônus na Kick, **no ar e offline**) e acrescenta no fim da lista os que faltam, sem mexer na ordem escolhida; a bolinha ao lado de cada canal mostra se está no ar. A lista só vem de uma conta ligada e vinculada à Twitch/Kick no jogo; sem ela, a janela avisa que o jogo ainda não informou os canais.
 
 **Quais lives abrem.** O app só abre canais que estão **no ar**, na ordem da lista e até o número de vagas por conta. A conferência de quem está no ar roda a cada 1 min; quando uma live aberta cai, ela sai e o próximo canal da lista que está no ar e ainda não está aberto entra no lugar (com aviso na tela e linha no registro). Canal que a conferência não conseguiu verificar (sem resposta) continua aberto se já estava, mas nunca é aberto sem confirmação de que está no ar. A ordem de prioridade vale sempre: se um canal de cima volta ao ar, ele retoma a vaga.
 
-Também em **Config…**: as vagas por site, o baú da Twitch (+50 a cada ~15 min) e, por conta: se mantém lives, o bônus resgatado na Kick e na Twitch e a **guarda do bônus**. O jogo informa o bônus das lives de cada conta; o app só lê esses dados do que o servidor do jogo já envia para a página e não envia nada de volta ao jogo.
+Também na **Config das lives**: as vagas por site, o baú da Twitch (+50 a cada ~15 min) e, por conta: se mantém lives, o bônus resgatado na Kick e na Twitch e a **guarda do bônus**. O jogo informa o bônus das lives de cada conta; o app só lê esses dados do que o servidor do jogo já envia para a página e não envia nada de volta ao jogo.
 
-## Voto no TopIdle
+## Voto no IdleHub
 
-O jogo dá recompensa a quem vota no pokeidle pelo [TopIdle](https://topidle.com). Cada conta tem um botão **🗳** na própria barra:
+O jogo dá recompensa a quem vota no pokeidle pelo [IdleHub](https://idlehub.io). Cada conta tem um botão **🗳** na própria barra:
 
-- **🗳 Votar** (verde): a conta já pode votar. A barra do app mostra quais contas estão liberadas.
-- **🗳 2 h 05 min**: quanto falta para o próximo voto; ao passar do horário o botão fica verde.
-- **🗳 ✓ Votou**: a conta já votou e o app está conferindo quando libera o próximo voto.
-- **🗳 Votar** (azul): a conta ainda não entrou no TopIdle; a primeira vez pede o login na janela que abre.
+- **🗳 Votar**: o app ainda não sabe se a conta já votou (veja a limitação abaixo). Ao clicar, a janela de voto mostra o estado do site.
+- **🗳 Votar** (verde): o último voto feito pelo app já liberou um novo voto. A barra do app mostra quais contas estão liberadas.
+- **🗳 ✓ Votou · 2 h 05 min**: voto feito pelo app; mostra quanto falta para o próximo. Ao liberar, o app avisa na tela.
 
-Ao clicar, abre uma janela com a página de voto do TopIdle, com o nick do personagem já preenchido. O captcha e o voto são concluídos por você nessa janela; o app não resolve captcha nem vota sozinho. Quando o TopIdle registra o voto, o app percebe e reinicia o contador. O mesmo acontece com o "votar" de dentro do jogo.
+Ao clicar, abre uma janela com a página de voto do IdleHub, com o nick do personagem já preenchido. O captcha e o voto são concluídos por você nessa janela; o app não resolve captcha nem vota sozinho. O mesmo acontece com o "votar" de dentro do jogo.
 
-O login do TopIdle fica salvo por conta, numa área separada da sessão do jogo. Para saber o estado, o app consulta `topidle.com` com os cookies dessa conta (`/api/me` e `/api/games`) e não envia nada além disso.
+**Limitação.** O IdleHub não oferece consulta pública do estado do voto que o app possa usar. Assim, o app só conhece os votos feitos por ele, pela resposta que o próprio site devolve ao enviar o voto (ou, se essa resposta não for lida, pela tela de voto registrado). Se a conta já votou fora do app, o botão continua em "Votar" até o site informar isso na janela. O horário de liberação vem do site; quando ele não é informado, o app usa 24 h após o voto e marca o horário como estimado. Esses horários ficam só no `config.json` deste computador.
 
-**Login com Google.** O Google recusa login dentro de janelas de aplicativos ("Esse navegador ou app pode não ser seguro"). Ao escolher o Google na janela do TopIdle, o app oferece **entrar pelo navegador**: abre o Chrome (ou o Edge) instalado, com um perfil temporário, para você entrar normalmente e fechar a janela. Só os cookies do TopIdle são copiados para a conta (o Google e o resto do navegador ficam de fora), e o perfil temporário é apagado. Durante o login, o navegador fica com a porta de depuração aberta apenas em `127.0.0.1`. Discord e e-mail e senha continuam funcionando direto na janela.
+O login do IdleHub é só com conta Google e fica salvo por conta, numa área separada da sessão do jogo. O app não consulta o IdleHub em segundo plano e não envia a ele nada além do que a própria página de voto envia.
 
-**Login com Google em todo o app.** O mesmo recurso vale para o jogo (PokeIdle), para o login da Kick/Twitch (Lives › Entrar) e para o painel de pontos: quando uma página tenta abrir o Google, o app pergunta se quer entrar pelo Chrome (ou Edge) instalado. Só o login do site daquela janela volta para a conta (cookies e, quando o site guarda o login ali, o localStorage), a página recarrega e o perfil temporário é apagado.
+**Login com Google.** O Google recusa login dentro de janelas de aplicativos ("Esse navegador ou app pode não ser seguro"). Ao escolher o Google na janela do IdleHub, o app oferece **entrar pelo navegador**: abre o Chrome (ou o Edge) instalado, com um perfil temporário, para você entrar normalmente e fechar a janela. Só os cookies do IdleHub são copiados para a conta (o Google e o resto do navegador ficam de fora), e o perfil temporário é apagado. Durante o login, o navegador fica com a porta de depuração aberta apenas em `127.0.0.1`. Não vote no navegador: o app só percebe os votos feitos na janela dele.
+
 ## Pontos da Twitch e da Kick
 
-Os botões **Pontos da Twitch** e **Pontos da Kick** (barra superior) abrem um painel embaixo da janela com o chat de cada live aberta nas suas contas, mostrando só o rodapé (o botão dos pontos e o popup de escolher o bônus), para você resgatar à mão:
+Cada conta tem o botão **Pontos ▾** na própria barra, com **Twitch**, **Kick** e **Todas as contas**. Twitch ou Kick abre um painel embaixo da janela com o chat das lives **dessa conta** que estão no ar, mostrando só o rodapé (o botão dos pontos e o popup de escolher o bônus), para você resgatar à mão. O painel sempre mostra o nome da conta no título, e nunca troca de conta sozinho.
 
-- **Próxima conta ▶** passa para a live da conta seguinte; **Página completa** mostra a página toda; a borda superior do painel muda a altura (o app guarda).
-- O login da Twitch e da Kick fica na sessão da própria conta do jogo (a mesma de **Lives › Entrar na Twitch/Kick**).
+- **Próxima live ▶** passa para a live seguinte da mesma conta; **Página completa** mostra a página toda; **Entrar** e **Sair** valem só para essa conta; a borda superior do painel muda a altura (o app guarda).
+- **Pontos** (barra superior) abre a janela **Pontos das contas**: uma linha por conta, lado a lado, com o login de Twitch e Kick, o bônus escolhido, as lives no ar com o saldo e o último resgate. Os botões de cada linha agem só na conta da linha (Entrar/Sair e Pontos). Quando aberta pela barra de uma conta, a janela já destaca essa conta.
+- O login da Twitch e da Kick fica na sessão da própria conta do jogo (a mesma de **Lives** › **Entrar**).
 - As páginas só existem enquanto o painel está aberto; fechar o painel libera a memória.
 
 ### Resgate automático (opcional, desligado de fábrica)
 
-Em **Lives › Config…** (ou **Configurações › Resgate automático**), escolha por conta e por site o bônus que pode ser resgatado com os pontos do canal: **+15% XP** (300 pontos), **Captura** (500) ou **Shiny** (1.000). Com a configuração salva, o app confere o saldo de cada live aberta (a cada 5 min na Kick e 2 min na Twitch), resgata 1 bônus por canal quando houver saldo (as horas acumulam) e, se o site recusar, tenta de novo no mesmo canal depois de 30 min.
+Em **Lives** (barra superior, ou `Ctrl+T`), **Config das lives** (ou **Configurações › Resgate automático**), escolha por conta e por site **um ou mais** bônus que podem ser resgatados com os pontos do canal: **+15% XP** (300 pontos), **Captura** (500) ou **Shiny** (1.000). Cada coluna de resgate tem um seletor com uma caixa por bônus; a ordem dos marcados (▲ ▼ no seletor) é a prioridade, e nenhum marcado equivale a **Não resgatar**. Com a configuração salva, o app confere o saldo de cada live aberta (a cada 5 min na Kick e 2 min na Twitch), resgata 1 bônus por canal quando houver saldo (as horas acumulam) e, se o site recusar, tenta de novo no mesmo canal depois de 30 min.
 
+- **Com vários bônus marcados, o resgate é um combo "tudo ou nada"**: cada conferência (Kick a cada 5 min, Twitch a cada 2 min) tenta uma **rodada** = 1 resgate de **cada** bônus marcado, na ordem da lista. A rodada só acontece se o saldo dos canais cobre o combo inteiro; se faltar pontos para qualquer um, não resgata nada e espera acumulando até caber.
+- **Canais diferentes**: cada bônus pode ir para um canal diferente, e os custos que caem no **mesmo canal somam** (o saldo do canal tem de cobrir a soma). A atribuição é determinística: cada bônus vai para o primeiro canal da lista de canais da config (na ordem das lives abertas) que o oferece, não pausado, e ainda cobre o que sobrou; se um bônus não couber, o app volta atrás e tenta outro canal para o bônus anterior. Se nenhuma atribuição existir, nada é resgatado nessa conferência. O registro avisa a espera (uma vez, quando muda) e mostra cada bônus resgatado.
+- Com um bônus só na lista, cada canal com saldo resgata o seu, como antes. Num combo, se um resgate da rodada for recusado pelo site, os seguintes ficam para a próxima conferência (sem desfazer o que já passou).
+- Configurações salvas antes, com um bônus só, continuam valendo como lista de um item.
 - Cada bônus existe em 4 durações (1, 3, 5 e 10 h): o app resgata o **mais barato liberado** (o de 1 h; se estiver pausado, esgotado ou em espera no canal, o de 3, 5 ou 10 h).
 - Para a conta e o site quando os pontos voltam logo após um resgate (site não vinculado no jogo). Salvar a configuração de novo volta a resgatar. Saldo que cai sem resgate do app só vai para o registro.
 - **Baú de bônus da Twitch** (ligado de fábrica): pega sozinho o baú que aparece nos canais abertos.
@@ -180,7 +189,7 @@ Em **Lives › Config…** (ou **Configurações › Resgate automático**), esc
 
 ### Log de resgates
 
-**Lives › Registro dos resgates…** (ou **Configurações › Log de resgates**) mostra cada resgate, recusa e parada, com hora, conta, site e canal, do mais recente para o mais antigo. O registro fica em `%APPDATA%\multi-pokeidle-io\resgates.log` (últimas 2.000 linhas).
+**Registro** (menu **Lives** de cada conta, ou **Configurações › Log de resgates**) mostra cada resgate, recusa e parada, com hora, conta, site e canal, do mais recente para o mais antigo. O registro fica em `%APPDATA%\multi-pokeidle-io\resgates.log` (últimas 2.000 linhas).
 ## Auto-reposição (🛒)
 
 Opcional e **desligada por padrão**. Em cada conta, o botão **🛒** da barra liga e desliga a reposição (fica verde quando ela está ligada e a conta conectada ao jogo); o **⚙** ao lado abre a janela com o estoque, o ouro, as regras e o registro das compras.
@@ -196,14 +205,23 @@ Limites de segurança fixos: no máximo 9.999 unidades por pedido; uma compra a 
 
 > **Atenção:** a reposição **gasta ouro real do jogo**. Confira as regras antes de ligar, e use por sua conta e risco. Os [termos do PokeIdle](https://pokeidle.io/termos) permitem automações (seção 5, "Automação") desde que sigam as mesmas regras de quem joga na mão, não explorem falhas, não burlem limites do jogo e não sobrecarreguem o servidor. Quem publica este projeto não se responsabiliza por perdas de ouro ou por penalidades aplicadas pelo jogo.
 
-## Vigia de captura e Auto-bola sem VIP
+## Vigia de captura
 
-Duas funções, ambas com liga/desliga em **⚙ Configurações** (e ligadas por padrão):
+Liga/desliga em **⚙ Configurações** (ligado por padrão):
 
 - **Vigia**: se uma conta fica cerca de 45 s sem capturar com Ultra ou Beast Ball, havendo alvo na lista, mostra um aviso vermelho na tela dela e toca um som (o som sai mesmo com a conta silenciada). O aviso some quando ela volta a capturar; enquanto persistir, o som se repete a cada 60 s.
-- **Auto-bola s/ VIP**: nas contas sem VIP, liga o Auto-bola sozinho ao entrar no jogo. Contas VIP não ligam sozinhas. Se você desligar o Auto-bola de uma conta, o app não o religa até ser fechado. A bola de arremesso é a mesma que o jogo usaria (a primeira que a conta tem), lida do estado do jogo; a economia não é alterada, e a conta recarrega uma vez para o Auto-bola acompanhar a conexão. Um aviso do app mostra se o Auto-bola ligou ou por que não ligou.
 
-Os dois só leem o que o próprio jogo já manda pelo socket (o estado VIP e os eventos de arremesso e de selvagem caído). Nada é enviado ao servidor.
+O vigia só lê o que o próprio jogo já manda pelo socket (os eventos de arremesso e de selvagem caído). Nada é enviado ao servidor.
+
+**☕ Café.** O botão **☕ Cafézin** da barra abre uma janela com o QR Code e o "copia e cola" de um PIX para quem quiser apoiar o projeto. É opcional, não há cobrança automática e nada é enviado pela janela.
+
+**💬 Discord por conta.** O botão **💬 Discord** da barra de cada conta abre o convite numa sessão de Discord própria daquela conta (login e servidor separados por conta) e mostra o estado: entrar, falta a tag ou ✓ IDLE. O app só lê o que o próprio Discord web recebe (perfil e convite) e o endereço da página; nunca lê nem usa o token da sessão. Se não vir a tag, o selo fica como "logado" (não confirmado): clique no seu avatar no Discord para ele conferir. O link vale 1 dia: a cada Release o workflow grava nele o valor da variável de repositório `DISCORD_INVITE_URL` (Settings → Secrets and variables → Actions → Variables); sem ela, vale o link padrão do app.
+
+## Licença e módulos adicionais
+
+O app tem ativação de licença por máquina em **⚙ Configurações › Licença**: mostra o ID desta máquina, aceita uma chave e permite removê-la. A verificação é **offline** (a chave é conferida com uma assinatura digital, sem rede) e o app não envia nenhuma telemetria. Sem licença, nada muda no uso do app.
+
+O app pode carregar módulos opcionais que **não fazem parte do código-fonte público**: eles ficam numa pasta que o repositório ignora e só entram no app local de quem os tem. Quem compila este repositório recebe o app completo deste README; os módulos adicionais não estão descritos aqui.
 
 ## Como funciona
 

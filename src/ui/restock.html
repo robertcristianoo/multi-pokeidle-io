@@ -151,7 +151,7 @@
 
   function mostrar(d) {
     const s = d.status;
-    $('titulo').textContent = t('restock.h1', { id: d.id });
+    $('titulo').textContent = t('restock.h1', { name: d.label });
     const st = $('status');
     if (!s) {
       st.className = 'status alerta';
@@ -188,7 +188,12 @@
       else opcoes($('potionsId'), POTIONS(), d.cfg.potions.id);
     }
     const log = $('log');
-    const linhas = s?.log ?? [];
+    // Histórico gravado no app (sobrevive ao fechar o app e a novas versões); a data aparece nas linhas de outros dias
+    const hoje = new Date().toDateString();
+    const linhas = (d.history ?? []).map((h) => {
+      const dt = new Date(h.t);
+      return (dt.toDateString() === hoje ? '' : dt.toLocaleDateString(lang, { day: '2-digit', month: '2-digit' }) + ' ') + h.texto;
+    });
     const perto = log.scrollTop + log.clientHeight >= log.scrollHeight - 20;
     log.textContent = linhas.length ? linhas.join('\n') : t('restock.noPurchases');
     if (perto) log.scrollTop = log.scrollHeight;

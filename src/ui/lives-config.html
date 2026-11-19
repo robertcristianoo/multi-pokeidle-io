@@ -44,6 +44,18 @@
   button.official { background: #3a2a52; }
   #msg { color: #8ab4ff; margin-right: auto; font-size: 12px; }
   small { color: #a99bb8; }
+  .pick { position: relative; display: inline-block; max-width: 100%; }
+  .pick-btn { background: #000; color: #e6e0ea; border: 1px solid #444; border-radius: 4px; padding: 3px 8px; font: 12px "Segoe UI", sans-serif; font-weight: 400; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+  .pick-btn:hover { border-color: #666; }
+  .pick-btn.none { color: #7d6f8d; }
+  .pick-pop { position: absolute; z-index: 10; top: calc(100% + 4px); left: 0; min-width: 240px; background: #1b1220; border: 1px solid #2a2030; border-radius: 6px; padding: 6px; box-shadow: 0 6px 18px rgba(0, 0, 0, .5); }
+  .pick-pop[hidden] { display: none; }
+  .pick-row { display: flex; align-items: center; gap: 6px; padding: 3px 4px; border-radius: 4px; white-space: nowrap; }
+  .pick-row:hover { background: #2b2232; }
+  .pick-row label { flex: 1; display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 400; }
+  .pick-row button.ord { background: #2b2232; padding: 1px 6px; border-radius: 4px; font-size: 11px; font-weight: 400; }
+  .pick-row button.ord:disabled { opacity: .3; cursor: default; }
+  .pick-hint { color: #7d6f8d; font-size: 11px; line-height: 1.4; margin: 6px 2px 2px; white-space: normal; }
 </style>
 </head>
 <body>
@@ -74,12 +86,14 @@
   </div>
 </div>
 <table>
-  <thead><tr><th data-i18n="lives.config.colAccount">Conta</th><th data-i18n="lives.config.colLives">Lives</th><th data-i18n="lives.config.colKick">Resgatar na Kick</th><th data-i18n="lives.config.colTwitch">Resgatar na Twitch</th><th title="Quando o bônus escolhido está para vencer, resgata 1 num canal fora das lives abertas que tenha os pontos" data-i18n-title="lives.config.colGuardTitle" data-i18n="lives.config.colGuard">Guarda do bônus</th></tr></thead>
+  <thead><tr><th data-i18n="lives.config.colAccount">Conta</th><th data-i18n="lives.config.colLives">Lives</th><th title="Marque os bônus que pode resgatar nesta conta; o primeiro da ordem (de cima para baixo) que o saldo cobrir é o resgatado" data-i18n-title="lives.config.colRewardTitle" data-i18n="lives.config.colKick">Resgatar na Kick</th><th title="Marque os bônus que pode resgatar nesta conta; o primeiro da ordem (de cima para baixo) que o saldo cobrir é o resgatado" data-i18n-title="lives.config.colRewardTitle" data-i18n="lives.config.colTwitch">Resgatar na Twitch</th><th title="Quando o bônus escolhido está para vencer, resgata 1 num canal fora das lives abertas que tenha os pontos" data-i18n-title="lives.config.colGuardTitle" data-i18n="lives.config.colGuard">Guarda do bônus</th></tr></thead>
   <tbody id="rows"></tbody>
 </table>
 <p style="margin-top:10px" data-i18n="lives.config.footer">Vincule a Twitch e a Kick no jogo (Bônus Twitch / Bônus na Kick) em cada conta que resgata: sem isso os pontos
-  voltam e o app para de resgatar naquela conta. Entre na Twitch/Kick uma vez em Lives → Entrar. O resgate confere o saldo a
-  cada 5 min (Kick) ou 2 min (Twitch), pega o mais barato liberado (as horas acumulam) e espera 30 min se o site recusar.</p>
+  voltam e o app para de resgatar naquela conta. Entre na Twitch/Kick uma vez, no botão Lives da conta (Entrar). O resgate confere o saldo a
+  cada 5 min (Kick) ou 2 min (Twitch), pega o mais barato liberado (as horas acumulam) e espera 30 min se o site recusar.
+  Com vários bônus marcados, cada conferência resgata uma rodada: 1 de cada bônus, na ordem da lista, só quando o saldo dos canais
+  cobre o combo inteiro (os custos que caem no mesmo canal somam); se não couber, espera acumulando.</p>
 <div class="acts">
   <span id="msg"></span>
   <button class="sec" id="cancel" data-i18n="common.close">Fechar</button>
@@ -99,12 +113,82 @@
     c = c.slice(c.lastIndexOf('/') + 1).replace(/^@/, '').toLowerCase();
     return /^[a-z0-9_]{1,40}$/.test(c) ? c : null;
   };
-  const reward = (bonuses, atual) => {
-    const sel = document.createElement('select');
-    sel.append(new Option(t('lives.bonus.none'), ''));
-    for (const [k, b] of Object.entries(bonuses)) sel.append(new Option(b.label + ' · ' + b.cost, k));
-    sel.value = atual || '';
-    return sel;
+  // Seletor de vários bônus de uma conta e site: o botão mostra os escolhidos; o painel tem uma caixa por bônus, e ▲ ▼ mudam
+  // a ordem dos marcados (a de cima tem prioridade). Nenhum marcado equivale a "Não resgatar". O elemento guarda `picker`,
+  // com `value` (lista de chaves na ordem de prioridade).
+  let openPick = null;
+  document.addEventListener('click', (e) => {
+    if (openPick && !e.composedPath().includes(openPick.wrap)) openPick.close();
+  });
+  const rewardPicker = (bonuses, atuais, site) => {
+    let sel = [...atuais];
+    const wrap = document.createElement('div');
+    wrap.className = 'pick ' + site;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'pick-btn';
+    const pop = document.createElement('div');
+    pop.className = 'pick-pop';
+    pop.hidden = true;
+    const close = () => { pop.hidden = true; if (openPick && openPick.wrap === wrap) openPick = null; };
+    const swap = (i, j) => {
+      if (i < 0 || j < 0 || i >= sel.length || j >= sel.length) return;
+      [sel[i], sel[j]] = [sel[j], sel[i]];
+      paint();
+    };
+    const orderButton = (text, title, fn, disabled) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'ord';
+      b.textContent = text;
+      b.title = title;
+      b.disabled = !!disabled;
+      b.onclick = fn;
+      return b;
+    };
+    const paint = () => {
+      btn.textContent = sel.length ? sel.map((k) => bonuses[k].label).join(', ') : t('lives.bonus.none');
+      btn.title = sel.length ? t('lives.config.pick.order', { list: sel.map((k, i) => t('lives.config.pick.rank', { n: i + 1, label: bonuses[k].label })).join(', ') }) : t('lives.bonus.none');
+      btn.classList.toggle('none', !sel.length);
+      pop.textContent = '';
+      const order = [...sel, ...Object.keys(bonuses).filter((k) => !sel.includes(k))];
+      for (const k of order) {
+        const i = sel.indexOf(k);
+        const row = document.createElement('div');
+        row.className = 'pick-row';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = i >= 0;
+        cb.onchange = () => { sel = cb.checked ? [...sel, k] : sel.filter((x) => x !== k); paint(); };
+        const lb = document.createElement('label');
+        lb.append(cb, t('lives.config.pick.cost', { label: bonuses[k].label, cost: bonuses[k].cost }));
+        row.append(lb);
+        if (i >= 0) {
+          row.append(
+            orderButton('▲', t('lives.config.pick.up'), () => swap(i, i - 1), i === 0),
+            orderButton('▼', t('lives.config.pick.down'), () => swap(i, i + 1), i === sel.length - 1),
+          );
+        }
+        pop.append(row);
+      }
+      const hint = document.createElement('div');
+      hint.className = 'pick-hint';
+      hint.textContent = t('lives.config.pick.hint');
+      pop.append(hint);
+    };
+    btn.onclick = () => {
+      const willOpen = pop.hidden;
+      if (openPick) openPick.close();
+      pop.hidden = !willOpen;
+      openPick = willOpen ? { wrap, close } : null;
+    };
+    wrap.append(btn, pop);
+    wrap.picker = {
+      get value() { return sel.slice(); },
+      set value(v) { sel = [...v]; paint(); },
+    };
+    paint();
+    return wrap;
   };
   const cell = (el) => { const td = document.createElement('td'); td.append(el); return td; };
   const button = (text, title, fn, disabled) => {
@@ -195,7 +279,7 @@
       }
       render(site);
     }
-    $('osrc').textContent = t('lives.config.listRead', { acc: o.acc, tw: o.twitch.length, kk: o.kick.length, added });
+    $('osrc').textContent = t('lives.config.listRead', { acc: LABELS[o.acc] || t('common.account', { id: o.acc }), tw: o.twitch.length, kk: o.kick.length, added });
   };
 
   // Ordena agora pelo status mostrado (no ar primeiro); sem status conhecido, o canal fica entre os offline
@@ -208,7 +292,9 @@
     $('osrc').textContent = t('lives.config.sorted');
   };
 
+  let LABELS = {};
   lc.get().then(({ config, accounts, bonuses, live, labels }) => {
+    LABELS = labels || {};
     state = config;
     lists.twitch = [...config.twitchChannels];
     lists.kick = [...config.kickChannels];
@@ -225,8 +311,8 @@
       const tr = document.createElement('tr');
       tr.dataset.acc = acc;
       const on = document.createElement('input'); on.type = 'checkbox'; on.checked = config.accounts.includes(acc); on.className = 'on';
-      const kick = reward(bonuses, config.redeemKick[acc]); kick.className = 'kick';
-      const tw = reward(bonuses, config.redeemTwitch[acc]); tw.className = 'twitch';
+      const kick = rewardPicker(bonuses, config.redeemKick[acc] || [], 'kick');
+      const tw = rewardPicker(bonuses, config.redeemTwitch[acc] || [], 'twitch');
       const guard = document.createElement('input'); guard.type = 'checkbox'; guard.checked = config.guard[acc] !== false; guard.className = 'guard';
       const name = document.createElement('td'); name.textContent = (labels && labels[acc]) || t('common.account', { id: acc });
       tr.append(name, cell(on), cell(kick), cell(tw), cell(guard));
@@ -249,8 +335,10 @@
     for (const tr of rows.querySelectorAll('tr')) {
       const acc = Number(tr.dataset.acc);
       if (tr.querySelector('.on').checked) next.accounts.push(acc);
-      if (tr.querySelector('select.kick').value) next.redeemKick[acc] = tr.querySelector('select.kick').value;
-      if (tr.querySelector('select.twitch').value) next.redeemTwitch[acc] = tr.querySelector('select.twitch').value;
+      const kickBonuses = tr.querySelector('.pick.kick').picker.value;
+      const twitchBonuses = tr.querySelector('.pick.twitch').picker.value;
+      if (kickBonuses.length) next.redeemKick[acc] = kickBonuses;
+      if (twitchBonuses.length) next.redeemTwitch[acc] = twitchBonuses;
       next.guard[acc] = tr.querySelector('.guard').checked;
     }
     state = await lc.save(next);

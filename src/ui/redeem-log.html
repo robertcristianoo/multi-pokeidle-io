@@ -40,7 +40,7 @@
   let rows = [];
   // O nome do evento no idioma atual (o que o registro guarda é o código em português)
   const evName = (ev) => (['resgatou', 'recusado', 'parou', 'erro', 'info'].includes(ev) ? t('lives.redeemlog.ev.' + ev) : ev);
-  const accLabel = (r) => t('common.account', { id: r.acc });
+  const accLabel = (r) => r.accLabel || t('common.account', { id: r.acc });
   const hora = (iso) => { const d = new Date(iso); return isNaN(d) ? iso : d.toLocaleString(window.lang); };
 
   function visible(r) {

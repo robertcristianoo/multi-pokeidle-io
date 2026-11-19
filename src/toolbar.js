@@ -10,7 +10,9 @@ const SLOT_BAR_H = 30;
 const APP_BAR_H = 30;
 const POLL_MS = 600;
 
-function createToolbars({ mainWin, getSlots, getFeatures, getAccountInfo, getSlotState = () => ({}), actions }) {
+// `menus[nome](contaId)` devolve o template de um menu nativo da barra da conta (botões Lives e Pontos);
+// `appMenus[nome]()` faz o mesmo para a barra do app (botão Lives, com os Pontos dentro).
+function createToolbars({ mainWin, getSlots, getFeatures, getAccountInfo, getSlotState = () => ({}), actions, menus = {}, appMenus = {} }) {
   const bars = new Map(); // 'app' | id -> { view, last }
 
   function makeView(kind) {
@@ -33,13 +35,16 @@ function createToolbars({ mainWin, getSlots, getFeatures, getAccountInfo, getSlo
       kind: 'slot',
       id: kind,
       pos,
+      count: slots.length,
       ...getSlotState(kind),
       features: getFeatures().map((f) => ({
         id: f.id,
         label: f.label,
         title: f.title ?? '',
         group: f.group ?? '',
+        order: Number.isFinite(f.order) ? f.order : 100, // posição na barra (menor = mais à esquerda)
         hasSettings: typeof f.settings === 'function',
+        hasOpen: typeof f.open === 'function', // botão que abre uma janela (em vez de ligar/desligar)
         on: !!f.isOn(kind),
         badge: f.badge?.(kind) ?? '',
         hint: f.hint?.(kind) ?? '',
@@ -85,7 +90,7 @@ function createToolbars({ mainWin, getSlots, getFeatures, getAccountInfo, getSlo
     const template = feats.flatMap((f, i) => [
       ...(i ? [{ type: 'separator' }] : []),
       { label: f.label, type: 'checkbox', checked: !!f.isOn(kind), toolTip: f.title ?? '', click: () => { f.set(kind, !f.isOn(kind)); after(); } },
-      ...(f.actions ?? []).map((a) => ({ label: a.label, click: () => { a.run(kind); after(); } })),
+      ...(f.actions ?? []).map((a) => ({ label: a.label, toolTip: a.title ?? '', click: () => { a.run(kind); after(); } })),
     ]);
     const b = bar.view.getBounds();
     Menu.buildFromTemplate(template).popup({
@@ -95,10 +100,27 @@ function createToolbars({ mainWin, getSlots, getFeatures, getAccountInfo, getSlo
       callback: () => actions.refocus?.(kind),
     });
   });
+  // Menu nativo genérico da barra de uma conta (ex.: Lives, Pontos): o template vem de `menus[name](contaId)`
+  ipcMain.on('tb:popup', (e, name, rect) => {
+    const kind = whoIs(e);
+    if (kind === undefined || typeof name !== 'string') return;
+    const bar = bars.get(kind);
+    // a barra do app tem os próprios menus (`appMenus`); as das contas, os de `menus`
+    const template = (kind === 'app' ? appMenus[name]?.() : menus[name]?.(kind)) ?? [];
+    if (!bar || !template.length) return;
+    const b = bar.view.getBounds();
+    Menu.buildFromTemplate(template).popup({
+      window: mainWin,
+      x: Math.round(b.x + (Number(rect?.x) || 0)),
+      y: Math.round(b.y + (Number(rect?.y) || b.height)),
+      callback: () => { push(kind); if (kind !== 'app') actions.refocus?.(kind); },
+    });
+  });
   ipcMain.on('tb:action', (e, name) => {
     const kind = whoIs(e);
     if (kind === undefined) return;
     if (name.startsWith('settings:')) getFeatures().find((x) => x.id === name.slice(9))?.settings?.(kind);
+    else if (name.startsWith('open:')) getFeatures().find((x) => x.id === name.slice(5))?.open?.(kind);
     else actions[name]?.(kind);
     push(kind);
   });
