@@ -3,6 +3,10 @@ const { app } = require('electron');
 // Isola a pasta de dados ANTES de qualquer require do app (cookies/sessões reais ficam intactos)
 app.setPath('userData', process.env.PKMULTI_TEST_DATA);
 
+// Fixa o idioma do sistema (app.getLocale()): os testes conferem textos em português, mas o CI roda em inglês e o app
+// começa no idioma do sistema. PKMULTI_TEST_LANG troca o idioma (ex.: en-US) para simular outro sistema.
+app.commandLine.appendSwitch('lang', process.env.PKMULTI_TEST_LANG || 'pt-BR');
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let fails = 0;
 const check = (cond, msg) => {
