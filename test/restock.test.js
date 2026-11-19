@@ -195,7 +195,7 @@ app.whenReady().then(async () => {
     check(arq['1'] && arq['1'].on === true, 'extensão: a configuração fica salva em restock.json');
 
     f.settings(1);
-    const jan = BrowserWindow.getAllWindows().find((w) => /conta 1/.test(w.getTitle()));
+    const jan = BrowserWindow.getAllWindows().find((w) => /Conta 1/.test(w.getTitle()));
     check(!!jan, 'janela de configuração abre para a conta 1');
     if (jan) {
       await waitFor(() => !jan.webContents.isLoading(), 4000);

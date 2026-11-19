@@ -1,12 +1,98 @@
 // Resgate automático (src/points/redeem.js, porte do PointsRedeemer da referência): menor duração liberada, parada
 // quando os pontos voltam, queda de saldo só no registro, espera de 30 min na recusa, baú, avisos e textos.
 const { app, check, finish } = require('./helpers');
-const { createRedeemer, claimProblem, RETRY_MS, REFUND_WINDOW_MS } = require('../src/points/redeem');
+const { createRedeemer, claimProblem, keysOf, rewardFor, planRound, kickReadAsync, twitchReadAsync, RETRY_MS, REFUND_WINDOW_MS } = require('../src/points/redeem');
 
 const MIN = 60 * 1000;
 const J = JSON.stringify;
 
-app.whenReady().then(() => {
+// ---- vários bônus por conta: a leitura escolhe o primeiro da lista que o saldo cobre (fetch falso, sem rede) ----
+const KICK_REWARDS = [
+  { title: 'Bônus de +15% XP 1h PokeIdle', description: 'pokeidle', cost: 300, is_enabled: true, is_paused: false },
+  { title: 'Bônus de Captura 1h PokeIdle', description: 'pokeidle', cost: 500, is_enabled: true, is_paused: false },
+  { title: 'Bônus Secret Lure 1h PokeIdle', description: 'pokeidle', cost: 1000, is_enabled: true, is_paused: false },
+];
+const TWITCH_REWARD = (title, cost) => ({ title, prompt: 'PokeIdle', cost, isEnabled: true, isPaused: false, isInStock: true, cooldownExpiresAt: null });
+const TWITCH_REWARDS = [TWITCH_REWARD('Bônus de +15% XP 1h PokeIdle', 300), TWITCH_REWARD('Bônus de Captura 1h PokeIdle', 500)];
+
+// Troca o fetch global por respostas fixas: a rota é o trecho da URL que casa
+function fakeFetch(routes) {
+  global.fetch = async (url) => {
+    const hit = Object.entries(routes).find(([k]) => String(url).includes(k));
+    if (!hit) return { ok: false, status: 404, json: async () => ({}) };
+    return { ok: true, status: 200, json: async () => hit[1] };
+  };
+}
+
+async function multiRewards() {
+  const realFetch = global.fetch;
+  try {
+    const kick = async (points, keys, rewards = KICK_REWARDS) => {
+      fakeFetch({ '/points': { data: { points } }, '/rewards': { data: rewards } });
+      return JSON.parse(await kickReadAsync('https://kick.com', 'canal', 'tok', keys));
+    };
+    let o = await kick(350, ['captura', 'xp']);
+    check(o.key === 'xp' && o.cost === 300 && o.points === 350, 'vários bônus: com 350 pontos, o primeiro que cobre é o XP (o Captura, de 500, ainda não dá)');
+    o = await kick(600, ['captura', 'xp']);
+    check(o.key === 'captura' && o.cost === 500, 'vários bônus: com 600 pontos, a ordem da lista manda (Captura antes do XP)');
+    o = await kick(600, ['xp', 'captura']);
+    check(o.key === 'xp' && o.cost === 300, 'vários bônus: trocar a ordem troca o escolhido');
+    o = await kick(200, ['shiny', 'captura']);
+    check(o.key === 'shiny' && o.cost === 1000 && o.points === 200, 'vários bônus: sem saldo para nenhum, mostra o primeiro da lista (sem resgatar)');
+    o = await kick(900, 'xp');
+    check(o.key === 'xp' && o.cost === 300, 'bônus só (texto de antes): lido como lista de um item');
+    o = await kick(900, []);
+    check(o.key === undefined && o.cost === undefined && o.points === 900, 'sem bônus escolhido: só o saldo');
+    o = await kick(900, ['xp', 'xp', 'nada']);
+    check(o.key === 'xp', 'lista com repetido ou inválido: conta uma vez');
+    o = await kick(900, ['captura'], [KICK_REWARDS[0]]);
+    check(o.error === 'canal sem o bônus' && o.points === 900, 'canal sem o bônus escolhido: aviso e só o saldo');
+    const r = createRedeemer({ site: 'kick' });
+    check(r.needsPage('canal', JSON.stringify(await kick(350, ['captura', 'xp'])), false) === true, 'com saldo para o XP da lista, a página abre para resgatar');
+
+    const twitch = async (balance, keys, rewards = TWITCH_REWARDS) => {
+      fakeFetch({ '/gql': { data: { currentUser: { id: '1' }, user: { id: '9', channel: {
+        self: { communityPoints: { balance, availableClaim: null } },
+        communityPointsSettings: { customRewards: rewards },
+      } } } } });
+      return JSON.parse(await twitchReadAsync('https://gql.twitch.tv', 'canal', 'tok', 'dev', keys));
+    };
+    o = await twitch(350, ['captura', 'xp']);
+    check(o.key === 'xp' && o.cost === 300 && o.me === '1' && o.channelId === '9', 'Twitch: a mesma escolha pela ordem, com o id da conta e do canal');
+    o = await twitch(600, ['captura', 'xp']);
+    check(o.key === 'captura' && o.cost === 500, 'Twitch: com saldo para o primeiro da lista, ele');
+    o = await twitch(600, []);
+    check(o.key === undefined && o.points === 600, 'Twitch: sem bônus escolhido, só o saldo');
+
+    check(rewardFor(J({ key: 'xp' }), ['captura']) === 'xp', 'rewardFor: usa a chave que a leitura escolheu');
+    check(rewardFor('lixo', ['captura', 'xp']) === 'captura' && rewardFor(null, 'xp') === 'xp' && rewardFor(null, []) === null, 'rewardFor: sem leitura útil, o primeiro da lista');
+    check(J(keysOf(['xp', 'shiny', 'xp', 'zzz'])) === '["xp","shiny"]' && keysOf(undefined).length === 0, 'keysOf: sem repetir nem chave inválida');
+    o = await kick(600, ['captura', 'xp']);
+    check(J(o.options.map((x) => x.key)) === '["captura","xp"]', 'leitura: traz as opções de cada bônus da lista, na ordem');
+
+    // ---- rodada do combo (planRound): um de cada bônus, em canais que somam o saldo ----
+    const opt = (key, cost, extra = {}) => ({ key, cost, title: key, paused: false, ...extra });
+    const canal = (channel, points, ...options) => ({ channel, points, options });
+    const names = (r) => (r ? r.map((a) => `${a.key}@${a.channel}`).join(' ') : 'nenhum');
+    check(names(planRound(['xp', 'captura'], [canal('a', 700, opt('xp', 300), opt('captura', 500))])) === 'nenhum', 'combo: saldo que não cobre os dois (700 < 800) não resgata nada');
+    check(names(planRound(['xp', 'captura'], [canal('a', 800, opt('xp', 300), opt('captura', 500))])) === 'xp@a captura@a', 'combo: saldo que cobre os dois resgata um de cada, na ordem da lista');
+    check(names(planRound(['captura', 'xp'], [canal('a', 800, opt('xp', 300), opt('captura', 500))])) === 'captura@a xp@a', 'combo: a ordem da lista é a ordem do resgate');
+    check(names(planRound(['xp', 'captura'], [canal('a', 350, opt('xp', 300)), canal('b', 600, opt('captura', 500))])) === 'xp@a captura@b', 'combo dividido: cada bônus no canal que o oferece e cobre');
+    check(names(planRound(['xp', 'captura'], [canal('a', 350, opt('xp', 300), opt('captura', 500)), canal('b', 100, opt('xp', 300))])) === 'nenhum', 'combo: sem canal que cubra o Captura e sem o XP sobrando não resgata');
+    check(names(planRound(['xp', 'captura'], [canal('a', 600, opt('xp', 300), opt('captura', 500)), canal('b', 300, opt('xp', 300))])) === 'xp@b captura@a', 'combo: se o primeiro canal não deixa caber, volta atrás e acha outra divisão');
+    check(names(planRound(['xp', 'captura'], [canal('a', 800, opt('xp', 300, { paused: true }), opt('captura', 500))])) === 'nenhum', 'combo: bônus pausado no canal não entra');
+    check(names(planRound(['xp', 'captura', 'shiny'], [canal('a', 1800, opt('xp', 300), opt('captura', 500), opt('shiny', 1000))])) === 'xp@a captura@a shiny@a', 'combo de três: soma 1800 no mesmo canal');
+    check(names(planRound(['xp', 'captura', 'shiny'], [canal('a', 1700, opt('xp', 300), opt('captura', 500), opt('shiny', 1000))])) === 'nenhum', 'combo de três: 1700 não cobre 1800');
+    check(names(planRound(['xp'], [canal('a', 350, opt('xp', 300)), canal('b', 200, opt('xp', 300)), canal('c', 900, opt('xp', 300))])) === 'xp@a xp@c', 'um bônus só: cada canal que cobre resgata o seu (como antes)');
+    check(planRound([], [canal('a', 900, opt('xp', 300))]) === null && names(planRound(['xp'], [canal('a', 900, opt('xp', 300, { paused: true }))])) === 'nenhum', 'sem bônus, ou só pausado: nada');
+  } catch (err) {
+    check(false, `vários bônus: erro inesperado: ${err.stack || err}`);
+  } finally {
+    global.fetch = realFetch;
+  }
+}
+
+app.whenReady().then(async () => {
   try {
     let t = Date.parse('2026-11-16T14:00:00');
     const now = () => t;
@@ -129,6 +215,7 @@ app.whenReady().then(() => {
     check(claimProblem(J({ claimed: true })) === null && claimProblem(J({ claimError: 'x' })) === null, 'claimProblem: pegou ou erro já registrado');
     check(claimProblem(J({ error: 'canal x' })) === 'canal x' && claimProblem(J({})) === 'a página não viu o baú', 'claimProblem: erro ou sem baú');
     check(REFUND_WINDOW_MS === 30 * MIN, 'janela de devolução de 30 min');
+    await multiRewards();
   } catch (err) {
     check(false, `erro inesperado: ${err.stack || err}`);
   }

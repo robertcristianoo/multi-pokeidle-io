@@ -3,6 +3,7 @@
 // A extensão em si é carregada por conta em src/chrome-ext.js, onde também se liga/desliga por conta
 // (Configurações › Extensões por conta).
 const { BrowserWindow, session } = require('electron');
+const accountNames = require('./account-names');
 
 module.exports = function init({ getSlots, notify, chromeExt }) {
   const cockpits = new Map(); // contaId -> janela do cockpit
@@ -15,13 +16,13 @@ module.exports = function init({ getSlots, notify, chromeExt }) {
     if (cur && !cur.isDestroyed()) { cur.show(); cur.focus(); return; }
     const extId = chromeExt.idOf('rotom', id);
     if (!extId) {
-      notify?.({ kind: 'fail', title: `Sniper desligado na conta ${id}`, text: 'Ligue em Configurações › Extensões por conta', ms: 4000 });
+      notify?.({ kind: 'fail', title: `Sniper desligado na conta ${accountNames.label(id)}`, text: 'Ligue em Configurações › Extensões por conta', ms: 4000 });
       return;
     }
     const win = new BrowserWindow({
       width: 1160,
       height: 760,
-      title: `Sniper (Rotom) - Conta ${id}`,
+      title: `Sniper (Rotom) - ${accountNames.label(id)}`,
       autoHideMenuBar: true,
       webPreferences: { session: session.fromPartition(`persist:conta${id}`) },
     });
@@ -36,6 +37,7 @@ module.exports = function init({ getSlots, notify, chromeExt }) {
   return {
     features: () => [{
       id: 'sniper',
+      order: 10, // posição na barra da conta (menor = mais à esquerda)
       label: 'Sniper',
       title: 'Abre o cockpit do Rotom Sniper desta conta (regras, radar de Shiny/P5 e liga/desliga do sniper). O sniper roda na página do jogo: fechar o cockpit não o para.',
       // verde = extensão carregada na conta (o sniper trabalha na página, com ou sem a janela do cockpit aberta)

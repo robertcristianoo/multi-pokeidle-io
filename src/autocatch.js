@@ -4,7 +4,7 @@
 // Para trocar de área, sai da hunt pelo atalho "Ir para o Centro Pokémon" (espera destravar: ele fica 3 s bloqueado
 // a cada dano), cura a equipe ("Curar equipe") e, já no Centro, escolhe a hunt nova na lista (no layout de celular, pelo "Caçar");
 // quando o jogo avisa que algo foi capturado, reabre o mapa, confere e passa para a próxima, até acabar tudo.
-// Só ESCOLHE a área: lançar as bolas continua sendo com o auto-bola (autoball.js) ou as automações do jogo.
+// Só ESCOLHE a área: lançar as bolas fica com as automações do jogo e com os módulos adicionais do app.
 // Atalhos: Ctrl+Alt+Shift+1..4 liga/desliga por posição; Ctrl+Alt+C liga/desliga todas; Ctrl+Alt+R zera as capturas da semana; Ctrl+Alt+Shift+D grava o diagnóstico da tela (todas as contas).
 //
 // Captura semanal (Top Catch): o jogo zera a contagem da semana no domingo 00:00 (Brasília), mas o Mapa continua
@@ -122,9 +122,6 @@ module.exports = function init({ getSlots, sendLog }) {
         textoVisivel: document.body.innerText.replace(/\\s+/g, ' ').slice(0, 1200),
         servidor: { tipos: A.kinds, amostras: A.samples },
         recentes: A.recent || [],
-        cliquesAutoBola: window.__abLog || [],
-        autoBolaEnvios: window.__abEnv || [],
-        autoBolaEventos: window.__abEvt || [],
         agora: new Date().toTimeString().slice(0, 8),
         caidosTodos: [...document.querySelectorAll('#caidos-lista .caido')].map((e) => ({ slot: e.dataset.slot, classe: e.className, tempo: e.querySelector('.caido-tempo i')?.style.width || null, nome: (e.querySelector('.caido-quem')?.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 40) })),
       };
@@ -419,9 +416,13 @@ module.exports = function init({ getSlots, sendLog }) {
     zerar,
     features: () => [{
       id: 'autocatch',
+      order: 40,
       group: 'Capturas',
       label: 'Auto-captura',
-      actions: [{ label: 'Resetar capturas da semana', run: (id) => zerar(id) }, { label: 'Diagnóstico (gravar estado da tela)', run: (id) => diagnostico(id) }],
+      actions: [
+        { label: 'Zerar a semana', title: 'Zera as capturas da semana desta conta para recapturar tudo', run: (id) => zerar(id) },
+        { label: 'Diagnóstico', title: 'Grava o estado da tela desta conta, para investigar problemas', run: (id) => diagnostico(id) },
+      ],
       title: 'Percorre as regiões liberadas e caça, do menor nível para o maior, as áreas cujo pokémon você ainda não tem',
       isOn: (id) => on.has(id),
       set: (id, v) => {

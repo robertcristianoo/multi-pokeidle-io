@@ -80,6 +80,7 @@ app.whenReady().then(async () => {
     // arte criada depois (card que redesenha) também ganha o atalho
     await v2.webContents.executeJavaScript(`(() => { const d = document.createElement('div'); d.id = 'n'; const c = document.createElement('canvas'); c.__pk = { speciesId: 9, level: 5, stats: { hp: 1 } }; c.setAttribute('data-pk-marca', '64'); d.append(c); document.body.append(d); })()`);
     check(await waitFor(() => v2.webContents.executeJavaScript('!!document.querySelector("#n .pih-atalho")'), 3000), 'card criado depois também ganha o atalho');
+
   } catch (err) {
     console.error(err);
     check(false, `erro inesperado: ${err.message}`);

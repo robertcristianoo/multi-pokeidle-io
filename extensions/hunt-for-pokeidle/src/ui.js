@@ -264,7 +264,7 @@
     alternarPainel();
   };
   const aoTeclar = (ev) => { if (ev.key === 'Escape') fecharPainel(); };
-  // [multi-pokeidle-io] só fecha com clique de verdade: o Auto-bola do app dispara pointerdown/click sintéticos (isTrusted=false)
+  // [multi-pokeidle-io] só fecha com clique de verdade: as automações do app disparam pointerdown/click sintéticos (isTrusted=false)
   // nos caídos a cada ~1 s, o que fechava o painel sozinho fora do modo economia
   const aoClicarFora = (ev) => { if (ev.isTrusted && painel && !painel.contains(ev.target) && ev.target !== botao && !ev.target.closest?.('.pih-atalho')) fecharPainel(); };
 

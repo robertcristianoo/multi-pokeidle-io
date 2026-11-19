@@ -23,6 +23,14 @@
   table.ext td.nome span { color: #a99bb8; font-size: 12px; line-height: 1.4; }
   table.ext button { min-width: 56px; padding: 3px 6px; }
   .acts { display: flex; justify-content: flex-end; margin-top: 18px; }
+  .lic-linha { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+  .lic-linha span { color: #a99bb8; font-size: 12px; min-width: 110px; }
+  .lic-linha code { flex: 1; font: 600 13px Consolas, monospace; letter-spacing: .04em; color: #e6e0ea; }
+  .lic-linha input { flex: 1; background: #1d1724; color: #e6e0ea; border: 1px solid #ffffff22; border-radius: 6px; padding: 5px 8px; font: 12px Consolas, monospace; user-select: text; }
+  .lic-estado { color: #a99bb8; font-size: 12px; min-height: 16px; margin: 4px 0 2px; }
+  .lic-estado.ok { color: #2fd160; }
+  .lic-estado.erro { color: #f87171; }
+  .lic-acoes { display: flex; justify-content: flex-end; }
   .acts button { background: #2f6fed; border-color: #6c9bff; color: #fff; }
 </style>
 </head>
@@ -40,10 +48,7 @@
   <div class="txt"><b>Vigia de captura</b><span>Avisa na tela da conta e com som quando ela fica cerca de 45 s sem capturar com Ultra ou Beast Ball, havendo alvo.</span></div>
   <button data-toggle="vigia" id="vigia"></button>
 </div>
-<div class="row">
-  <div class="txt"><b>Auto-bola sem VIP</b><span>Liga o Auto-bola sozinho nas contas sem VIP, ao entrar no jogo (contas VIP não ligam sozinhas).</span></div>
-  <button data-toggle="autoNoVip" id="autoNoVip"></button>
-</div>
+<div id="rows-extra"></div>
 
 <h2>Pontos (Twitch e Kick)</h2>
 <div class="row">
@@ -55,30 +60,98 @@
   <button data-open="redeemLog">Abrir…</button>
 </div>
 
+<h2>Diagnóstico</h2>
+<div class="row">
+  <div class="txt"><b>Logs</b><span>Mostra/esconde a janela de logs do app.</span></div>
+  <button data-open="logs">Abrir…</button>
+</div>
+
+<h2>Licença</h2>
+<div class="lic">
+  <div class="lic-linha"><span>ID desta máquina</span><code id="lic-maquina">…</code><button id="lic-copiar">Copiar</button></div>
+  <div class="lic-linha"><input id="lic-chave" type="text" autocomplete="off" spellcheck="false" placeholder="Cole a chave de licença"><button id="lic-ativar">Ativar</button></div>
+  <div class="lic-estado" id="lic-estado"></div>
+  <div class="lic-acoes"><button id="lic-remover">Remover licença</button></div>
+</div>
+
 <h2>Extensões por conta</h2>
 <p class="ajuda" style="color:#a99bb8;font-size:12px;margin:0 0 6px">Liga ou desliga cada extensão em cada conta. Ao mudar, a página daquela conta recarrega para a extensão entrar (ou sair).</p>
 <table class="ext" id="ext"></table>
 
 <div class="acts"><button id="close">Fechar</button></div>
 <script>
-  const FLAGS = { reduceMotion: (s) => s.reduceMotion, vigia: (s) => s.watch, autoNoVip: (s) => s.autoNoVip };
+  const FLAGS = { reduceMotion: (s) => s.reduceMotion, vigia: (s) => s.watch };
+  // linhas extras (módulos adicionais): entram na seção Captura, com o mesmo botão liga/desliga
+  function paintRows(rows) {
+    const box = document.getElementById('rows-extra');
+    if (box.dataset.ids === JSON.stringify((rows || []).map((r) => r.id))) return;
+    box.dataset.ids = JSON.stringify((rows || []).map((r) => r.id));
+    box.textContent = '';
+    for (const r of rows || []) {
+      const row = document.createElement('div');
+      row.className = 'row';
+      const txt = document.createElement('div');
+      txt.className = 'txt';
+      const b = document.createElement('b'); b.textContent = r.label;
+      const sp = document.createElement('span'); sp.textContent = r.desc;
+      txt.append(b, sp);
+      const btn = document.createElement('button');
+      btn.dataset.toggle = r.id;
+      btn.onclick = async () => paint(await cfg.toggle(r.id));
+      row.append(txt, btn);
+      box.append(row);
+    }
+  }
   function paint(s) {
     if (!s) return;
-    paintExt(s.extensions);
-    for (const [id, get] of Object.entries(FLAGS)) {
-      const b = document.getElementById(id);
+    paintExt(s.extensions, s.accountLabels || {});
+    paintRows(s.rows);
+    const estados = { ...FLAGS };
+    for (const r of s.rows || []) estados[r.id] = () => r.on;
+    for (const [id, get] of Object.entries(estados)) {
+      const b = document.getElementById(id) || document.querySelector(`[data-toggle="${id}"]`);
+      if (!b) continue;
       const on = !!get(s);
       b.textContent = on ? 'Ligado' : 'Desligado';
       b.classList.toggle('on', on);
     }
   }
-  function paintExt(ex) {
+  // Licença desta máquina: ID, ativação e remoção (a verificação é offline)
+  function paintLic(l) {
+    if (!l) return;
+    document.getElementById('lic-maquina').textContent = l.maquina;
+    const est = document.getElementById('lic-estado');
+    est.className = 'lic-estado ' + (l.ativa ? 'ok' : '');
+    est.textContent = l.ativa
+      ? (l.expiraEm ? `Ativa até ${new Date(l.expiraEm).toLocaleDateString('pt-BR')}` : 'Ativa, sem prazo')
+      : (l.motivo || 'Sem licença');
+  }
+  async function licAtivar() {
+    const chave = document.getElementById('lic-chave').value.trim();
+    const r = await cfg.lic.ativar(chave);
+    if (!r) return;
+    paintLic(r.licenca);
+    const est = document.getElementById('lic-estado');
+    if (!r.ok) { est.className = 'lic-estado erro'; est.textContent = r.motivo; return; }
+    document.getElementById('lic-chave').value = '';
+  }
+  document.getElementById('lic-ativar').onclick = licAtivar;
+  document.getElementById('lic-copiar').onclick = async () => {
+    const b = document.getElementById('lic-copiar');
+    if (await cfg.lic.copiar()) { b.textContent = 'Copiado'; setTimeout(() => { b.textContent = 'Copiar'; }, 1500); }
+  };
+  document.getElementById('lic-remover').onclick = async () => {
+    const r = await cfg.lic.remover();
+    if (r) paintLic(r.licenca);
+  };
+  cfg.lic.get().then(paintLic);
+  function paintExt(ex, labels) {
     const t = document.getElementById('ext');
     if (!ex) return;
     t.textContent = '';
     const head = t.insertRow();
     head.insertCell().outerHTML = '<th></th>';
-    for (let a = 1; a <= ex.max; a++) head.insertCell().outerHTML = `<th>Conta ${a}</th>`;
+    for (let a = 1; a <= ex.max; a++) head.insertCell().outerHTML = `<th>${labels[a] || 'Conta ' + a}</th>`;
     for (const it of ex.items) {
       const tr = t.insertRow();
       const c = tr.insertCell();
@@ -93,7 +166,7 @@
         btn.classList.toggle('on', on);
         btn.dataset.ext = it.id;
         btn.dataset.acc = String(a);
-        btn.title = `${it.name} na conta ${a}: ${on ? 'ligada' : 'desligada'} — clique para alternar`;
+        btn.title = `${it.name} em ${labels[a] || 'Conta ' + a}: ${on ? 'ligada' : 'desligada'} — clique para alternar`;
         btn.onclick = async () => { btn.disabled = true; paint(await cfg.ext(it.id, a, !on)); };
         tr.insertCell().append(btn);
       }

@@ -11,16 +11,16 @@ check(B.findBrowser(env, (p) => p.endsWith('msedge.exe') && p.startsWith('C:\\PF
 check(B.findBrowser(env, () => false) === null, 'nenhum navegador: nulo');
 
 // --- só os cookies do site pedido
-const dom = ['topidle.com', 'www.topidle.com'];
-check(B.wantedCookie({ domain: '.topidle.com' }, dom) && B.wantedCookie({ domain: 'topidle.com' }, dom) && B.wantedCookie({ domain: 'api.topidle.com' }, dom), 'cookies do TopIdle e subdomínios passam');
-check(!B.wantedCookie({ domain: '.google.com' }, dom) && !B.wantedCookie({ domain: 'evil-topidle.com' }, dom) && !B.wantedCookie({ domain: 'topidle.com.evil.io' }, dom), 'Google e domínios parecidos ficam de fora');
+const dom = ['idlehub.io', 'www.idlehub.io'];
+check(B.wantedCookie({ domain: '.idlehub.io' }, dom) && B.wantedCookie({ domain: 'idlehub.io' }, dom) && B.wantedCookie({ domain: 'api.idlehub.io' }, dom), 'cookies do IdleHub e subdomínios passam');
+check(!B.wantedCookie({ domain: '.google.com' }, dom) && !B.wantedCookie({ domain: 'evil-idlehub.io' }, dom) && !B.wantedCookie({ domain: 'idlehub.io.evil.io' }, dom), 'Google e domínios parecidos ficam de fora');
 
 // --- conversão
-const c1 = B.toElectronCookie({ name: 'sid', value: 'v', domain: '.topidle.com', path: '/', secure: true, httpOnly: true, expires: 2000000000, sameSite: 'Lax' }, 1700000000000);
-check(c1.url === 'https://topidle.com/' && c1.domain === '.topidle.com' && c1.expirationDate === 2000000000 && c1.sameSite === 'lax' && c1.httpOnly && c1.secure, 'cookie com validade converte');
-const c2 = B.toElectronCookie({ name: 's', value: 'v', domain: 'topidle.com', path: '/a', secure: false, expires: -1, sameSite: 'None' }, 1700000000000);
-check(c2.expirationDate === 1700000000 + 30 * 86400 && c2.sameSite === 'no_restriction' && c2.url === 'http://topidle.com/a', 'cookie de sessão ganha 30 dias');
-const c3 = B.toElectronCookie({ name: '__Host-x', value: 'v', domain: 'topidle.com', path: '/', secure: true, expires: -1 }, 1);
+const c1 = B.toElectronCookie({ name: 'sid', value: 'v', domain: '.idlehub.io', path: '/', secure: true, httpOnly: true, expires: 2000000000, sameSite: 'Lax' }, 1700000000000);
+check(c1.url === 'https://idlehub.io/' && c1.domain === '.idlehub.io' && c1.expirationDate === 2000000000 && c1.sameSite === 'lax' && c1.httpOnly && c1.secure, 'cookie com validade converte');
+const c2 = B.toElectronCookie({ name: 's', value: 'v', domain: 'idlehub.io', path: '/a', secure: false, expires: -1, sameSite: 'None' }, 1700000000000);
+check(c2.expirationDate === 1700000000 + 30 * 86400 && c2.sameSite === 'no_restriction' && c2.url === 'http://idlehub.io/a', 'cookie de sessão ganha 30 dias');
+const c3 = B.toElectronCookie({ name: '__Host-x', value: 'v', domain: 'idlehub.io', path: '/', secure: true, expires: -1 }, 1);
 check(!('domain' in c3), '__Host- vai sem domain');
 
 // --- porta de depuração escolhida pelo navegador
@@ -43,7 +43,7 @@ async function fluxo({ cookies, browserPath = 'C:\\x\\chrome.exe', fail = false 
   const log = { cookiesSet: [], removed: [], polls: 0, closed: false };
   const session = { cookies: { set: async (c) => { if (c.name === 'ruim') throw new Error('x'); log.cookiesSet.push(c); } } };
   const r = await B.loginViaBrowser({
-    url: 'https://topidle.com/',
+    url: 'https://idlehub.io/',
     domains: dom,
     session,
     browserPath,
@@ -70,14 +70,14 @@ async function fluxo({ cookies, browserPath = 'C:\\x\\chrome.exe', fail = false 
 
 (async () => {
   const cookies = [
-    { name: 'sid', value: 'a', domain: '.topidle.com', path: '/', secure: true, httpOnly: true, expires: 2000000000, sameSite: 'Lax' },
+    { name: 'sid', value: 'a', domain: '.idlehub.io', path: '/', secure: true, httpOnly: true, expires: 2000000000, sameSite: 'Lax' },
     { name: 'SID', value: 'g', domain: '.google.com', path: '/', secure: true, expires: -1 },
-    { name: 'ruim', value: 'z', domain: 'topidle.com', path: '/', secure: true, expires: -1 },
+    { name: 'ruim', value: 'z', domain: 'idlehub.io', path: '/', secure: true, expires: -1 },
   ];
   let { r, log } = await fluxo({ cookies });
-  check(r.ok && r.count === 1, `grava só o cookie válido do TopIdle (${r.count})`);
+  check(r.ok && r.count === 1, `grava só o cookie válido do IdleHub (${r.count})`);
   check(log.cookiesSet.length === 1 && log.cookiesSet[0].name === 'sid', 'o cookie do Google não é copiado');
-  check(log.spawn.args.includes('--remote-debugging-port=41234') && log.spawn.args.includes('--user-data-dir=C:\\tmp\\perfil') && log.spawn.args.includes('--remote-debugging-address=127.0.0.1') && log.spawn.args.at(-1) === 'https://topidle.com/', 'navegador abre com perfil próprio, depuração só em 127.0.0.1 e a página do site');
+  check(log.spawn.args.includes('--remote-debugging-port=41234') && log.spawn.args.includes('--user-data-dir=C:\\tmp\\perfil') && log.spawn.args.includes('--remote-debugging-address=127.0.0.1') && log.spawn.args.at(-1) === 'https://idlehub.io/', 'navegador abre com perfil próprio, depuração só em 127.0.0.1 e a página do site');
   check(log.removed.length === 1 && log.removed[0] === 'C:\\tmp\\perfil' && log.closed, 'perfil temporário apagado e conexão fechada');
 
   ({ r } = await fluxo({ cookies: [{ name: 'g', value: '1', domain: '.google.com', path: '/' }] }));
@@ -89,7 +89,7 @@ async function fluxo({ cookies, browserPath = 'C:\\x\\chrome.exe', fail = false 
   // o navegador fecha antes de abrir a depuração: falha rápido, com a razão
   const log2 = {};
   const r2 = await B.loginViaBrowser({
-    url: 'https://topidle.com/', domains: dom, session: { cookies: { set: async () => {} } }, browserPath: '/x/chrome.exe',
+    url: 'https://idlehub.io/', domains: dom, session: { cookies: { set: async () => {} } }, browserPath: '/x/chrome.exe',
     spawnImpl: (exe, args) => { const c = new EventEmitter(); c.kill = () => {}; setImmediate(() => c.emit('exit', 1)); log2.c = c; return c; },
     readPort: () => null, mkTmp: () => '/tmp/p2', rmTmp: () => {}, sleep: () => new Promise((res) => setImmediate(res)),
   });

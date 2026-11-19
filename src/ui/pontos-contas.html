@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pontos das contas</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #1b1220; color: #eee; font: 13px "Segoe UI", sans-serif; }
+  body { padding: 12px 16px; }
+  h1 { font-size: 15px; margin: 0 0 10px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 6px; border-bottom: 1px solid #ffffff14; }
+  th { color: #a99bb8; font-weight: 600; font-size: 12px; }
+  tr.focus { background: #2f6fed22; }
+  tr.off td { opacity: .55; }
+  .who { font-weight: 700; white-space: nowrap; }
+  .tag { display: inline-block; font-size: 11px; color: #a99bb8; margin-left: 4px; }
+  .ok { color: #2fd160; font-weight: 600; }
+  .no { color: #f5c46b; font-weight: 600; }
+  .sub { color: #a99bb8; font-size: 12px; margin-top: 3px; }
+  .live { font-size: 12px; margin-top: 2px; }
+  button { border: 1px solid #ffffff22; background: #2a2030; color: #cfc6d6; border-radius: 6px; padding: 3px 9px; font: inherit; font-weight: 600; cursor: pointer; margin: 4px 4px 0 0; white-space: nowrap; }
+  button:hover { background: #3a2f44; }
+  button:disabled { opacity: .4; cursor: default; }
+  #vazio { color: #a99bb8; padding: 16px 0; }
+  @media (max-width: 640px) { th.last, td.last { display: none; } }
+</style>
+</head>
+<body>
+<h1>Pontos das contas</h1>
+<table>
+  <thead><tr><th>Conta</th><th>Twitch</th><th>Kick</th><th class="last">Último resgate</th></tr></thead>
+  <tbody id="rows"></tbody>
+</table>
+<div id="vazio" hidden>Nenhuma conta com dados ainda.</div>
+<script>
+  const focusAcc = Number(new URLSearchParams(location.search).get('acc')) || null;
+  let current = focusAcc;
+  const rowsEl = document.getElementById('rows');
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
+  const hora = (iso) => { try { return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); } catch { return ''; } };
+
+  // Uma célula por site: login, bônus escolhido, lives no ar com o saldo, e os botões DESTA conta
+  function siteCell(row, site, name, info) {
+    const td = el('td');
+    const st = el('div', info.login ? 'ok' : 'no', info.login ? 'Logada' : 'Sem login');
+    td.append(st);
+    td.append(el('div', 'sub', `Bônus: ${info.bonus}`));
+    if (info.stopped) td.append(el('div', 'no', `Resgate parado: ${info.stopped}`));
+    const lives = info.channels.map((c) => `${c.channel}${c.text ? ' · ' + c.text : ''}`);
+    td.append(el('div', 'live', lives.length ? `No ar: ${lives.join(', ')}` : 'Nenhuma live no ar'));
+    const btnEntrar = el('button', '', info.login ? 'Sair' : 'Entrar');
+    btnEntrar.title = `${info.login ? 'Sai' : 'Entra'} na ${name} desta conta (${row.label})`;
+    btnEntrar.setAttribute('aria-label', `${btnEntrar.title}`);
+    btnEntrar.onclick = () => { window.pc.act(row.acc, site, info.login ? 'logout' : 'login'); setTimeout(load, 700); };
+    const btnPainel = el('button', '', 'Pontos');
+    btnPainel.title = `Abre o painel de pontos da ${name} desta conta (${row.label}) na barra da conta`;
+    btnPainel.setAttribute('aria-label', btnPainel.title);
+    btnPainel.onclick = () => window.pc.act(row.acc, site, 'panel');
+    td.append(btnEntrar, btnPainel);
+    return td;
+  }
+
+  function render(rows) {
+    rowsEl.textContent = '';
+    document.getElementById('vazio').hidden = rows.length > 0;
+    for (const row of rows) {
+      const tr = el('tr', [row.acc === current ? 'focus' : '', row.lives || row.running ? '' : 'off'].filter(Boolean).join(' '));
+      const who = el('td');
+      who.append(el('div', 'who', row.label));
+      who.append(el('div', 'sub', row.running ? 'Conta ligada' : 'Conta desligada'));
+      tr.append(who);
+      tr.append(siteCell(row, 'twitch', 'Twitch', row.sites.twitch));
+      tr.append(siteCell(row, 'kick', 'Kick', row.sites.kick));
+      const last = el('td', 'last', row.last ? `${hora(row.last.t)}: ${row.last.detalhe}` : 'Nenhum ainda');
+      tr.append(last);
+      rowsEl.append(tr);
+    }
+  }
+
+  async function load() {
+    try { render(await window.pc.rows()); } catch { /* a janela segue com a última leitura */ }
+  }
+  window.pc.onFocus((acc) => { current = acc; load(); });
+  load();
+  setInterval(load, 3000);
+</script>
+</body>
+</html>

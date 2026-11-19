@@ -39,7 +39,7 @@
     bar.append(item('RAM', s.total.txt, s.total.level, 'Memória de trabalho de todo o app (soma dos processos)'));
     bar.append(item('app/outros', s.app.txt, 'ok', 'Processo principal, GPU e barras/avisos do app'));
     for (const a of s.accounts) {
-      bar.append(item(`Conta ${a.id}`, a.txt, a.level, `Posição ${a.pos + 1} na grade: processo da página do jogo`));
+      bar.append(item(a.label, a.txt, a.level, `Posição ${a.pos + 1} na grade: processo da página do jogo`));
     }
     const x = document.createElement('button');
     x.className = 'hide';

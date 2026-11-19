@@ -6,6 +6,7 @@ const acts = [];
 contextBridge.exposeInMainWorld('tb', {
   get: async () => snap,
   toggle: () => {},
+  popup: (n) => acts.push('popup:' + n),
   action: (n) => acts.push(n),
   onState: () => {},
   acts: () => acts.slice(),

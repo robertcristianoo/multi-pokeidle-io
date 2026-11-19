@@ -30,7 +30,7 @@ function createPages({
   settleMs = WAKE_SETTLE_MS,
   partition = partitionOf,
 } = {}) {
-  const pages = new Map(); // `${conta}|${site}|${canal}` -> { view, ready, queue, timer }
+  const pages = new Map(); // `${conta}|${site}|${canal}` -> { view, ready, cadeia, timer }
   let wakes = 0;
   let wakeFailures = 0;
 
@@ -50,7 +50,7 @@ function createPages({
     const wc = view.webContents;
     wc.setAudioMuted(true);
     wc.setWindowOpenHandler(() => ({ action: 'deny' }));
-    const entry = { view, queue: Promise.resolve(), timer: null, ready: null, busy: 0, usedAt: Date.now() };
+    const entry = { view, cadeia: Promise.resolve(), timer: null, ready: null, busy: 0, usedAt: Date.now() };
     wakes++;
     entry.ready = new Promise((resolve) => {
       let done = false;
@@ -85,7 +85,7 @@ function createPages({
     if (!entry || entry.view.webContents.isDestroyed()) entry = openView(acc, site, channel, key);
     entry.busy++;
     clearTimeout(entry.timer);
-    const job = entry.queue.then(async () => {
+    const job = entry.cadeia.then(async () => {
       if (!(await entry.ready) || entry.view.webContents.isDestroyed()) return '';
       try {
         const out = await withTimeout(entry.view.webContents.executeJavaScript(script, true), SCRIPT_TIMEOUT_MS);
@@ -94,7 +94,7 @@ function createPages({
         return ''; // a página recarregou ou fechou no meio: fica para a próxima conferência
       }
     });
-    entry.queue = job.catch(() => {});
+    entry.cadeia = job.catch(() => {});
     try {
       return await job;
     } finally {

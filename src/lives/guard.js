@@ -1,4 +1,4 @@
-// A guarda do bônus (Lives → Config…, por conta): o resgate automático só usa os pontos das lives abertas, e quando os
+// A guarda do bônus (Config das lives, por conta): o resgate automático só usa os pontos das lives abertas, e quando os
 // streamers delas saem do ar o bônus vence com pontos parados em outros canais. Com o bônus escolhido da conta num site
 // vencendo em menos de THRESHOLD_MS (ou vencido), a guarda lê o saldo dos canais da lista e dos oficiais do jogo que não
 // estão abertos na conta, escolhe um com os pontos (offline primeiro: os pontos dele estão parados; depois o de mais
@@ -22,9 +22,9 @@ function time(secs) {
 function createGuard({ now = () => Date.now() } = {}) {
   const slots = new Map(); // `${conta}|${site}` -> estado
 
-  // O estado da guarda numa conta e num site.
-  function slotOf(acc, site) {
-    const key = `${acc}|${site}`;
+  // O estado da guarda numa conta, num site e num bônus (cada bônus vence no seu tempo, então cada um tem o seu estado).
+  function slotOf(acc, site, reward = '') {
+    const key = `${acc}|${site}|${reward}`;
     if (!slots.has(key)) {
       slots.set(key, {
         busy: false,

@@ -16,12 +16,12 @@
 </head>
 <body>
 <div class="box">
-  <h1>Conta <span id="n"></span> desligada</h1>
+  <h1 id="n"></h1>
   <p>O jogo desta conta não está carregado, então ela não usa CPU nem memória. O login e os dados continuam salvos e voltam ao ligar.</p>
   <button id="ligar">Ligar conta</button>
 </div>
 <script>
-  document.getElementById('n').textContent = new URLSearchParams(location.search).get('id') || '';
+  document.getElementById('n').textContent = (new URLSearchParams(location.search).get('label') || 'Conta') + ' desligada';
   document.getElementById('ligar').onclick = () => off.turnOn();
 </script>
 </body>
