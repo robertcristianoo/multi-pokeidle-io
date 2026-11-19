@@ -2,7 +2,8 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<title>Logs</title>
+<title data-i18n="logs.title">Logs</title>
+<script src="../i18n/core.js"></script><script src="../i18n/areas/app.js"></script><script src="../i18n/areas/common.js"></script><script src="i18n.js"></script>
 <style>
   * { box-sizing: border-box; }
   body { margin: 0; font: 12px Consolas, monospace; background: #111; color: #ddd; display: flex; flex-direction: column; height: 100vh; }
@@ -25,20 +26,20 @@
 </head>
 <body>
 <div id="bar">
-  <strong>Contas:</strong>
+  <strong data-i18n="logs.accounts">Accounts:</strong>
   <label><input type="checkbox" class="acc-f" value="conta1" checked> 1</label>
   <label><input type="checkbox" class="acc-f" value="conta2" checked> 2</label>
   <label><input type="checkbox" class="acc-f" value="conta3" checked> 3</label>
   <label><input type="checkbox" class="acc-f" value="conta4" checked> 4</label>
-  <strong>Tipo:</strong>
-  <label><input type="checkbox" class="kind-f" value="console" checked> console</label>
-  <label><input type="checkbox" class="kind-f" value="net" checked> rede</label>
-  <label><input type="checkbox" class="kind-f" value="load" checked> carga</label>
-  <label><input type="checkbox" id="onlyErr"> só erros/falhas</label>
-  <label><input type="checkbox" id="noStatic" checked> ocultar imagens/css/fontes</label>
-  <input type="text" id="q" placeholder="filtrar texto (ex.: api, register)">
-  <label><input type="checkbox" id="auto" checked> auto-scroll</label>
-  <button id="clear">Limpar</button>
+  <strong data-i18n="logs.type">Type:</strong>
+  <label><input type="checkbox" class="kind-f" value="console" checked> <span data-i18n="logs.console">console</span></label>
+  <label><input type="checkbox" class="kind-f" value="net" checked> <span data-i18n="logs.net">network</span></label>
+  <label><input type="checkbox" class="kind-f" value="load" checked> <span data-i18n="logs.load">load</span></label>
+  <label><input type="checkbox" id="onlyErr"> <span data-i18n="logs.onlyErr">errors/failures only</span></label>
+  <label><input type="checkbox" id="noStatic" checked> <span data-i18n="logs.noStatic">hide images/css/fonts</span></label>
+  <input type="text" id="q" data-i18n-placeholder="logs.filter" placeholder="filter text">
+  <label><input type="checkbox" id="auto" checked> <span data-i18n="logs.autoscroll">auto-scroll</span></label>
+  <button id="clear" data-i18n="logs.clear">Clear</button>
 </div>
 <div id="log"></div>
 <script>
@@ -62,7 +63,7 @@
     const d = document.createElement('div');
     d.className = `row ${e.level} ${e.acc}`;
     const t = document.createElement('span'); t.className = 't'; t.textContent = e.t;
-    const a = document.createElement('span'); a.className = 'acc'; a.textContent = e.acc;
+    const a = document.createElement('span'); a.className = 'acc'; a.textContent = e.accLabel || e.acc;
     const k = document.createElement('span'); k.className = 'kind'; k.textContent = e.kind;
     d.append(t, a, k, document.createTextNode(e.text));
     logEl.appendChild(d);

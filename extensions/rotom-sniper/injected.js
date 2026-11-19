@@ -324,7 +324,7 @@
   // ── O nome que o jogo MOSTRA ──
   //
   // O jogo não exibe o `name` cru do catálogo: a função `nomeItem` do cliente traduz os itens dele
-  // (fragmentos, Name Tag, Exp. Share, caixas, ovos, Mystic Ticket), monta "Shiny Stone {tipo}",
+  // (fragmentos, Name Tag, caixas, ovos, Mystic Ticket), monta "Shiny Stone {tipo}",
   // "Casa Rara", "Bicicleta Lendária", "Skin {nome}", e só no resto acerta as maiúsculas do inglês.
   // Aqui a mesma regra roda com os MÓDULOS do próprio jogo (tradução no idioma do jogador), importados
   // pelo endereço do site: este script vem de chrome-extension://, e um caminho relativo iria para lá.
@@ -346,7 +346,7 @@
       const chaves = {
         70010: 'item.escapeRope', 70011: 'item.fragmentoChave', 70012: 'item.fragmentoShiny',
         70013: 'item.fragmentoBicicleta', 70014: 'item.fragmentoMega', 70015: 'item.fragmentoMegaShiny',
-        70016: 'item.nameTag', 70050: 'item.xpShareHeld',
+        70016: 'item.nameTag',
         70060: 'caixas.nome.fundador', 70061: 'caixas.nome.cofundador',
       };
       if (mistico && mistico.MYSTIC_TICKET_ID) chaves[mistico.MYSTIC_TICKET_ID] = 'item.mysticTicket';

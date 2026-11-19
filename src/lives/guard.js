@@ -1,10 +1,11 @@
-// A guarda do bônus (Lives → Config…, por conta): o resgate automático só usa os pontos das lives abertas, e quando os
+// A guarda do bônus (Config das lives, por conta): o resgate automático só usa os pontos das lives abertas, e quando os
 // streamers delas saem do ar o bônus vence com pontos parados em outros canais. Com o bônus escolhido da conta num site
 // vencendo em menos de THRESHOLD_MS (ou vencido), a guarda lê o saldo dos canais da lista e dos oficiais do jogo que não
 // estão abertos na conta, escolhe um com os pontos (offline primeiro: os pontos dele estão parados; depois o de mais
 // pontos), e o gerenciador resgata 1 ali. Depois confere no jogo se o tempo do bônus subiu. Aqui fica só o estado e a
 // escolha; o resgate (numa página escondida do canal) é do gerenciador. Módulo puro.
 const { BONUSES } = require('../points/sites');
+const { t: tl } = require('../i18n');
 
 const THRESHOLD_MS = 30 * 60 * 1000; // a partir de quanto falta para vencer a guarda age
 const READ_FOR_MS = 30 * 60 * 1000; // quanto vale a leitura do saldo de um canal
@@ -12,7 +13,7 @@ const CONFIRM_WITHIN_MS = 5 * 60 * 1000; // depois do resgate, até quando o jog
 
 // O nome do bônus no jogo ("xp", "captura", "shiny") é a própria chave do resgate.
 const kind = (rewardKey) => rewardKey;
-const kindName = (rewardKey) => ({ xp: 'XP', captura: 'Captura', shiny: 'Shiny' }[rewardKey] ?? BONUSES[rewardKey]?.label ?? rewardKey);
+const kindName = (rewardKey) => (['xp', 'captura', 'shiny'].includes(rewardKey) ? tl(`lives.kind.${rewardKey}`) : BONUSES[rewardKey]?.label ?? rewardKey);
 
 // "35 min", "2 h 10 min"
 function time(secs) {
@@ -22,9 +23,9 @@ function time(secs) {
 function createGuard({ now = () => Date.now() } = {}) {
   const slots = new Map(); // `${conta}|${site}` -> estado
 
-  // O estado da guarda numa conta e num site.
-  function slotOf(acc, site) {
-    const key = `${acc}|${site}`;
+  // O estado da guarda numa conta, num site e num bônus (cada bônus vence no seu tempo, então cada um tem o seu estado).
+  function slotOf(acc, site, reward = '') {
+    const key = `${acc}|${site}|${reward}`;
     if (!slots.has(key)) {
       slots.set(key, {
         busy: false,

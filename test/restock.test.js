@@ -2,11 +2,15 @@
 // (shop.buy), dentro dos limites: 9.999 por pedido, uma compra a cada 4 s, 30 s de espera após recusa e pausa de 2 min
 // após 3 falhas seguidas. Roda contra um socket falso e um servidor local; o jogo real não é acessado.
 const { app, check, finish, waitFor, sleep } = require('./helpers');
+require('../src/i18n').setLang('pt-BR'); // os textos conferidos aqui estão em português
 const { BrowserWindow, ipcMain, session } = require('electron');
 const fs = require('fs');
 const http = require('http');
 const path = require('path');
 const restockPage = require('../src/preload/restock-frame.js'); // na main o `webFrame` não existe: só exporta a função
+// textos da página do jogo: o preload os recebe do main por IPC; aqui o teste monta o mesmo dicionário
+const { dicts } = require('../src/i18n');
+const I18N = Object.fromEntries(Object.entries(dicts['pt-BR']).filter(([k]) => k.startsWith('restock.frame.')));
 
 // Um recorte do catálogo do jogo (mesmos ids e campos que /assets/items.json traz)
 const ITENS = {
@@ -76,7 +80,7 @@ app.whenReady().then(async () => {
     await win.loadURL(`${base}/`);
     await exec(FAKE_WS);
     await exec('sessionStorage.clear(); 0');
-    await exec(`(${restockPage})(${JSON.stringify(opts)}); 0`);
+    await exec(`(${restockPage})(${JSON.stringify({ i18n: I18N, ...opts })}); 0`);
     await exec(`new WebSocket('ws://' + location.host + '/ws'); 0`);
   };
   const igual = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -195,7 +199,7 @@ app.whenReady().then(async () => {
     check(arq['1'] && arq['1'].on === true, 'extensão: a configuração fica salva em restock.json');
 
     f.settings(1);
-    const jan = BrowserWindow.getAllWindows().find((w) => /conta 1/.test(w.getTitle()));
+    const jan = BrowserWindow.getAllWindows().find((w) => /Conta 1/.test(w.getTitle()));
     check(!!jan, 'janela de configuração abre para a conta 1');
     if (jan) {
       await waitFor(() => !jan.webContents.isLoading(), 4000);

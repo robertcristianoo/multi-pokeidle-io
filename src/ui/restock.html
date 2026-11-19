@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Reposição</title>
+<title data-i18n="restock.page.title">Reposição</title>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; background: #1b1220; color: #eee; font: 13px "Segoe UI", sans-serif; }
@@ -30,67 +30,71 @@
   button:hover { background: #22a847; }
   #msg { margin-left: 10px; color: #cfc6d6; }
 </style>
+<script src="../i18n/core.js"></script>
+<script src="../i18n/areas/restock.js"></script>
+<script src="../i18n/areas/common.js"></script>
+<script src="i18n.js"></script>
 </head>
 <body>
-  <h1 id="titulo">Reposição</h1>
-  <div class="sub">Repõe o estoque no Mercado do NPC quando cai abaixo do pedido. Liga/desliga pelo botão 🛒 da barra da conta.</div>
+  <h1 id="titulo" data-i18n="restock.page.title">Reposição</h1>
+  <div class="sub" data-i18n="restock.sub">Repõe o estoque no Mercado do NPC quando cai abaixo do pedido. Liga/desliga pelo botão 🛒 da barra da conta.</div>
 
-  <div class="aviso">
+  <div class="aviso" data-i18n-html="restock.warn">
     <b>Atenção:</b> a reposição <b>gasta ouro real do jogo</b> e não se responsabiliza por compras feitas por ela.
     Cada pedido tem no máximo 9.999 unidades, há uma compra a cada 4 s por conta, e o app espera 30 s se o jogo recusar um pedido
     (3 falhas seguidas pausam por 2 min). Use conforme os
     <a href="https://pokeidle.io/termos" target="_blank" rel="noopener">termos do PokeIdle</a> (seção 5, "Automação").
   </div>
 
-  <div id="status" class="status">Carregando…</div>
+  <div id="status" class="status" data-i18n="restock.loading">Carregando…</div>
 
   <fieldset>
-    <legend>Pokébolas</legend>
-    <div class="linha"><span class="rot">Tipo</span><select id="ballsId"></select><span id="estBalls" class="est">—</span></div>
-    <div class="linha"><span class="rot">Repor abaixo de</span><input id="ballsBelow" type="number" min="0" max="10000000" step="1"></div>
-    <div class="linha"><span class="rot">Manter até</span><input id="ballsKeep" type="number" min="0" max="10000000" step="1"></div>
-    <div class="linha"><label><input id="ballsOn" type="checkbox"> repor pokébolas</label></div>
+    <legend data-i18n="restock.balls">Pokébolas</legend>
+    <div class="linha"><span class="rot" data-i18n="restock.type">Tipo</span><select id="ballsId"></select><span id="estBalls" class="est">—</span></div>
+    <div class="linha"><span class="rot" data-i18n="restock.below">Repor abaixo de</span><input id="ballsBelow" type="number" min="0" max="10000000" step="1"></div>
+    <div class="linha"><span class="rot" data-i18n="restock.keep">Manter até</span><input id="ballsKeep" type="number" min="0" max="10000000" step="1"></div>
+    <div class="linha"><label><input id="ballsOn" type="checkbox"> <span data-i18n="restock.ballsOn">repor pokébolas</span></label></div>
   </fieldset>
 
   <fieldset>
-    <legend>Revives</legend>
-    <div class="linha"><span class="rot">Compra</span><span id="revivesNome" class="dica">o mais barato do balcão</span><span id="estRevives" class="est">—</span></div>
-    <div class="linha"><span class="rot">Repor abaixo de</span><input id="revivesBelow" type="number" min="0" max="10000000" step="1"></div>
-    <div class="linha"><span class="rot">Manter até</span><input id="revivesKeep" type="number" min="0" max="10000000" step="1"></div>
-    <div class="linha"><label><input id="revivesOn" type="checkbox"> repor revives</label></div>
-    <div class="dica">Revives são contados juntos.</div>
+    <legend data-i18n="restock.revives">Revives</legend>
+    <div class="linha"><span class="rot" data-i18n="restock.buys">Compra</span><span id="revivesNome" class="dica" data-i18n="restock.cheapest">o mais barato do balcão</span><span id="estRevives" class="est">—</span></div>
+    <div class="linha"><span class="rot" data-i18n="restock.below">Repor abaixo de</span><input id="revivesBelow" type="number" min="0" max="10000000" step="1"></div>
+    <div class="linha"><span class="rot" data-i18n="restock.keep">Manter até</span><input id="revivesKeep" type="number" min="0" max="10000000" step="1"></div>
+    <div class="linha"><label><input id="revivesOn" type="checkbox"> <span data-i18n="restock.revivesOn">repor revives</span></label></div>
+    <div class="dica" data-i18n="restock.revivesNote">Revives são contados juntos.</div>
   </fieldset>
 
   <fieldset>
-    <legend>Poções</legend>
-    <div class="linha"><span class="rot">Tipo</span><select id="potionsId"></select><span id="estPotions" class="est">—</span></div>
-    <div class="linha"><span class="rot">Repor abaixo de</span><input id="potionsBelow" type="number" min="0" max="10000000" step="1"></div>
-    <div class="linha"><span class="rot">Manter até</span><input id="potionsKeep" type="number" min="0" max="10000000" step="1"></div>
-    <div class="linha"><label><input id="potionsOn" type="checkbox"> repor poções</label></div>
-    <div class="dica">Poções são contadas juntas. "Melhor custo-benefício" escolhe a de menor ouro por HP curado no pokémon ativo (a Golden Potion cura 50% do HP máximo e entra na conta).</div>
+    <legend data-i18n="restock.potions">Poções</legend>
+    <div class="linha"><span class="rot" data-i18n="restock.type">Tipo</span><select id="potionsId"></select><span id="estPotions" class="est">—</span></div>
+    <div class="linha"><span class="rot" data-i18n="restock.below">Repor abaixo de</span><input id="potionsBelow" type="number" min="0" max="10000000" step="1"></div>
+    <div class="linha"><span class="rot" data-i18n="restock.keep">Manter até</span><input id="potionsKeep" type="number" min="0" max="10000000" step="1"></div>
+    <div class="linha"><label><input id="potionsOn" type="checkbox"> <span data-i18n="restock.potionsOn">repor poções</span></label></div>
+    <div class="dica" data-i18n="restock.potionsNote">Poções são contadas juntas. "Melhor custo-benefício" escolhe a de menor ouro por HP curado no pokémon ativo (a Golden Potion cura 50% do HP máximo e entra na conta).</div>
   </fieldset>
 
   <fieldset>
-    <legend>Ouro</legend>
-    <div class="linha"><span class="rot">Ouro mínimo</span><input id="goldFloor" type="number" min="0" step="1000"></div>
-    <div class="dica">Nunca compra a ponto de o ouro ficar abaixo disto. Se o ouro não alcança o item prioritário (poções, depois revives, depois bolas), nenhum tipo de menor prioridade é comprado.</div>
+    <legend data-i18n="restock.gold">Ouro</legend>
+    <div class="linha"><span class="rot" data-i18n="restock.goldFloor">Ouro mínimo</span><input id="goldFloor" type="number" min="0" step="1000"></div>
+    <div class="dica" data-i18n="restock.goldNote">Nunca compra a ponto de o ouro ficar abaixo disto. Se o ouro não alcança o item prioritário (poções, depois revives, depois bolas), nenhum tipo de menor prioridade é comprado.</div>
   </fieldset>
 
-  <div class="botoes"><button id="salvar">Salvar</button><span id="msg"></span></div>
+  <div class="botoes"><button id="salvar" data-i18n="common.save">Salvar</button><span id="msg"></span></div>
 
   <fieldset>
-    <legend>Registro de compras</legend>
+    <legend data-i18n="restock.logTitle">Registro de compras</legend>
     <div id="log"></div>
   </fieldset>
 
 <script>
   const $ = (id) => document.getElementById(id);
   const FALLBACK_BALLS = [{ id: 1, name: 'Poke Ball' }, { id: 2, name: 'Great Ball' }, { id: 3, name: 'Super Ball' }, { id: 4, name: 'Ultra Ball' }];
-  const POTIONS = [
-    { id: 0, name: 'Melhor custo-benefício' }, { id: 200, name: 'Small Potion' }, { id: 201, name: 'Great Potion' },
+  const POTIONS = () => [
+    { id: 0, name: t('restock.bestValue') }, { id: 200, name: 'Small Potion' }, { id: 201, name: 'Great Potion' },
     { id: 202, name: 'Ultra Potion' }, { id: 203, name: 'Hyper Potion' }, { id: 204, name: 'Ultimate Potion' }, { id: 70070, name: 'Golden Potion' },
   ];
-  const fmt = (n) => Math.round(Number(n) || 0).toLocaleString('pt-BR');
+  const fmt = (n) => Math.round(Number(n) || 0).toLocaleString(lang);
   let ready = false;
 
   // Reconstrói as opções só quando a lista muda (para não perder a escolha do usuário a cada segundo)
@@ -112,7 +116,7 @@
       if (!lista.some((o) => o.id === valor)) {
         const op = document.createElement('option');
         op.value = String(valor);
-        op.textContent = `Item ${valor}`;
+        op.textContent = t('restock.item', { id: valor });
         sel.append(op);
         sel.dataset.chave = '';
       }
@@ -132,7 +136,7 @@
     $('potionsKeep').value = cfg.potions.keep;
     $('goldFloor').value = cfg.goldFloor;
     opcoes($('ballsId'), FALLBACK_BALLS, cfg.balls.id);
-    opcoes($('potionsId'), POTIONS, cfg.potions.id);
+    opcoes($('potionsId'), POTIONS(), cfg.potions.id);
   }
 
   function ler() {
@@ -147,22 +151,26 @@
 
   function mostrar(d) {
     const s = d.status;
-    $('titulo').textContent = `Reposição — conta ${d.id}`;
+    $('titulo').textContent = t('restock.h1', { name: d.label });
     const st = $('status');
     if (!s) {
       st.className = 'status alerta';
-      st.textContent = 'A página do jogo ainda não carregou a reposição. Recarregue a conta (F5).';
+      st.textContent = t('restock.status.noHook');
     } else if (!s.connected) {
       st.className = 'status alerta';
-      st.textContent = 'Sem conexão com o jogo nesta conta. Faça login para ver o estoque.';
+      st.textContent = t('restock.status.noGame');
     } else {
       st.className = 'status ok';
-      st.textContent = `Conectado${s.nick ? ` como ${s.nick}` : ''} · ouro: ${fmt(s.gold)}${s.paused ? ' · PAUSADA (3 falhas seguidas, volta em até 2 min)' : ''}`
-        + ` · reposição ${d.cfg.on ? 'LIGADA' : 'desligada'} (pelo botão 🛒)`;
+      st.textContent = t('restock.status.connected', {
+        as: s.nick ? t('restock.status.as', { nick: s.nick }) : '',
+        gold: fmt(s.gold),
+        paused: s.paused ? t('restock.status.paused') : '',
+        state: t(d.cfg.on ? 'restock.status.on' : 'restock.status.off'),
+      });
     }
     if (s?.balls?.length) {
       const b = s.balls.find((x) => x.id === Number($('ballsId').value));
-      $('estBalls').textContent = b ? `estoque: ${fmt(b.have)}` : '—';
+      $('estBalls').textContent = b ? t('restock.stock', { n: fmt(b.have) }) : '—';
       opcoes($('ballsId'), s.balls.map((b) => ({ id: b.id, name: b.name })), d.cfg.balls.id);
     } else {
       $('estBalls').textContent = s ? '—' : '—';
@@ -170,26 +178,31 @@
     if (s?.revives) {
       const total = s.revives.reduce((t, r) => t + r.have, 0);
       const barato = s.revives[0];
-      $('revivesNome').textContent = barato ? `compra: ${barato.name} (${fmt(barato.price)} ouro)` : 'o mais barato do balcão';
-      $('estRevives').textContent = `estoque: ${fmt(total)}`;
+      $('revivesNome').textContent = barato ? t('restock.buysItem', { name: barato.name, price: fmt(barato.price) }) : t('restock.cheapest');
+      $('estRevives').textContent = t('restock.stock', { n: fmt(total) });
     }
     if (s?.potions) {
       const total = s.potions.reduce((t, p) => t + p.have, 0);
-      $('estPotions').textContent = `estoque: ${fmt(total)}`;
-      if (s.potions.length) opcoes($('potionsId'), [{ id: 0, name: 'Melhor custo-benefício' }, ...s.potions.map((p) => ({ id: p.id, name: p.name }))], d.cfg.potions.id);
-      else opcoes($('potionsId'), POTIONS, d.cfg.potions.id);
+      $('estPotions').textContent = t('restock.stock', { n: fmt(total) });
+      if (s.potions.length) opcoes($('potionsId'), [{ id: 0, name: t('restock.bestValue') }, ...s.potions.map((p) => ({ id: p.id, name: p.name }))], d.cfg.potions.id);
+      else opcoes($('potionsId'), POTIONS(), d.cfg.potions.id);
     }
     const log = $('log');
-    const linhas = s?.log ?? [];
+    // Histórico gravado no app (sobrevive ao fechar o app e a novas versões); a data aparece nas linhas de outros dias
+    const hoje = new Date().toDateString();
+    const linhas = (d.history ?? []).map((h) => {
+      const dt = new Date(h.t);
+      return (dt.toDateString() === hoje ? '' : dt.toLocaleDateString(lang, { day: '2-digit', month: '2-digit' }) + ' ') + h.texto;
+    });
     const perto = log.scrollTop + log.clientHeight >= log.scrollHeight - 20;
-    log.textContent = linhas.length ? linhas.join('\n') : 'Nenhuma compra ainda.';
+    log.textContent = linhas.length ? linhas.join('\n') : t('restock.noPurchases');
     if (perto) log.scrollTop = log.scrollHeight;
   }
 
   async function atualizar() {
     const d = await window.rst.get();
     if (!d) {
-      $('status').textContent = 'Esta janela não está ligada a uma conta.';
+      $('status').textContent = t('restock.noAccount');
       return;
     }
     if (!ready) {
@@ -200,16 +213,16 @@
   }
 
   $('salvar').onclick = async () => {
-    $('msg').textContent = 'Salvando…';
+    $('msg').textContent = t('restock.saving');
     const r = await window.rst.save(ler());
     if (!r) {
-      $('msg').textContent = 'Não foi possível salvar.';
+      $('msg').textContent = t('restock.saveFail');
       return;
     }
     ready = false; // mostra os valores já corrigidos pelo app (ex.: "manter" nunca abaixo de "repor abaixo de")
     preencher(r);
     ready = true;
-    $('msg').textContent = 'Salvo.';
+    $('msg').textContent = t('restock.saved');
   };
 
   atualizar();

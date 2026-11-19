@@ -2,9 +2,16 @@
 node_modules/
 dist/
 dist-release/
+dist-backup/
+dist-fix/
 
 # gerado pelo workflow de Release (e, por instantes, pelo `npm run dist` local)
 release-info.json
 
 # lixo de depuração
 err.txt
+
+# módulos adicionais locais (não fazem parte do código público; ver README, "Licença e módulos adicionais")
+src/_x/
+test/_x/
+tools/_x/

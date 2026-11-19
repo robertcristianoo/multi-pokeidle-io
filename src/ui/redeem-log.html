@@ -2,7 +2,11 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<title>Log de resgates</title>
+<script src="../i18n/core.js"></script>
+<script src="../i18n/areas/lives.js"></script>
+<script src="../i18n/areas/common.js"></script>
+<script src="i18n.js"></script>
+<title data-i18n="lives.redeemlog.title">Log de resgates</title>
 <style>
   * { box-sizing: border-box; }
   body { margin: 0; font: 12px Consolas, monospace; background: #111; color: #ddd; display: flex; flex-direction: column; height: 100vh; }
@@ -25,21 +29,24 @@
 </head>
 <body>
 <div id="bar">
-  <strong>Registro dos resgates</strong>
-  <input type="text" id="q" placeholder="filtrar (ex.: Captura, parou, conta 2)">
-  <button id="reload">Atualizar</button>
+  <strong data-i18n="lives.redeemlog.heading">Registro dos resgates</strong>
+  <input type="text" id="q" placeholder="filtrar (ex.: Captura, parou, conta 2)" data-i18n-placeholder="lives.redeemlog.filter">
+  <button id="reload" data-i18n="lives.redeemlog.reload">Atualizar</button>
   <span id="file"></span>
 </div>
 <div id="log"></div>
 <script>
   const logEl = document.getElementById('log');
   let rows = [];
-  const hora = (iso) => { const d = new Date(iso); return isNaN(d) ? iso : d.toLocaleString('pt-BR'); };
+  // O nome do evento no idioma atual (o que o registro guarda é o código em português)
+  const evName = (ev) => (['resgatou', 'recusado', 'parou', 'erro', 'info'].includes(ev) ? t('lives.redeemlog.ev.' + ev) : ev);
+  const accLabel = (r) => r.accLabel || t('common.account', { id: r.acc });
+  const hora = (iso) => { const d = new Date(iso); return isNaN(d) ? iso : d.toLocaleString(window.lang); };
 
   function visible(r) {
     const q = document.getElementById('q').value.trim().toLowerCase();
     if (!q) return true;
-    return [r.acc, r.site, r.channel, r.evento, r.detalhe].join(' ').toLowerCase().includes(q);
+    return [r.acc, accLabel(r), r.site, r.channel, r.evento, evName(r.evento), r.detalhe].join(' ').toLowerCase().includes(q);
   }
 
   function render() {
@@ -48,7 +55,7 @@
     if (!lista.length) {
       const v = document.createElement('div');
       v.id = 'vazio';
-      v.textContent = rows.length ? 'Nada com esse filtro.' : 'Nenhum resgate registrado ainda.';
+      v.textContent = rows.length ? t('lives.redeemlog.noMatch') : t('lives.redeemlog.empty');
       logEl.append(v);
       return;
     }
@@ -56,8 +63,8 @@
       const d = document.createElement('div');
       d.className = 'row ' + r.evento;
       const cells = [
-        ['t', hora(r.t)], ['acc', `Conta ${r.acc}`], ['site', r.site === 'kick' ? 'Kick' : 'Twitch'],
-        ['canal', r.channel], ['ev', r.evento], ['det', r.detalhe],
+        ['t', hora(r.t)], ['acc', accLabel(r)], ['site', r.site === 'kick' ? 'Kick' : 'Twitch'],
+        ['canal', r.channel], ['ev', evName(r.evento)], ['det', r.detalhe],
       ];
       for (const [cls, txt] of cells) {
         const s = document.createElement('span');

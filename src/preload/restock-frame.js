@@ -8,7 +8,7 @@
 //
 // O preload roda em sandbox, então só pode fazer `require('electron')`: a lógica inteira está dentro da função.
 // Nada de variáveis de fora dela, porque ela é convertida em texto e executada na página.
-const { webFrame } = require('electron');
+const { webFrame, ipcRenderer } = require('electron');
 
 function restockPage(opts) {
   'use strict';
@@ -28,6 +28,10 @@ function restockPage(opts) {
   const WANTED = new Set(['welcome', 'estado', 'batalha', 'erro']);
   // Pausa, espera e falhas ficam no sessionStorage: um F5 na conta não zera os limites.
   const SS = { next: 'pkReposicao.proxima', pause: 'pkReposicao.pausaAte', fails: 'pkReposicao.falhas' };
+
+  // Textos no idioma atual: o preload entrega o dicionário (chaves restock.frame.*) e o main o renova ao trocar de idioma.
+  let T = o.i18n && typeof o.i18n === 'object' ? o.i18n : {};
+  const tr = (k, p) => String(T[k] ?? k).replace(/\{(\w+)\}/g, (m, n) => (p && n in p ? String(p[n]) : m));
 
   const salvo = (k) => {
     try { return Number(sessionStorage.getItem(k)) || 0; } catch { return 0; }
@@ -53,9 +57,9 @@ function restockPage(opts) {
   const log = [];
   const once = new Set();
 
-  const fmt = (n) => Math.round(n).toLocaleString('pt-BR');
+  const fmt = (n) => Math.round(n).toLocaleString(T['restock.frame.locale'] || 'en-US');
   const note = (texto) => {
-    log.push(`${new Date().toLocaleTimeString('pt-BR')} ${texto}`);
+    log.push(`${new Date().toLocaleTimeString(T['restock.frame.locale'] || 'en-US')} ${texto}`);
     if (log.length > 40) log.shift();
   };
   const noteOnce = (chave, texto) => {
@@ -136,7 +140,7 @@ function restockPage(opts) {
       .then((j) => {
         mirror = (j.items ?? []).filter((i) => i.category === 'heal' || i.category === 'revive');
       })
-      .catch(() => noteOnce('itens', 'não consegui ler a lista de itens do jogo; tento de novo em 30 s'));
+      .catch(() => noteOnce('itens', tr('restock.frame.itemsFail')));
   }
 
   // As poções (heal) ou os revives que o NPC vende, do mais barato ao mais caro.
@@ -197,7 +201,7 @@ function restockPage(opts) {
     const floor = cfg.goldFloor;
     const qty = Math.min(MAX_QTY, regra.keep - count, Math.floor((gold() - floor) / item.price));
     if (qty < 1) {
-      noteOnce(`ouro:${kind}`, `${item.name}: o ouro está no mínimo (${fmt(floor)}); compra quando passar de ${fmt(floor + item.price)}`);
+      noteOnce(`ouro:${kind}`, tr('restock.frame.goldMin', { name: item.name, floor: fmt(floor), above: fmt(floor + item.price) }));
       return { buy: false, blocked: true };
     }
     once.delete(`ouro:${kind}`);
@@ -214,9 +218,9 @@ function restockPage(opts) {
     const now = Date.now();
     if (pending) {
       // Sem o aviso da compra, o estoque que subiu também confirma.
-      if (countOf(pending.kind, pending.item.id) - pending.before >= pending.qty / 2) done(`comprou ${pending.item.name} ×${fmt(pending.qty)}`);
+      if (countOf(pending.kind, pending.item.id) - pending.before >= pending.qty / 2) done(tr('restock.frame.bought', { name: pending.item.name, qty: fmt(pending.qty) }));
       else if (now - pending.at < TIMEOUT_MS) return;
-      else failed(`${pending.item.name}: o jogo não respondeu à compra`);
+      else failed(tr('restock.frame.noResponse', { name: pending.item.name }));
     }
     if (now < nextAt || now < pauseUntil) return;
 
@@ -237,12 +241,12 @@ function restockPage(opts) {
       if (!r.buy) continue;
       pending = { ...r, at: now };
       setNext(now + GAP_MS);
-      note(`pedi ${fmt(r.qty)}× ${r.item.name}`);
+      note(tr('restock.frame.asked', { qty: fmt(r.qty), name: r.item.name }));
       try {
         // o mesmo pedido do botão Comprar do jogo (kind: 'item' para poções/revives, 'ball' para bolas)
         socket.send(JSON.stringify({ t: 'shop.buy', kind: kind === 'balls' ? 'ball' : 'item', id: r.item.id, qty: r.qty }));
       } catch {
-        failed(`${r.item.name}: não consegui enviar o pedido ao jogo`);
+        failed(tr('restock.frame.sendFail', { name: r.item.name }));
       }
       return;
     }
@@ -252,12 +256,14 @@ function restockPage(opts) {
     if (!pending || Number(e.qtd) !== pending.qty) return; // compra feita na mão: o próprio jogo avisa
     const spent = Number(e.gasto);
     if (spent > 0) paid.set(pending.kind === 'balls' ? `bola${pending.item.id}` : pending.item.id, spent / pending.qty);
-    done(`comprou ${pending.item.name} ×${fmt(pending.qty)}${spent > 0 ? ` (−${fmt(spent)} ouro)` : ''}`);
+    done(spent > 0
+      ? tr('restock.frame.boughtSpent', { name: pending.item.name, qty: fmt(pending.qty), spent: fmt(spent) })
+      : tr('restock.frame.bought', { name: pending.item.name, qty: fmt(pending.qty) }));
   }
 
   function refused(m) {
     if (!pending || Date.now() - pending.at > 5000) return;
-    failed(`${pending.item.name}: o jogo recusou a compra (${m.chave ?? m.msg ?? 'sem motivo'})`);
+    failed(tr('restock.frame.refused', { name: pending.item.name, reason: m.chave ?? m.msg ?? tr('restock.frame.noReason') }));
     setNext(Date.now() + REFUSAL_MS);
   }
 
@@ -274,7 +280,7 @@ function restockPage(opts) {
     if (failures >= MAX_FAILS) {
       setFails(0);
       setPause(Date.now() + PAUSE_MS);
-      note(`${MAX_FAILS} compras seguidas sem dar certo: pausa de ${Math.round(PAUSE_MS / 60000)} min`);
+      note(tr('restock.frame.pause', { n: MAX_FAILS, min: Math.round(PAUSE_MS / 60000) }));
     }
   }
 
@@ -288,7 +294,8 @@ function restockPage(opts) {
   // Só troca a configuração: pausa, espera e falhas continuam valendo (reconfigurar não zera o limite).
   function configure(c) {
     if (!c || typeof c !== 'object') return false;
-    if (!!c.on !== !!cfg?.on) note(c.on ? 'reposição ligada' : 'reposição desligada');
+    if (c.i18n && typeof c.i18n === 'object') T = c.i18n; // idioma novo (o main empurra junto com a configuração)
+    if (!!c.on !== !!cfg?.on) note(tr(c.on ? 'restock.frame.on' : 'restock.frame.off'));
     cfg = {
       on: !!c.on,
       goldFloor: clampInt(c.goldFloor, 1e12),
@@ -341,6 +348,11 @@ function restockPage(opts) {
 }
 
 // Só no site do jogo: a sessão da conta também abre páginas da Twitch e da Kick (lives), onde isto não deve rodar
-if (webFrame && /(^|\.)pokeidle\.io$|^(localhost|127\.0\.0\.1)$/.test(location.hostname)) webFrame.executeJavaScript(`(${restockPage})()`).catch(() => {});
+if (webFrame && /(^|\.)pokeidle\.io$|^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
+  // os textos vêm do main (restock.js); sem resposta, a página usa as próprias chaves até o main empurrar o dicionário
+  let i18n = {};
+  try { i18n = ipcRenderer.sendSync('restock:i18n') || {}; } catch { /* segue sem textos */ }
+  webFrame.executeJavaScript(`(${restockPage})(${JSON.stringify({ i18n })})`).catch(() => {});
+}
 // Só para os testes (na main o `webFrame` não existe, então a função é exportada e injetada pelo teste)
 if (typeof module === 'object' && module && module.exports) module.exports = restockPage;

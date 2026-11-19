@@ -3,6 +3,7 @@
 // lista dos pedaços do vídeo na menor qualidade e só o cabeçalho (HEAD) de cada pedaço novo, sem baixar o vídeo. Quase
 // nada de CPU e memória. Os avisos da Twitch (twitch-pubsub.js) mostram se rende (os pontos de assistir).
 const { CLIENT_ID } = require('./twitch-live');
+const { t: tl, getLang } = require('../i18n');
 
 // Onde ficam a página do canal (de onde sai o endereço do aviso), a API e as listas do vídeo.
 const TWITCH_ENDPOINTS = { site: 'https://www.twitch.tv', gql: 'https://gql.twitch.tv/gql', usher: 'https://usher.ttvnw.net' };
@@ -63,9 +64,9 @@ class TwitchWatcher {
   status(login) {
     const live = this._lives.get(login);
     if (!live) return '';
-    if (live.error) return `leve: ${live.error}`;
-    if (live.watchedAt) return `leve ✓ ${new Date(live.watchedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
-    return 'leve…';
+    if (live.error) return tl('lives.watch.err', { err: live.error });
+    if (live.watchedAt) return tl('lives.watch.ok', { time: new Date(live.watchedAt).toLocaleTimeString(getLang(), { hour: '2-digit', minute: '2-digit' }) });
+    return tl('lives.watch.wait');
   }
 
   // Quantos avisos de assistindo a Twitch aceitou e quantos pedaços do vídeo pediu, por live.
@@ -83,7 +84,7 @@ class TwitchWatcher {
           await this._step(live);
         } catch (err) {
           if (signal.aborted) return;
-          live.error = err?.name === 'TimeoutError' || err?.name === 'AbortError' ? 'a Twitch não respondeu' : String(err?.message ?? err);
+          live.error = err?.name === 'TimeoutError' || err?.name === 'AbortError' ? tl('lives.watch.twitchNoAnswer') : String(err?.message ?? err);
         }
       }
       await sleep(this.tick, signal);
@@ -137,7 +138,7 @@ class TwitchWatcher {
     const data = await this._gql({ query: 'query($l:String!){user(login:$l){id stream{id game{id name}}}}', variables: { l: live.login } }, false);
     const user = data?.user;
     if (!user || typeof user !== 'object') {
-      live.error = 'a Twitch não achou o canal';
+      live.error = tl('lives.watch.twitchNoChannel');
       return;
     }
     live.channelId = user.id;
@@ -166,7 +167,7 @@ class TwitchWatcher {
   async _minute(live) {
     const spade = await this._spade(live.login);
     if (!spade) {
-      live.error = 'sem o endereço do aviso de assistindo';
+      live.error = tl('lives.watch.noSpade');
       return;
     }
     const properties = { channel_id: live.channelId, broadcast_id: live.broadcastId, player: 'site', user_id: this._userId, live: true, channel: live.login };
@@ -185,7 +186,7 @@ class TwitchWatcher {
       live.minutes++;
       live.error = null;
     } else {
-      live.error = `aviso de assistindo: erro ${r.status}`;
+      live.error = tl('lives.watch.minuteErr', { status: r.status });
       // O endereço pode ter mudado: busca de novo na próxima vez.
       SPADE.delete(this._endpoints.site);
     }

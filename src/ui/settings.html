@@ -2,7 +2,8 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<title>Configurações</title>
+<title data-i18n="settings.title">Settings</title>
+<script src="../i18n/core.js"></script><script src="../i18n/areas/app.js"></script><script src="../i18n/areas/common.js"></script><script src="i18n.js"></script>
 <style>
   * { box-sizing: border-box; }
   body { margin: 0; font: 13px "Segoe UI", sans-serif; background: #161118; color: #e6e0ea; padding: 16px 20px; user-select: none; }
@@ -22,65 +23,159 @@
   table.ext td.nome b { display: block; font-weight: 600; }
   table.ext td.nome span { color: #a99bb8; font-size: 12px; line-height: 1.4; }
   table.ext button { min-width: 56px; padding: 3px 6px; }
+  select { background: #2a2030; color: #e6e0ea; border: 1px solid #ffffff33; border-radius: 6px; padding: 4px 8px; font: inherit; min-width: 160px; }
   .acts { display: flex; justify-content: flex-end; margin-top: 18px; }
+  .lic-linha { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+  .lic-linha span { color: #a99bb8; font-size: 12px; min-width: 110px; }
+  .lic-linha code { flex: 1; font: 600 13px Consolas, monospace; letter-spacing: .04em; color: #e6e0ea; }
+  .lic-linha input { flex: 1; background: #1d1724; color: #e6e0ea; border: 1px solid #ffffff22; border-radius: 6px; padding: 5px 8px; font: 12px Consolas, monospace; user-select: text; }
+  .lic-estado { color: #a99bb8; font-size: 12px; min-height: 16px; margin: 4px 0 2px; }
+  .lic-estado.ok { color: #2fd160; }
+  .lic-estado.erro { color: #f87171; }
+  .lic-acoes { display: flex; justify-content: flex-end; }
   .acts button { background: #2f6fed; border-color: #6c9bff; color: #fff; }
 </style>
 </head>
 <body>
-<h1>Configurações</h1>
+<h1 data-i18n="settings.title">Settings</h1>
 
-<h2>Jogo</h2>
+<h2 data-i18n="settings.language">Language</h2>
 <div class="row">
-  <div class="txt"><b>Animações reduzidas</b><span>Reduz as animações do jogo em todas as contas (menos CPU). Vale na hora, sem recarregar.</span></div>
+  <div class="txt"><b data-i18n="settings.language.name">Interface language</b><span data-i18n="settings.language.desc"></span></div>
+  <select id="lang"></select>
+</div>
+
+<h2 data-i18n="settings.game">Game</h2>
+<div class="row">
+  <div class="txt"><b data-i18n="settings.motion.name"></b><span data-i18n="settings.motion.desc"></span></div>
   <button data-toggle="reduceMotion" id="reduceMotion"></button>
 </div>
 
-<h2>Captura</h2>
+<h2 data-i18n="settings.capture">Capture</h2>
 <div class="row">
-  <div class="txt"><b>Vigia de captura</b><span>Avisa na tela da conta e com som quando ela fica cerca de 45 s sem capturar com Ultra ou Beast Ball, havendo alvo.</span></div>
+  <div class="txt"><b data-i18n="settings.watch.name"></b><span data-i18n="settings.watch.desc"></span></div>
   <button data-toggle="vigia" id="vigia"></button>
 </div>
+<div id="rows-extra"></div>
+
+<h2 data-i18n="settings.points">Points</h2>
 <div class="row">
-  <div class="txt"><b>Auto-bola sem VIP</b><span>Liga o Auto-bola sozinho nas contas sem VIP, ao entrar no jogo (contas VIP não ligam sozinhas).</span></div>
-  <button data-toggle="autoNoVip" id="autoNoVip"></button>
+  <div class="txt"><b data-i18n="settings.redeem.name"></b><span data-i18n="settings.redeem.desc"></span></div>
+  <button data-open="redeemConfig" data-i18n="settings.redeem.btn"></button>
+</div>
+<div class="row">
+  <div class="txt"><b data-i18n="settings.log.name"></b><span data-i18n="settings.log.desc"></span></div>
+  <button data-open="redeemLog" data-i18n="settings.log.btn"></button>
 </div>
 
-<h2>Pontos (Twitch e Kick)</h2>
+<h2 data-i18n="settings.diag">Diagnostics</h2>
 <div class="row">
-  <div class="txt"><b>Resgate automático</b><span>Escolhe, por conta e por site, o bônus resgatado sozinho (desligado de fábrica).</span></div>
-  <button data-open="redeemConfig">Configurar…</button>
-</div>
-<div class="row">
-  <div class="txt"><b>Log de resgates</b><span>Registro de cada resgate, recusa e parada.</span></div>
-  <button data-open="redeemLog">Abrir…</button>
+  <div class="txt"><b data-i18n="settings.logs.name"></b><span data-i18n="settings.logs.desc"></span></div>
+  <button data-open="logs" data-i18n="settings.log.btn"></button>
 </div>
 
-<h2>Extensões por conta</h2>
-<p class="ajuda" style="color:#a99bb8;font-size:12px;margin:0 0 6px">Liga ou desliga cada extensão em cada conta. Ao mudar, a página daquela conta recarrega para a extensão entrar (ou sair).</p>
+<h2 data-i18n="settings.license">License</h2>
+<div class="lic">
+  <div class="lic-linha"><span data-i18n="settings.license.machine"></span><code id="lic-maquina">…</code><button id="lic-copiar" data-i18n="settings.license.copy"></button></div>
+  <div class="lic-linha"><input id="lic-chave" type="text" autocomplete="off" spellcheck="false" data-i18n-placeholder="settings.license.keyPlaceholder"><button id="lic-ativar" data-i18n="settings.license.activate"></button></div>
+  <div class="lic-estado" id="lic-estado"></div>
+  <div class="lic-acoes"><button id="lic-remover" data-i18n="settings.license.remove"></button></div>
+</div>
+
+<h2 data-i18n="settings.ext">Extensions</h2>
+<p class="ajuda" data-i18n="settings.ext.help" style="color:#a99bb8;font-size:12px;margin:0 0 6px"></p>
 <table class="ext" id="ext"></table>
 
-<div class="acts"><button id="close">Fechar</button></div>
+<div class="acts"><button id="close" data-i18n="common.close"></button></div>
 <script>
-  const FLAGS = { reduceMotion: (s) => s.reduceMotion, vigia: (s) => s.watch, autoNoVip: (s) => s.autoNoVip };
+  const FLAGS = { reduceMotion: (s) => s.reduceMotion, vigia: (s) => s.watch };
+  // linhas extras (módulos adicionais): entram na seção Captura, com o mesmo botão liga/desliga
+  function paintRows(rows) {
+    const box = document.getElementById('rows-extra');
+    if (box.dataset.ids === JSON.stringify((rows || []).map((r) => r.id))) return;
+    box.dataset.ids = JSON.stringify((rows || []).map((r) => r.id));
+    box.textContent = '';
+    for (const r of rows || []) {
+      const row = document.createElement('div');
+      row.className = 'row';
+      const txt = document.createElement('div');
+      txt.className = 'txt';
+      const b = document.createElement('b'); b.textContent = r.label;
+      const sp = document.createElement('span'); sp.textContent = r.desc;
+      txt.append(b, sp);
+      const btn = document.createElement('button');
+      btn.dataset.toggle = r.id;
+      btn.onclick = async () => paint(await cfg.toggle(r.id));
+      row.append(txt, btn);
+      box.append(row);
+    }
+  }
   function paint(s) {
     if (!s) return;
-    paintExt(s.extensions);
-    for (const [id, get] of Object.entries(FLAGS)) {
-      const b = document.getElementById(id);
+    paintLang(s.lang);
+    paintExt(s.extensions, s.accountLabels || {});
+    paintRows(s.rows);
+    const estados = { ...FLAGS };
+    for (const r of s.rows || []) estados[r.id] = () => r.on;
+    for (const [id, get] of Object.entries(estados)) {
+      const b = document.getElementById(id) || document.querySelector(`[data-toggle="${id}"]`);
+      if (!b) continue;
       const on = !!get(s);
-      b.textContent = on ? 'Ligado' : 'Desligado';
+      b.textContent = on ? t('common.on') : t('common.off');
       b.classList.toggle('on', on);
     }
   }
-  function paintExt(ex) {
-    const t = document.getElementById('ext');
+  // Licença desta máquina: ID, ativação e remoção (a verificação é offline)
+  function paintLic(l) {
+    if (!l) return;
+    document.getElementById('lic-maquina').textContent = l.maquina;
+    const est = document.getElementById('lic-estado');
+    est.className = 'lic-estado ' + (l.ativa ? 'ok' : '');
+    est.textContent = l.ativa
+      ? (l.expiraEm ? t('settings.license.activeUntil', { date: new Date(l.expiraEm).toLocaleDateString(lang) }) : t('settings.license.activeForever'))
+      : (l.motivo || t('settings.license.none'));
+  }
+  async function licAtivar() {
+    const chave = document.getElementById('lic-chave').value.trim();
+    const r = await cfg.lic.ativar(chave);
+    if (!r) return;
+    paintLic(r.licenca);
+    const est = document.getElementById('lic-estado');
+    if (!r.ok) { est.className = 'lic-estado erro'; est.textContent = r.motivo; return; }
+    document.getElementById('lic-chave').value = '';
+  }
+  document.getElementById('lic-ativar').onclick = licAtivar;
+  document.getElementById('lic-copiar').onclick = async () => {
+    const b = document.getElementById('lic-copiar');
+    if (await cfg.lic.copiar()) { b.textContent = t('settings.license.copied'); setTimeout(() => { b.textContent = t('settings.license.copy'); }, 1500); }
+  };
+  document.getElementById('lic-remover').onclick = async () => {
+    const r = await cfg.lic.remover();
+    if (r) paintLic(r.licenca);
+  };
+  cfg.lic.get().then(paintLic);
+  // language selector: the choice applies right away (main reloads every screen, this one included)
+  function paintLang(cur) {
+    const sel = document.getElementById('lang');
+    if (!cur || sel.dataset.lang === cur) return;
+    sel.textContent = '';
+    for (const l of PKI18N.LANGS) {
+      const o = document.createElement('option');
+      o.value = l.code; o.textContent = l.native;
+      sel.append(o);
+    }
+    sel.value = sel.dataset.lang = cur;
+  }
+  document.getElementById('lang').onchange = (e) => cfg.setLang(e.target.value);
+  function paintExt(ex, labels) {
+    const tbl = document.getElementById('ext');
     if (!ex) return;
-    t.textContent = '';
-    const head = t.insertRow();
+    tbl.textContent = '';
+    const head = tbl.insertRow();
     head.insertCell().outerHTML = '<th></th>';
-    for (let a = 1; a <= ex.max; a++) head.insertCell().outerHTML = `<th>Conta ${a}</th>`;
+    for (let a = 1; a <= ex.max; a++) head.insertCell().outerHTML = `<th>${labels[a] || t('settings.ext.account', { id: a })}</th>`;
     for (const it of ex.items) {
-      const tr = t.insertRow();
+      const tr = tbl.insertRow();
       const c = tr.insertCell();
       c.className = 'nome';
       const b = document.createElement('b'); b.textContent = it.name;
@@ -89,11 +184,11 @@
       for (let a = 1; a <= ex.max; a++) {
         const on = !!it.accounts[a];
         const btn = document.createElement('button');
-        btn.textContent = on ? 'Ligada' : 'Off';
+        btn.textContent = on ? t('settings.ext.on') : t('settings.ext.off');
         btn.classList.toggle('on', on);
         btn.dataset.ext = it.id;
         btn.dataset.acc = String(a);
-        btn.title = `${it.name} na conta ${a}: ${on ? 'ligada' : 'desligada'} — clique para alternar`;
+        btn.title = t('settings.ext.tip', { name: it.name, account: labels[a] || t('settings.ext.account', { id: a }), state: t(on ? 'settings.ext.state.on' : 'settings.ext.state.off') });
         btn.onclick = async () => { btn.disabled = true; paint(await cfg.ext(it.id, a, !on)); };
         tr.insertCell().append(btn);
       }

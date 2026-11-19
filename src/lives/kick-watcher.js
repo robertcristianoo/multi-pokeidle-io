@@ -5,6 +5,7 @@
 // vídeo: quase nada de CPU e memória.
 
 // A API do site, a do websocket (o token) e o endereço do websocket.
+const { t: tl, getLang } = require('../i18n');
 const KICK_ENDPOINTS = { api: 'https://kick.com', websockets: 'https://websockets.kick.com', socket: 'wss://websockets.kick.com/viewer/v1/connect' };
 
 // O token público do site para o websocket de espectador (NEXT_PUBLIC_WEBSOCKET_CLIENT_TOKEN do player).
@@ -25,7 +26,10 @@ const sleep = (ms, signal) => new Promise((resolve, reject) => {
 });
 
 class KickWatcher {
-  constructor(endpoints, token) {
+  // `fetchFn`: como pedir à Kick. No app é o da sessão do Chromium da conta (cookies e identidade de navegador, que o site
+  // confere: o fetch do Node leva 403); sem ele usa o fetch do Node.
+  constructor(endpoints, token, fetchFn = null) {
+    this._fetch = fetchFn ?? ((...a) => fetch(...a));
     this._endpoints = endpoints;
     this._token = token;
     this._lives = new Map();
@@ -64,10 +68,10 @@ class KickWatcher {
   status(slug) {
     const live = this._lives.get(slug);
     if (!live) return '';
-    if (live.error) return `leve: ${live.error}`;
-    if (live.offline) return 'leve: fora do ar';
-    if (live.watchedAt) return `leve ✓ ${new Date(live.watchedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
-    return 'leve…';
+    if (live.error) return tl('lives.watch.err', { err: live.error });
+    if (live.offline) return tl('lives.watch.off');
+    if (live.watchedAt) return tl('lives.watch.ok', { time: new Date(live.watchedAt).toLocaleTimeString(getLang(), { hour: '2-digit', minute: '2-digit' }) });
+    return tl('lives.watch.wait');
   }
 
   // Quantos eventos de tempo assistido e quantos handshakes mandou, e quantas mensagens a Kick mandou.
@@ -102,7 +106,7 @@ class KickWatcher {
         }
       } catch (err) {
         if (stop.aborted) return;
-        live.error = err?.name === 'TimeoutError' || err?.name === 'AbortError' ? 'a Kick não respondeu' : String(err?.message ?? err);
+        live.error = err?.name === 'TimeoutError' || err?.name === 'AbortError' ? tl('lives.watch.kickNoAnswer') : String(err?.message ?? err);
       }
       failures++;
       try {
@@ -152,7 +156,7 @@ class KickWatcher {
       }
       await sleep(this.tick, stop);
     }
-    if (!stop.aborted) live.error = `a Kick fechou a conexão${closed?.code ? ` (${closed.code})` : ''}`;
+    if (!stop.aborted) live.error = closed?.code ? tl('lives.watch.kickClosedCode', { code: closed.code }) : tl('lives.watch.kickClosed');
   }
 
   _message(type, message) { return JSON.stringify({ type, data: { message } }); }
@@ -168,13 +172,13 @@ class KickWatcher {
       socket.addEventListener('open', () => { stop.removeEventListener('abort', onAbort); resolve(socket); }, { once: true });
       socket.addEventListener('error', (e) => {
         stop.removeEventListener('abort', onAbort);
-        reject(new Error(e?.message || 'não deu para conectar na Kick'));
+        reject(new Error(e?.message || tl('lives.watch.kickConnect')));
       }, { once: true });
     });
   }
 
   _request(url, stop) {
-    return fetch(url, {
+    return this._fetch(url, {
       headers: {
         'User-Agent': USER_AGENT, Accept: 'application/json', 'x-app-platform': 'web', Referer: 'https://kick.com',
         Authorization: `Bearer ${this._token}`,
@@ -186,11 +190,11 @@ class KickWatcher {
   // O canal (o id), a live no ar (o id) e o VOD dela: o que vai no tempo assistido.
   async _info(live, stop) {
     const r = await this._request(`${this._endpoints.api}/api/v2/channels/${encodeURIComponent(live.slug)}/info`, stop);
-    if (!r.ok) throw new Error(`o canal não abriu (erro ${r.status})`);
+    if (!r.ok) throw new Error(tl('lives.watch.channelNoOpen', { status: r.status }));
     let root = await r.json().catch(() => null);
-    if (!root || typeof root !== 'object') throw new Error('o canal veio sem dados');
+    if (!root || typeof root !== 'object') throw new Error(tl('lives.watch.channelNoData'));
     if (root.data && typeof root.data === 'object' && root.id == null) root = root.data;
-    if (root.id == null) throw new Error('o canal veio sem o id');
+    if (root.id == null) throw new Error(tl('lives.watch.channelNoId'));
     live.channelId = root.id;
     const stream = root.livestream && typeof root.livestream === 'object' ? root.livestream : null;
     live.offline = !stream || stream.is_live === false;
@@ -200,17 +204,17 @@ class KickWatcher {
 
   // O token de espectador, com o login da conta (vale para uma conexão).
   async _viewerToken(stop) {
-    const r = await fetch(`${this._endpoints.websockets}/viewer/v1/token`, {
+    const r = await this._fetch(`${this._endpoints.websockets}/viewer/v1/token`, {
       headers: {
         'User-Agent': USER_AGENT, Accept: 'application/json', 'x-app-platform': 'web', Referer: 'https://kick.com',
         Authorization: `Bearer ${this._token}`, 'X-CLIENT-TOKEN': KICK_CLIENT_TOKEN,
       },
       signal: AbortSignal.any([stop, AbortSignal.timeout(HTTP_TIMEOUT_MS)]),
     });
-    if (!r.ok) throw new Error(`a Kick recusou o token de espectador (erro ${r.status})`);
+    if (!r.ok) throw new Error(tl('lives.watch.kickToken', { status: r.status }));
     const doc = await r.json().catch(() => null);
     const token = doc?.data?.token;
-    if (typeof token !== 'string' || !token) throw new Error('a Kick não mandou o token de espectador');
+    if (typeof token !== 'string' || !token) throw new Error(tl('lives.watch.kickNoToken'));
     return token;
   }
 

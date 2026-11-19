@@ -9,7 +9,8 @@ const TIMEOUT_MS = 15 * 1000;
 // A resposta da API: "livestream" é null com o canal offline. true = no ar, false = offline, null = não deu para saber.
 function parseLive(json) {
   try {
-    const doc = typeof json === 'string' ? JSON.parse(json) : json;
+    let doc = typeof json === 'string' ? JSON.parse(json) : json;
+    if (doc && typeof doc === 'object' && doc.data && typeof doc.data === 'object' && !('livestream' in doc)) doc = doc.data;
     if (!doc || typeof doc !== 'object' || !('livestream' in doc)) return null;
     const live = doc.livestream;
     return !!live && typeof live === 'object' && live.is_live !== false;
@@ -18,10 +19,11 @@ function parseLive(json) {
   }
 }
 
-async function isLiveAsync(channel, { api = 'https://kick.com' } = {}) {
+// Pergunta à Kick por um endereço; true/false se a resposta diz, null se não deu para saber (bloqueio, erro, sem internet).
+async function ask(url, fetchFn = fetch) {
   try {
-    const r = await fetch(`${api}/api/v2/channels/${encodeURIComponent(channel)}`, {
-      headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' },
+    const r = await fetchFn(url, {
+      headers: { 'User-Agent': USER_AGENT, Accept: 'application/json', 'x-app-platform': 'web', Referer: 'https://kick.com' },
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     if (r.status === 404) return false;
@@ -29,6 +31,12 @@ async function isLiveAsync(channel, { api = 'https://kick.com' } = {}) {
   } catch {
     return null;
   }
+}
+
+// O endereço de sempre e, sem resposta, o "/info" (o mesmo que a Kick leve usa para abrir o canal).
+async function isLiveAsync(channel, { api = 'https://kick.com', fetchFn } = {}) {
+  const base = `${api}/api/v2/channels/${encodeURIComponent(channel)}`;
+  return (await ask(base, fetchFn)) ?? (await ask(`${base}/info`, fetchFn));
 }
 
 // As lives para abrir: só canais que estão no ar, na ordem da lista (a primeira tem prioridade), até `slots`. Quando um

@@ -1,6 +1,7 @@
 // Login com Google em qualquer janela (src/google-login.js): detecção, oferta, fluxo pelo navegador e leitura do
 // localStorage. Janela, diálogo e navegador são de mentira: nada abre o Chrome nem a rede.
 const { check, finish } = require('./helpers');
+require('../src/i18n').setLang('pt-BR'); // os textos conferidos aqui estão em português
 const { EventEmitter } = require('events');
 const G = require('../src/google-login');
 const B = require('../src/browser-login');

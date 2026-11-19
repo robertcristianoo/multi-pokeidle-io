@@ -2,7 +2,8 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<title>Memória</title>
+<title data-i18n="ram.page">Memória</title>
+<script src="../i18n/core.js"></script><script src="../i18n/areas/ram.js"></script><script src="../i18n/areas/common.js"></script><script src="i18n.js"></script>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: #1b1220; color: #a99bb8; font: 11px "Segoe UI", sans-serif; overflow: hidden; user-select: none; }
@@ -36,15 +37,15 @@
 
   function render(s) {
     bar.textContent = '';
-    bar.append(item('RAM', s.total.txt, s.total.level, 'Memória de trabalho de todo o app (soma dos processos)'));
-    bar.append(item('app/outros', s.app.txt, 'ok', 'Processo principal, GPU e barras/avisos do app'));
+    bar.append(item('RAM', s.total.txt, s.total.level, t('ram.total.title')));
+    bar.append(item(t('ram.other.label'), s.app.txt, 'ok', t('ram.other.title')));
     for (const a of s.accounts) {
-      bar.append(item(`Conta ${a.id}`, a.txt, a.level, `Posição ${a.pos + 1} na grade: processo da página do jogo`));
+      bar.append(item(a.label, a.txt, a.level, t('ram.account.title', { pos: a.pos + 1 })));
     }
     const x = document.createElement('button');
     x.className = 'hide';
     x.textContent = '×';
-    x.title = 'Ocultar a barra de RAM (volta com Ctrl+M ou pela ajuda F1)';
+    x.title = t('ram.hide.title');
     x.onclick = () => ram.hide();
     const sp = document.createElement('div');
     sp.className = 'sp';

@@ -5,6 +5,9 @@
 const fs = require('fs');
 const path = require('path');
 const { app, BrowserWindow, ipcMain } = require('electron');
+const { t, getLang, loadPage, dicts } = require('./i18n');
+const accountNames = require('./account-names');
+const { createRestockLog } = require('./restock-log');
 
 const TICK_MS = 1000;
 const MAX_ACCOUNTS = 4;
@@ -46,12 +49,20 @@ const script = (json) => `(() => {
   return r.summary();
 })()`;
 
+// Textos que a página do jogo usa (o preload dela não enxerga os arquivos de idioma): só as chaves restock.frame.*, já no idioma atual.
+function frameDict() {
+  const out = {};
+  for (const k of Object.keys(dicts.en)) if (k.startsWith('restock.frame.')) out[k] = t(k);
+  return out;
+}
+
 module.exports = function init({ getSlots, sendLog }) {
   const file = () => path.join(app.getPath('userData'), 'restock.json');
   const framePath = path.join(__dirname, 'preload', 'restock-frame.js');
   const windowPreload = path.join(__dirname, 'preload', 'restock-window.js');
   const windowPage = path.join(__dirname, 'ui', 'restock.html');
 
+  const hist = createRestockLog(app.getPath('userData')); // registro de compras, mantido entre sessões e versões
   const cfgs = new Map(); // id -> configuração sanitizada
   const status = new Map(); // id -> resumo que a página devolveu no último ciclo
   const pushed = new Map(); // id -> último JSON empurrado para a página
@@ -76,7 +87,7 @@ module.exports = function init({ getSlots, sendLog }) {
     try {
       fs.writeFileSync(file(), JSON.stringify(Object.fromEntries(cfgs), null, 2));
     } catch (err) {
-      console.error('não foi possível salvar restock.json:', err);
+      console.error('could not save restock.json:', err);
     }
   }
 
@@ -85,31 +96,33 @@ module.exports = function init({ getSlots, sendLog }) {
     if (!Array.isArray(lines) || !lines.length) return;
     const last = seen.get(id);
     const i = last === undefined ? -1 : lines.lastIndexOf(last);
-    for (const t of lines.slice(i + 1)) {
+    for (const line of lines.slice(i + 1)) {
       sendLog({
         acc: `conta${id}`,
         kind: 'load',
-        level: /recus|falh|pausa|mínimo|minimo|não/i.test(t) ? 'warn' : 'info',
-        text: `[reposição] ${t}`,
+        // o texto vem da página no idioma atual: as palavras de aviso valem para pt-BR, en e es
+        level: /recus|falh|pausa|mínimo|minimo|não|refus|fail|paus|minimum|couldn|did not|rechaz|fall|no pude|no respond/i.test(line) ? 'warn' : 'info',
+        text: t('restock.log.line', { text: line }),
       });
     }
+    hist.append(id, lines.slice(i + 1));
     seen.set(id, lines[lines.length - 1]);
   }
 
-  const fmtN = (n) => Math.round(Number(n) || 0).toLocaleString('pt-BR');
+  const fmtN = (n) => Math.round(Number(n) || 0).toLocaleString(getLang());
 
   // Texto curto ao lado do botão (aparece em laranja quando algo impede a reposição) e dica detalhada.
   function diag(id) {
     const c = cfgOf(id);
-    if (!c.on) return { badge: '', hint: 'Desligada nesta conta. Ligue aqui; o ⚙ configura o que repor.' };
+    if (!c.on) return { badge: '', hint: t('restock.diag.off') };
     const s = status.get(id);
-    if (!s) return { badge: '⚠ sem gancho', hint: 'A página do jogo ainda não carregou a reposição. Recarregue a conta (F5).' };
-    if (!s.connected) return { badge: '⚠ sem jogo', hint: 'Sem conexão com o jogo nesta conta: faça login para a reposição começar.' };
-    if (s.paused) return { badge: '⚠ pausa', hint: 'Pausada após 3 compras seguidas sem dar certo. Volta sozinha em até 2 min.' };
+    if (!s) return { badge: t('restock.diag.noHook.badge'), hint: t('restock.diag.noHook.hint') };
+    if (!s.connected) return { badge: t('restock.diag.noGame.badge'), hint: t('restock.diag.noGame.hint') };
+    if (s.paused) return { badge: t('restock.diag.paused.badge'), hint: t('restock.diag.paused.hint') };
     const ultima = s.log?.at(-1);
     return {
       badge: '',
-      hint: `Conectado${s.nick ? ` (${s.nick})` : ''} · ouro ${fmtN(s.gold)}${ultima ? `\núltimo: ${ultima}` : ''}`,
+      hint: t('restock.diag.connected', { nick: s.nick ? ` (${s.nick})` : '', gold: fmtN(s.gold), last: ultima ? t('restock.diag.last', { text: ultima }) : '' }),
     };
   }
 
@@ -126,7 +139,7 @@ module.exports = function init({ getSlots, sendLog }) {
         } catch {
           continue; // view já destruída
         }
-        const json = JSON.stringify(cfgOf(id));
+        const json = JSON.stringify({ ...cfgOf(id), i18n: frameDict() }); // texto novo (troca de idioma) também é empurrado
         const push = pushed.get(id) !== json;
         try {
           const s = await wc.executeJavaScript(script(push ? json : null));
@@ -158,11 +171,11 @@ module.exports = function init({ getSlots, sendLog }) {
     const win = new BrowserWindow({
       width: 640,
       height: 800,
-      title: `Reposição - conta ${id} - Multi PokeIdle IO`,
+      title: t('restock.win.title', { name: accountNames.label(id) }),
       autoHideMenuBar: true,
       webPreferences: { preload: windowPreload },
     });
-    win.loadFile(windowPage, { query: { id: String(id) } });
+    loadPage(win.webContents, windowPage, { id: String(id) });
     wins.set(id, win);
     win.on('closed', () => wins.delete(id));
   }
@@ -170,10 +183,14 @@ module.exports = function init({ getSlots, sendLog }) {
   const idOf = (e) => [...wins].find(([, w]) => !w.isDestroyed() && w.webContents === e.sender)?.[0];
 
   load();
+  // o nome da conta pode ser lido depois de a janela abrir: atualiza o título
+  accountNames.onChange((id) => { const w = wins.get(id); if (w && !w.isDestroyed()) w.setTitle(t('restock.win.title', { name: accountNames.label(id) })); });
   ipcMain.handle('rst:get', (e) => {
     const id = idOf(e);
     if (id === undefined) return null;
-    return { id, cfg: cfgOf(id), status: status.get(id) ?? null };
+    const st = status.get(id) ?? null;
+    if (st) logNew(id, st.log); // grava já o que a página tem de novo, para o histórico estar completo ao abrir
+    return { id, label: accountNames.label(id), cfg: cfgOf(id), status: st, history: hist.read(id) };
   });
   ipcMain.handle('rst:save', (e, raw) => {
     const id = idOf(e);
@@ -183,16 +200,19 @@ module.exports = function init({ getSlots, sendLog }) {
     tick();
     return cfgOf(id);
   });
+  // o preload da página do jogo pede, de forma síncrona, os textos no idioma atual (roda antes dos scripts do jogo)
+  ipcMain.on('restock:i18n', (e) => { e.returnValue = frameDict(); });
   setInterval(() => tick(), TICK_MS);
 
   const feature = {
     id: 'reposicao',
+    order: 20,
     label: '🛒',
-    title: 'Auto-reposição: repõe pokébolas, revives e poções no Mercado do NPC quando o estoque cai (gasta ouro do jogo)',
+    get title() { return t('restock.feature.title'); }, // avaliada no uso, para respeitar a troca de idioma
     isOn: (id) => !!cfgOf(id).on,
     set: (id, on) => {
       save(id, { ...cfgOf(id), on: !!on });
-      sendLog({ acc: `conta${id}`, kind: 'load', level: 'info', text: `reposição ${on ? 'LIGADA' : 'DESLIGADA'}` });
+      sendLog({ acc: `conta${id}`, kind: 'load', level: 'info', text: t(on ? 'restock.log.on' : 'restock.log.off') });
       tick();
     },
     settings: (id) => openWindow(id),

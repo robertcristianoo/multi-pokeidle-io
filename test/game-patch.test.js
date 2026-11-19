@@ -3,6 +3,7 @@
 //  2. interceptação: só o app.js de pokeidle.io é servido com a marcação (o restante do tráfego não é tocado);
 //  3. atalho: aparece sobre as artes grandes marcadas, abre o painel com o pokémon certo e não aparece nas pequenas.
 const { app, check, finish, waitFor } = require('./helpers');
+require('../src/i18n').setLang('pt-BR'); // os textos conferidos aqui estão em português
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
@@ -80,6 +81,7 @@ app.whenReady().then(async () => {
     // arte criada depois (card que redesenha) também ganha o atalho
     await v2.webContents.executeJavaScript(`(() => { const d = document.createElement('div'); d.id = 'n'; const c = document.createElement('canvas'); c.__pk = { speciesId: 9, level: 5, stats: { hp: 1 } }; c.setAttribute('data-pk-marca', '64'); d.append(c); document.body.append(d); })()`);
     check(await waitFor(() => v2.webContents.executeJavaScript('!!document.querySelector("#n .pih-atalho")'), 3000), 'card criado depois também ganha o atalho');
+
   } catch (err) {
     console.error(err);
     check(false, `erro inesperado: ${err.message}`);

@@ -8,7 +8,12 @@
 // Como: o protocolo do DevTools (Fetch) pausa SÓ a resposta de `https://pokeidle.io/app.js` e devolve a versão com o
 // trecho; o restante do tráfego da conta não passa por aqui. Se o jogo mudar e o ponto de encaixe não for achado, o
 // `app.js` original segue sem alteração e o atalho simplesmente não aparece (um aviso vai para o log).
-//   createGamePatch({ isWanted(contaId), sendLog }) -> { attach(contaId, view) }
+//
+// Além das marcas, módulos adicionais podem registrar outros trechos para o mesmo `app.js` (`addPatch`); cada um é
+// uma função `(source) => { src, cauda? } | null` e roda na ordem de registro.
+//   createGamePatch({ isWanted(contaId), sendLog }) -> { attach(contaId, view), addPatch(fn) }
+
+const { t } = require('./i18n');
 
 const PATTERN = 'https://pokeidle.io/app.js*';
 
@@ -57,30 +62,64 @@ function atualizarTilePkCofre(...a) {
 ];
 
 /**
- * Devolve o app.js com a marcação, ou null se o ponto de encaixe obrigatório não existir (jogo mudou), se já estiver
- * aplicado, ou se uma função aparecer declarada mais de uma vez. Os pontos opcionais que sumirem são só pulados.
+ * Aplica as marcas (só quando `marcas`: a extensão /hunt está ligada nesta conta) e, em seguida, os trechos extras
+ * registrados (`extras`, cada um `(source) => { src, cauda? } | null`).
+ * Devolve { texto, marcas, extras }; `texto` é null se nada foi aplicado (jogo mudou, já aplicado ou sem o ponto).
  */
-function patchApp(source) {
-  if (typeof source !== 'string' || source.includes('__spritePokemonOriginal')) return null;
+function aplicarPatch(source, { marcas = true, extras = [] } = {}) {
+  const nada = { texto: null, marcas: false, extras: 0 };
+  if (typeof source !== 'string') return nada;
   let out = source;
   let extra = '';
-  for (const h of HOOKS) {
-    const decl = new RegExp('(^|\\n)function ' + h.name + '\\(');
-    const m = decl.exec(out);
-    const dup = m && out.slice(m.index + m[0].length).match(decl);
-    if (!m || dup) {
-      if (h.required) return null;
-      continue;
+  let marcasOk = false;
+  const marcado = marcas && !source.includes('__spritePokemonOriginal');
+  // o obrigatório precisa existir (e ser único) antes de mexer em qualquer parte
+  const obrigatoriosOk = HOOKS.filter((h) => h.required).every((h) => declaracaoOk(out, h.name));
+  if (marcado && obrigatoriosOk) {
+    marcasOk = true;
+    for (const h of HOOKS) {
+      const decl = new RegExp('(^|\\n)function ' + h.name + '\\(');
+      if (!declaracaoOk(out, h.name)) continue;
+      out = out.replace(decl, `$1function __${h.name}Original(`);
+      extra += h.wrapper;
     }
-    out = out.replace(decl, `$1function __${h.name}Original(`);
-    extra += h.wrapper;
   }
-  return `${out}
+  let cauda = '';
+  let extrasOk = 0;
+  for (const fn of extras) {
+    let r = null;
+    try {
+      r = fn(out);
+    } catch {
+      r = null;
+    }
+    if (!r || typeof r.src !== 'string') continue;
+    out = r.src;
+    cauda += r.cauda ?? '';
+    extrasOk++;
+  }
+  if (!marcasOk && !extrasOk) return nada;
+  const marcaCauda = marcasOk ? `
 // [multi-pokeidle-io]
-globalThis.__pkMarcaAtiva = true;${extra}`;
+globalThis.__pkMarcaAtiva = true;${extra}` : '';
+  return { texto: `${out}${marcaCauda}${cauda}`, marcas: marcasOk, extras: extrasOk };
+}
+
+// Declaração única de `nome` no início de uma linha (o jogo pode declarar a função mais de uma vez, o que deixa o ponto ambíguo)
+function declaracaoOk(source, nome) {
+  const decl = new RegExp('(^|\\n)function ' + nome + '\\(');
+  const m = decl.exec(source);
+  return !!m && !source.slice(m.index + m[0].length).match(decl);
+}
+
+/** Texto do app.js com as marcas e/ou os trechos extras, ou null se nada pôde ser aplicado (ver aplicarPatch). */
+function patchApp(source, opts) {
+  return aplicarPatch(source, opts).texto;
 }
 
 function createGamePatch({ isWanted = () => true, sendLog = () => {} } = {}) {
+  const extras = []; // trechos extras registrados por módulos adicionais (addPatch)
+
   function attach(id, view) {
     const wc = view.webContents;
     let warned = false;
@@ -103,17 +142,17 @@ function createGamePatch({ isWanted = () => true, sendLog = () => {} } = {}) {
       const dbg = wc.debugger;
       const pass = () => dbg.sendCommand('Fetch.continueResponse', { requestId: p.requestId }).catch(() => {});
       try {
-        if (!isWanted(id) || p.responseStatusCode !== 200) return await pass();
+        if (p.responseStatusCode !== 200) return await pass();
         const { body, base64Encoded } = await dbg.sendCommand('Fetch.getResponseBody', { requestId: p.requestId });
         const source = base64Encoded ? Buffer.from(body, 'base64').toString('utf8') : body;
-        const patched = patchApp(source);
-        if (!patched) {
-          if (!warned) {
-            warned = true;
-            sendLog({ acc: `conta${id}`, kind: 'load', level: 'warn', text: '[hunt] não achei o ponto de encaixe no app.js (o jogo mudou?); o atalho ⚔? fica desligado nesta carga' });
-          }
-          return await pass();
+        // the /hunt marks only go in while /hunt is on; the extra patches decide on their own
+        const r = aplicarPatch(source, { marcas: !!isWanted(id), extras });
+        if (isWanted(id) && !r.marcas && !warned) {
+          warned = true;
+          sendLog({ acc: `conta${id}`, kind: 'load', level: 'warn', text: t('patch.noHook') });
         }
+        const patched = r.texto;
+        if (!patched) return await pass();
         const skip = new Set(['content-length', 'content-encoding', 'transfer-encoding', 'etag', 'content-md5']);
         const responseHeaders = (p.responseHeaders ?? []).filter((h) => !skip.has(String(h.name).toLowerCase()));
         await dbg.sendCommand('Fetch.fulfillRequest', {
@@ -133,7 +172,7 @@ function createGamePatch({ isWanted = () => true, sendLog = () => {} } = {}) {
     wc.on('did-start-navigation', (_e, _url, _inPlace, isMainFrame) => { if (isMainFrame) enable(); });
   }
 
-  return { attach };
+  return { attach, addPatch: (fn) => { if (typeof fn === 'function') extras.push(fn); } };
 }
 
-module.exports = { createGamePatch, patchApp };
+module.exports = { createGamePatch, patchApp, aplicarPatch };

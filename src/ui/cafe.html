@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src data:">
+<title data-i18n="cafe.title">Buy me a coffee</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; padding: 20px; background: #161019; color: #eee; font: 14px "Segoe UI", sans-serif; text-align: center; }
+  h1 { margin: 0 0 6px; font-size: 19px; }
+  p { margin: 6px 0; color: #cdbfd8; }
+  .qr { display: inline-block; background: #fff; padding: 12px; border-radius: 10px; margin: 14px 0 10px; }
+  .qr img { display: block; width: 220px; height: 220px; image-rendering: pixelated; }
+  .chave { font: 12px Consolas, monospace; color: #bdb0c9; word-break: break-all; margin: 4px 0 12px; }
+  button { background: #3a2a4b; color: #fff; border: 1px solid #ffffff33; border-radius: 8px; padding: 8px 12px; cursor: pointer; font: inherit; margin: 4px; }
+  button:hover { background: #4b3763; }
+  .ok { color: #7ee08a; min-height: 18px; font-size: 13px; }
+  .fechar { margin-top: 10px; background: transparent; }
+</style>
+<script src="../i18n/core.js"></script>
+<script src="../i18n/areas/support.js"></script>
+<script src="../i18n/areas/common.js"></script>
+<script src="i18n.js"></script>
+</head>
+<body>
+  <h1 data-i18n="cafe.h1">☕ Buy me a coffee</h1>
+  <p data-i18n="cafe.desc">The app is free. If it helps you, a PIX of any amount supports the project.</p>
+  <div class="qr"><img id="qr" alt="PIX QR code"></div>
+  <div class="chave" id="chave"></div>
+  <button id="cp-chave" data-i18n="cafe.copyKey">Copy PIX key</button>
+  <button id="cp-copia" data-i18n="cafe.copyPaste">Copy PIX copy-and-paste code</button>
+  <div class="ok" id="ok" role="status"></div>
+  <p data-i18n="cafe.optional">Optional, with no automatic charge. Thank you!</p>
+  <button class="fechar" id="fechar" data-i18n="common.close">Close</button>
+  <script src="vendor/qrcode.js"></script>
+  <script src="cafe.js"></script>
+</body>
+</html>
