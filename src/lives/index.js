@@ -84,6 +84,7 @@ function createLives({
   const pubsubs = new Map(); // conta -> TwitchPubSub
   const taken = new Map(); // conta -> Set de raids e momentos que já pegou
   const bonusInfo = new Map(); // conta -> linha de dica do bônus no jogo
+  const bonusSummary = new Map(); // conta -> última leitura do bônus no jogo (tempo que falta, canais oficiais no ar/offline)
   const bonusBusy = new Set();
   const active = new Set(); // contas com lives abertas por este gerenciador
   const problemAt = new Map();
@@ -320,35 +321,146 @@ function createLives({
     const saldos = eligible.map((e) => `${e.channel} ${e.points}`).join(', ');
     return t('lives.combo.noSplit', { combo: keys.map(label).join(' + '), balances: saldos });
   };
-  async function comboCheck(acc, site, redeemer, rewards, reads, scriptOf) {
-    const keys = R.keysOf(rewards);
-    const parsed = reads.map(({ channel, read }) => {
+  // Os canais fora das lives abertas (offline primeiro: os pontos deles estão parados) onde ainda dá para resgatar quando as lives
+  // abertas não cobrem. Lê o saldo sem a página (cache de OFFLINE_READ_MS por canal) e devolve [{ channel, read }].
+  const OFFLINE_READ_MS = 5 * 60 * 1000;
+  const offlineCache = new Map(); // conta|site|canal -> { at, read }
+  // Memória dos pontos de cada canal (das lives abertas e das leituras de fora): sabe onde há saldo quando precisar resgatar
+  const pointsMemory = new Map(); // conta|site|canal -> { points, at }
+  const memorize = (acc, site, channel, read) => {
+    try {
+      const p = JSON.parse(read)?.points;
+      if (Number.isInteger(p)) pointsMemory.set(`${acc}|${site}|${channel}`, { points: p, at: Date.now() });
+    } catch {}
+  };
+  async function readOffline(acc, site, rewards, token, device) {
+    const c = cfg();
+    const info = bonusSummary.get(acc)?.[site] ?? {};
+    const live = new Set((info.channels ?? []).filter((ch) => ch.live).map((ch) => String(ch.login).toLowerCase()));
+    const cands = guard.candidates(c[site === 'kick' ? 'kickChannels' : 'twitchChannels'], info, openOf(site, acc));
+    // Offline primeiro; dentro de cada grupo, o de mais pontos conhecidos (memória das leituras anteriores) vem antes
+    const known = (ch) => pointsMemory.get(`${acc}|${site}|${ch}`)?.points ?? -1;
+    const byPoints = (list) => [...list].sort((x, y) => known(y) - known(x));
+    const ordered = [...byPoints(cands.filter((ch) => !live.has(ch))), ...byPoints(cands.filter((ch) => live.has(ch)))];
+    const out = [];
+    for (const channel of ordered) {
+      const key = `${acc}|${site}|${channel}`;
+      let hit = offlineCache.get(key);
+      if (!hit || Date.now() - hit.at > OFFLINE_READ_MS) {
+        const read = site === 'kick'
+          ? await R.kickReadAsync(D.kickReadApi, channel, token, rewards, sessionFetch(acc))
+          : await R.twitchReadAsync(D.twitchReadApi, channel, token, device, rewards);
+        hit = { at: Date.now(), read };
+        offlineCache.set(key, hit);
+        memorize(acc, site, channel, read);
+      }
+      if (site === 'kick' ? kickReadProblem(hit.read) : failedRead(hit.read)) continue;
+      out.push({ channel, read: hit.read });
+    }
+    return out;
+  }
+
+  // Bônus que já chegou no limite de horas da conta (0 = sem limite): o tempo do jogo vem da última leitura do bônus
+  const capNoted = new Set();
+  function capped(acc, site, key) {
+    const hours = cfg().maxHours[acc] ?? 0;
+    const left = bonusSummary.get(acc)?.[site]?.left?.[bonusKind(key)];
+    const id = `${acc}|${site}|${key}`;
+    const hit = hours > 0 && typeof left === 'number' && left >= hours * 3600;
+    if (!hit) { capNoted.delete(id); return false; }
+    if (!capNoted.has(id)) {
+      capNoted.add(id);
+      logLine(acc, site, t('lives.cap.reached', { kind: kindName(key), time: bonusTime(left), hours }));
+    }
+    return true;
+  }
+
+  // `readExtra()`: lê os canais fora das lives abertas (readOffline); só roda quando as abertas não cobrem. Esses resgates vão
+  // numa página escondida do canal (D.pages.runOnce), não na página das lives abertas.
+  async function comboCheck(acc, site, redeemer, rewards, reads, scriptOf, readExtra = null) {
+    const combo = cfg().comboAll[acc] === true;
+    const limited = (cfg().maxHours[acc] ?? 0) > 0;
+    const keys = R.keysOf(rewards).filter((k) => !capped(acc, site, k));
+    const parse = (list) => list.map(({ channel, read }) => {
       let info = null;
       try { info = JSON.parse(read); } catch { info = null; }
       return { channel, read, info };
     });
-    const eligible = parsed
+    const eligibleOf = (parsed) => parsed
       .filter((p) => p.info && Number.isInteger(p.info.points) && redeemer.spendable(p.channel, p.info.points))
       .map((p) => ({ channel: p.channel, points: p.info.points, options: p.info.options ?? [] }));
-    const round = R.planRound(keys, eligible);
+    const parsed = parse(reads);
+    for (const p of parsed) memorize(acc, site, p.channel, p.read);
+    const eligible = eligibleOf(parsed);
     const slotKey = `${acc}|${site}`;
     const ran = new Set();
-    if (round) {
-      comboNoted.delete(slotKey);
-      for (const a of round) {
-        ran.add(a.channel);
-        const result = await D.pages.run(acc, site, a.channel, scriptOf(a.channel, a.key));
-        note(acc, redeemer.apply(a.channel, result));
-        if (keys.length > 1 && !result.includes('"redeemed":true')) break;
+    const offSet = new Set();
+    let extra = null; // leituras dos canais fora das lives abertas (lidas uma vez, só se precisar)
+    const extraEligible = async () => {
+      if (extra === null) {
+        extra = [];
+        try { if (readExtra) extra = eligibleOf(parse(await readExtra())); } catch { extra = []; }
       }
-    } else if (keys.length > 1) {
-      const text = waitText(keys, eligible);
-      if (comboNoted.get(slotKey) !== text) {
-        comboNoted.set(slotKey, text);
-        logLine(acc, site, text);
+      return extra;
+    };
+
+    // O plano: lista de { channel, key } a resgatar nesta conferência
+    let plan = [];
+    if (keys.length) {
+      if (combo && keys.length > 1) {
+        let round = R.planRound(keys, eligible);
+        let all = eligible;
+        if (!round) {
+          all = [...eligible, ...(await extraEligible())];
+          round = R.planRound(keys, all);
+        }
+        if (round) {
+          comboNoted.delete(slotKey);
+          plan = round;
+        } else {
+          const text = waitText(keys, all);
+          if (comboNoted.get(slotKey) !== text) {
+            comboNoted.set(slotKey, text);
+            logLine(acc, site, text);
+          }
+        }
+      } else {
+        // Cada bônus por si: o que o saldo cobrir é resgatado, nas lives abertas e, se elas não cobrem, nas de fora
+        const left = new Map([...eligible].map((e) => [e.channel, e.points]));
+        const pool = (list) => list.map((e) => ({ ...e, points: left.get(e.channel) ?? e.points }));
+        for (const key of keys) {
+          let pay = R.planRound([key], pool(eligible)) ?? [];
+          if (!pay.length) {
+            const more = await extraEligible();
+            for (const e of more) if (!left.has(e.channel)) left.set(e.channel, e.points);
+            pay = R.planRound([key], pool(more)) ?? [];
+          }
+          if (limited) pay = pay.slice(0, 1); // com limite de horas, 1 resgate por bônus a cada conferência
+          for (const p of pay) {
+            left.set(p.channel, left.get(p.channel) - p.cost);
+            plan.push(p);
+          }
+        }
       }
     }
-    // Os canais que não resgataram nesta conferência só anotam a leitura (o saldo deles não mudou)
+
+    const offOf = new Set((extra ?? []).map((e) => e.channel));
+    for (const a of plan) {
+      const off = offOf.has(a.channel) && !eligible.some((e) => e.channel === a.channel);
+      ran.add(a.channel);
+      if (off) offSet.add(a.channel);
+      const result = off
+        ? await D.pages.runOnce(acc, site, a.channel, scriptOf(a.channel, a.key))
+        : await D.pages.run(acc, site, a.channel, scriptOf(a.channel, a.key));
+      if (off) {
+        offlineCache.delete(`${acc}|${site}|${a.channel}`);
+        pointsMemory.delete(`${acc}|${site}|${a.channel}`);
+        logLine(acc, site, t('lives.offline.redeemHere', { ch: a.channel }));
+      }
+      note(acc, redeemer.apply(a.channel, result));
+      if (combo && keys.length > 1 && !result.includes('"redeemed":true')) break;
+    }
+    // Os canais abertos que não resgataram nesta conferência só anotam a leitura (o saldo deles não mudou)
     for (const p of parsed) if (!ran.has(p.channel)) note(acc, redeemer.apply(p.channel, p.read));
   }
 
@@ -390,7 +502,7 @@ function createLives({
             }
             reads.push({ channel, read });
           }
-          await comboCheck(acc, 'kick', redeemer, rewards, reads, (channel, key) => redeemer.kickScript(D.kickApi, channel, token, key));
+          await comboCheck(acc, 'kick', redeemer, rewards, reads, (channel, key) => redeemer.kickScript(D.kickApi, channel, token, key), () => readOffline(acc, 'kick', rewards, token, null));
         } catch (e) {
           // Um erro aqui não pode parar o resgate da Kick em silêncio: vai para o registro e a próxima conferência tenta de novo
           logLine(acc, 'kick', t('lives.kick.crashed', { err: (e && e.message) || e }));
@@ -443,7 +555,7 @@ function createLives({
           }
           reads.push({ channel, read });
         }
-        await comboCheck(acc, 'twitch', redeemer, rewards, reads, (channel, key) => redeemer.twitchScript(D.twitchApi, channel, token, device, key, false));
+        await comboCheck(acc, 'twitch', redeemer, rewards, reads, (channel, key) => redeemer.twitchScript(D.twitchApi, channel, token, device, key, false), () => readOffline(acc, 'twitch', rewards, token, device));
         updatePubSub(acc, token);
         updateWatcher(acc, token, device);
         for (const quiet of redeemer.newQuiet(openOf('twitch', acc))) {
@@ -618,7 +730,8 @@ function createLives({
     bonusBusy.add(acc);
     try {
       const summary = await readBonus(acc);
-      if (!summary) { bonusInfo.delete(acc); return; }
+      if (!summary) { bonusInfo.delete(acc); bonusSummary.delete(acc); return; }
+      bonusSummary.set(acc, summary);
       const line = bonusLine(acc, summary);
       if (line) bonusInfo.set(acc, line); else bonusInfo.delete(acc);
       await guardBonus(acc, summary);

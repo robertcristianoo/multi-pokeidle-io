@@ -171,7 +171,7 @@ app.whenReady().then(async () => {
 
     // combo de dois bônus (XP + Captura, nesta ordem): com 350 nos canais o Captura (500) não cabe, então nada resgata e espera
     extraRewards = true;
-    store = { ...store, redeemKick: { 1: ['xp', 'captura'] } };
+    store = { ...store, redeemKick: { 1: ['xp', 'captura'] }, comboAll: { 1: true } };
     points = 350;
     ran.length = 0;
     lives.redeemerOf('kick', 1).restart();
@@ -184,8 +184,41 @@ app.whenReady().then(async () => {
     await lives.redeemKick();
     check(ran.length === 2 && ran[0].channel === 'a' && ran[1].channel === 'a' && /bxp/.test(ran[0].script) && /captur/.test(ran[1].script),
       `combo: um de cada, na ordem da lista, somando o saldo do canal (${ran.map((r) => r.channel)})`);
+    // sem "tudo de uma vez": com 350 resgata o XP (300) e deixa o Captura (500) esperando
+    store = { ...store, comboAll: { 1: false } };
+    points = 350;
+    ran.length = 0;
+    lives.redeemerOf('kick', 1).restart();
+    await lives.redeemKick();
+    check(ran.length === 2 && ran.every((r) => /bxp/.test(r.script)), `sem combo: resgata o que o saldo cobre (só o XP, nas duas lives) (${ran.length})`);
     extraRewards = false;
     store = { ...store, redeemKick: { 1: 'xp' } };
+    // limite de horas: com o bônus do jogo já em 30 h e o limite de 24 h, não resgata
+    summary = { connected: true, kick: { linked: true, left: { xp: 30 * 3600 }, channels: [] }, twitch: null };
+    await lives.refreshBonus(1);
+    store = { ...store, maxHours: { 1: 24 } };
+    points = 400;
+    ran.length = 0;
+    lives.redeemerOf('kick', 1).restart();
+    await lives.redeemKick();
+    check(ran.length === 0 && lives.log.read().some((r) => /limite de 24 h/.test(r.detalhe)), 'limite de horas: bônus acima do limite não resgata');
+    // abaixo do limite volta a resgatar, e com limite é 1 resgate por conferência
+    summary = { connected: true, kick: { linked: true, left: { xp: 3600 }, channels: [] }, twitch: null };
+    await lives.refreshBonus(1);
+    lives.redeemerOf('kick', 1).restart();
+    await lives.redeemKick();
+    check(ran.length === 1, `limite de horas: abaixo do limite resgata 1 por conferência (${ran.length})`);
+    // lives abertas sem pontos: resgata num canal fora delas (o offline do jogo), numa página escondida
+    store = { ...store, maxHours: { 1: 0 } };
+    summary = { connected: true, kick: { linked: true, left: { xp: 7200 }, channels: [{ login: 'rico', live: false }] }, twitch: null };
+    await lives.refreshBonus(1);
+    points = 10;
+    ran.length = 0;
+    once.length = 0;
+    lives.redeemerOf('kick', 1).restart();
+    await lives.redeemKick();
+    check(ran.length === 0 && once.length === 1 && once[0].channel === 'rico', `lives abertas sem pontos: resgata no canal offline (${once.map((o) => o.channel)})`);
+    once.length = 0;
     points = 10;
     // o fixture devolve sempre o mesmo saldo nos resgates falsos: volta a resgatar do zero antes da guarda (como ao salvar a config)
     lives.redeemerOf('kick', 1).restart();

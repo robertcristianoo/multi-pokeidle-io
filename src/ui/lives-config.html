@@ -86,14 +86,15 @@
   </div>
 </div>
 <table>
-  <thead><tr><th data-i18n="lives.config.colAccount">Conta</th><th data-i18n="lives.config.colLives">Lives</th><th title="Marque os bônus que pode resgatar nesta conta; o primeiro da ordem (de cima para baixo) que o saldo cobrir é o resgatado" data-i18n-title="lives.config.colRewardTitle" data-i18n="lives.config.colKick">Resgatar na Kick</th><th title="Marque os bônus que pode resgatar nesta conta; o primeiro da ordem (de cima para baixo) que o saldo cobrir é o resgatado" data-i18n-title="lives.config.colRewardTitle" data-i18n="lives.config.colTwitch">Resgatar na Twitch</th><th title="Quando o bônus escolhido está para vencer, resgata 1 num canal fora das lives abertas que tenha os pontos" data-i18n-title="lives.config.colGuardTitle" data-i18n="lives.config.colGuard">Guarda do bônus</th></tr></thead>
+  <thead><tr><th data-i18n="lives.config.colAccount">Conta</th><th data-i18n="lives.config.colLives">Lives</th><th title="Marque os bônus que pode resgatar nesta conta; o primeiro da ordem (de cima para baixo) que o saldo cobrir é o resgatado" data-i18n-title="lives.config.colRewardTitle" data-i18n="lives.config.colKick">Resgatar na Kick</th><th title="Marque os bônus que pode resgatar nesta conta; o primeiro da ordem (de cima para baixo) que o saldo cobrir é o resgatado" data-i18n-title="lives.config.colRewardTitle" data-i18n="lives.config.colTwitch">Resgatar na Twitch</th><th title="Quando o bônus escolhido está para vencer, resgata 1 num canal fora das lives abertas que tenha os pontos" data-i18n-title="lives.config.colGuardTitle" data-i18n="lives.config.colGuard">Guarda do bônus</th><th title="Marcado: com vários bônus, só resgata quando o saldo cobre todos de uma vez (1 de cada). Desmarcado: resgata o que o saldo cobrir" data-i18n-title="lives.config.colComboTitle" data-i18n="lives.config.colCombo">Tudo de uma vez</th><th title="Não resgata mais enquanto o bônus no jogo tiver essa quantidade de horas ou mais (0 = sem limite)" data-i18n-title="lives.config.colMaxHoursTitle" data-i18n="lives.config.colMaxHours">Limite (h)</th></tr></thead>
   <tbody id="rows"></tbody>
 </table>
 <p style="margin-top:10px" data-i18n="lives.config.footer">Vincule a Twitch e a Kick no jogo (Bônus Twitch / Bônus na Kick) em cada conta que resgata: sem isso os pontos
   voltam e o app para de resgatar naquela conta. Entre na Twitch/Kick uma vez, no botão Lives da conta (Entrar). O resgate confere o saldo a
   cada 5 min (Kick) ou 2 min (Twitch), pega o mais barato liberado (as horas acumulam) e espera 30 min se o site recusar.
-  Com vários bônus marcados, cada conferência resgata uma rodada: 1 de cada bônus, na ordem da lista, só quando o saldo dos canais
-  cobre o combo inteiro (os custos que caem no mesmo canal somam); se não couber, espera acumulando.</p>
+  Com vários bônus marcados, cada conta escolhe: "Tudo de uma vez" marcado resgata uma rodada (1 de cada bônus, só quando o saldo
+  cobre o combo inteiro; se não couber, espera acumulando); desmarcado, resgata o que o saldo cobrir. Quando as lives abertas não têm
+  pontos, o app resgata nos outros canais da lista (os offline primeiro). O limite de horas impede de acumular bônus demais.</p>
 <div class="acts">
   <span id="msg"></span>
   <button class="sec" id="cancel" data-i18n="common.close">Fechar</button>
@@ -314,8 +315,10 @@
       const kick = rewardPicker(bonuses, config.redeemKick[acc] || [], 'kick');
       const tw = rewardPicker(bonuses, config.redeemTwitch[acc] || [], 'twitch');
       const guard = document.createElement('input'); guard.type = 'checkbox'; guard.checked = config.guard[acc] !== false; guard.className = 'guard';
+      const combo = document.createElement('input'); combo.type = 'checkbox'; combo.checked = (config.comboAll || {})[acc] === true; combo.className = 'combo';
+      const hours = document.createElement('input'); hours.type = 'number'; hours.min = '0'; hours.max = '720'; hours.value = (config.maxHours || {})[acc] || 0; hours.className = 'hours';
       const name = document.createElement('td'); name.textContent = (labels && labels[acc]) || t('common.account', { id: acc });
-      tr.append(name, cell(on), cell(kick), cell(tw), cell(guard));
+      tr.append(name, cell(on), cell(kick), cell(tw), cell(guard), cell(combo), cell(hours));
       rows.append(tr);
     }
   });
@@ -330,7 +333,7 @@
       kickLives: Number($('nkk').value),
       claimTwitch: $('claim').checked,
       autoSort: $('autosort').checked,
-      accounts: [], redeemKick: {}, redeemTwitch: {}, guard: {},
+      accounts: [], redeemKick: {}, redeemTwitch: {}, guard: {}, comboAll: {}, maxHours: {},
     };
     for (const tr of rows.querySelectorAll('tr')) {
       const acc = Number(tr.dataset.acc);
@@ -340,6 +343,8 @@
       if (kickBonuses.length) next.redeemKick[acc] = kickBonuses;
       if (twitchBonuses.length) next.redeemTwitch[acc] = twitchBonuses;
       next.guard[acc] = tr.querySelector('.guard').checked;
+      next.comboAll[acc] = tr.querySelector('.combo').checked;
+      next.maxHours[acc] = Math.max(0, Number(tr.querySelector('.hours').value) || 0);
     }
     state = await lc.save(next);
     $('msg').textContent = t('lives.config.saved');
