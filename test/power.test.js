@@ -9,7 +9,7 @@ const { BaseWindow } = require('electron');
 
 // Estado inicial: conta 2 desligada (o arquivo é lido na inicialização do app, então precisa existir antes do require)
 const cfg = () => path.join(app.getPath('userData'), 'config.json');
-fs.writeFileSync(cfg(), JSON.stringify({ accounts: 2, offAccounts: [2] }));
+fs.writeFileSync(cfg(), JSON.stringify({ accounts: 2, offAccounts: [2], lang: 'pt-BR' }));
 require('../src/main.js');
 
 const savedOff = () => JSON.parse(fs.readFileSync(cfg(), 'utf8')).offAccounts;
