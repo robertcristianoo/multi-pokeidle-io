@@ -4,6 +4,7 @@
 const { BONUSES } = require('../points/sites');
 
 const MAX_SLOTS = 10; // teto de lives abertas por conta e site
+const MAX_HOURS = 720; // teto do limite de horas acumuladas do bônus (30 dias)
 const DEFAULT_SLOTS = 2; // a Twitch e a Kick só contam 2 lives ao mesmo tempo
 
 // Os streamers oficiais do painel de bônus do jogo, na ordem de prioridade (a primeira da lista tem prioridade).
@@ -72,6 +73,16 @@ function normalize(raw, { maxAccounts = 4, legacyAuto = null } = {}) {
   const guardRaw = perAccount(r.guard, maxAccounts, (v) => (typeof v === 'boolean' ? v : undefined));
   const guard = {};
   for (let a = 1; a <= maxAccounts; a++) guard[a] = guardRaw[a] ?? true; // de fábrica ligada em todas
+  // Combo por conta: marcado, os bônus escolhidos só resgatam juntos (tudo ou nada); desmarcado, resgata o que o saldo cobrir.
+  const comboRaw = perAccount(r.comboAll, maxAccounts, (v) => (typeof v === 'boolean' ? v : undefined));
+  // Limite de horas de bônus acumuladas por conta (0 = sem limite): com o bônus do jogo nesse tempo ou mais, não resgata mais.
+  const hoursRaw = perAccount(r.maxHours, maxAccounts, (v) => (Number.isFinite(Number(v)) && v !== '' && v !== null ? clamp(Math.round(Number(v)), 0, MAX_HOURS) : undefined));
+  const comboAll = {};
+  const maxHours = {};
+  for (let a = 1; a <= maxAccounts; a++) {
+    comboAll[a] = comboRaw[a] ?? false;
+    maxHours[a] = hoursRaw[a] ?? 0;
+  }
   const lim = (site, max) => {
     const o = perAccount(r[site], maxAccounts, (v) => limit(v, max));
     const full = {};
@@ -89,6 +100,8 @@ function normalize(raw, { maxAccounts = 4, legacyAuto = null } = {}) {
     autoSort: r.autoSort === true, // mantém a lista ordenada por status (no ar primeiro): de fábrica desligado
     claimTwitch: r.claimTwitch !== false, // o baú de bônus da Twitch (+50 a cada ~15 min): de fábrica ligado
     guard,
+    comboAll,
+    maxHours,
     twitch: lim('twitch', twitchLives),
     kick: lim('kick', kickLives),
   };
