@@ -38,6 +38,8 @@ const badParams = ['pt-BR', 'es'].flatMap((l) => Object.keys(dicts[l]).filter((k
 check(!badParams.length, `parâmetros {x} iguais em todos os idiomas ${badParams.slice(0, 5).join(' ')}`);
 
 // --- app de verdade ---
+// the helpers save pt-BR in config.json; this test starts without a saved language to check the system/default one
+try { fs.unlinkSync(path.join(app.getPath('userData'), 'config.json')); } catch { /* none */ }
 require('../src/main.js');
 app.whenReady().then(async () => {
   try {

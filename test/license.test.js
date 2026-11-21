@@ -54,7 +54,9 @@ try {
   const trocado = corpo.slice(0, -1) + (corpo.endsWith('A') ? 'B' : 'A');
   check(!novo(os.tmpdir()).activate(`${trocado}.${assin}`).ok, 'chave com o payload adulterado é recusada');
   const outraAssin = emitir({}).split('.')[1];
-  check(!novo(os.tmpdir()).activate(`${corpo}.${outraAssin.slice(0, -2)}AA`).ok, 'chave com a assinatura adulterada é recusada');
+  // the replacement must differ from the real tail, otherwise the signature stays valid (flaky 1 in 4096 runs)
+  const fim = outraAssin.endsWith('AA') ? 'BB' : 'AA';
+  check(!novo(os.tmpdir()).activate(`${corpo}.${outraAssin.slice(0, -2)}${fim}`).ok, 'chave com a assinatura adulterada é recusada');
   check(!novo(os.tmpdir()).activate(emitir({}, outro.privateKey)).ok, 'chave assinada por outra chave privada é recusada');
 
   // 6) formato: vazia, sem ponto, partes inválidas, grande demais
