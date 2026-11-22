@@ -443,6 +443,12 @@
     return `<span title="${esc(`${porqueEstimado(l)}. Faixa: ${num(lo)}–${num(hi)} abates/h.`)}"><small class="pih-dim">≈</small>${num(l.kph)}<small class="pih-faixa">${num(lo)}–${num(hi)}</small></span>`;
   }
 
+  // A hunt da espécie do Prey do dia: o bônus e as estrelas que a cartela deu (o Spawn é estimativa).
+  const NOME_BONUS_PREY = { dano: 'Dano', defesa: 'Defensivo', captura: 'Capture Boost', spawn: 'Spawn' };
+  const chipPrey = (l) => (l.prey
+    ? ` · <span class="pih-prey-chip" title="Prey do dia, cartela ${l.prey.cartela + 1}${l.prey.estimado ? ': o Spawn ainda não foi medido em jogo, é estimativa' : ''}">Prey ${NOME_BONUS_PREY[l.prey.bonus] ?? l.prey.bonus} ${'★'.repeat(l.prey.est)}${l.prey.estimado ? ' ≈' : ''}</span>`
+    : '');
+
   function linhaHtml(l, i) {
     const medido = l.kphMedido != null
       ? `<span class="pih-medido" title="Você fez ${num(l.kphMedido)} abates/h aqui com este pokémon (referência; não muda o ranking)">●</span>`
@@ -456,7 +462,7 @@
     }
     return `<tr class="${cls}" title="${esc(golpe)}">
       <td class="pih-pos">${i + 1}</td>
-      <td class="pih-hunt"><div class="pih-com-arte">${arteDaHunt(l)}<div><b>${esc(l.nome)}</b><small>${regiao(l.regiao)} · Nv ${num(l.nivel)}${l.liberada ? '' : ' · 🔒'}</small></div></div></td>
+      <td class="pih-hunt"><div class="pih-com-arte">${arteDaHunt(l)}<div><b>${esc(l.nome)}</b><small>${regiao(l.regiao)} · Nv ${num(l.nivel)}${l.liberada ? '' : ' · 🔒'}${chipPrey(l)}</small></div></div></td>
       <td>${MODOS[modo(ultimo?.jogo)].celula(l)}</td>
       <td>${medido}${abates(l)}</td>
       <td>${segundos(l.ttk)}</td>
@@ -506,7 +512,7 @@
       </table>
       ${linhas.length > mostrando ? `<button type="button" class="pih-mais" data-acao="mais">mostrar mais (${linhas.length - mostrando})</button>` : ''}
       </div>
-      <div class="pih-rodape">Dados do jogo ${jogo.versao ? `v${esc(jogo.versao)}` : 'no ar'} · ${r.linhas.length} de ${r.total} hunts${vista ? ` (${linhas.length} em ${regiao(vista)})` : ''} · cálculo em ${r.ms} ms · ritmo do ${doJogo()} em ${r.linhas.filter((l) => l.ritmo === 'jogo').length} delas (≈ estimado)${tipoDoDia() ? ` · dia de ${nomeDoTipo(tipoDoDia())}: os pokémon do tipo ficam 2× mais fortes` : ''} · com poção automática · a pé, sem bicicleta${r.aoe ? ' · AoE estimado (≈)' : ''} · ● = você já caçou aqui (passe o mouse)</div>`;
+      <div class="pih-rodape">Dados do jogo ${jogo.versao ? `v${esc(jogo.versao)}` : 'no ar'} · ${r.linhas.length} de ${r.total} hunts${vista ? ` (${linhas.length} em ${regiao(vista)})` : ''} · cálculo em ${r.ms} ms · ritmo do ${doJogo()} em ${r.linhas.filter((l) => l.ritmo === 'jogo').length} delas (≈ estimado)${tipoDoDia() ? (r.escudo ? ` · dia de ${nomeDoTipo(tipoDoDia())} com o Shield do Novato: os seus pokémon do tipo ficam 2× mais fortes, e os selvagens do tipo lutam como num dia comum` : ` · dia de ${nomeDoTipo(tipoDoDia())}: os pokémon do tipo ficam 2× mais fortes`) : ''} ${r.prey?.length ? ' · Prey do dia na conta' : ''}${Object.values(r.bestiario ?? {}).some((v) => v > 0) ? ' · Bestiário na conta' : ''} · com poção automática · a pé, sem bicicleta${r.aoe ? ' · AoE estimado (≈)' : ''} · ● = você já caçou aqui (passe o mouse)</div>`;
   }
 
   // ---- artes dos pokémon -----------------------------------------------------------------
@@ -626,13 +632,36 @@
     return [regra, p.observacao].filter(Boolean).join(' · ') || 'Sem exigência';
   }
 
-  function linhaDoPin(p, i) {
+  // A parte do PIN que vai para quem pega o Shiny e fecha a venda: o site informa em `limites.recompensaPct`. Sem ela
+  // (site antigo ou resposta incompleta), o painel não inventa número e fica só com o valor pago.
+  function recompensaPct() {
+    const pct = Number(wishlist?.dados?.limites?.recompensaPct);
+    return Number.isFinite(pct) && pct > 0 ? pct : null;
+  }
+  const centavos = (p) => Number(p.valorCentavos) || 0;
+  const emReais = (c) => reais.format(c / 100);
+  const recompensaDe = (p, pct) => Math.floor((centavos(p) * pct) / 100);
+
+  function linhaDoPin(p, i, pct) {
     return `<tr class="${i === 0 ? 'pih-wl-primeiro' : ''}">
       <td>${i === 0 ? '👑' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}º`}</td>
       <td class="pih-hunt"><div class="pih-com-arte">${arteDoPin(p)}<div><b>✨ ${esc(p.especie)}</b><small>${esc(exigenciasDoPin(p))}</small></div></div></td>
+      ${pct ? `<td class="pih-wl-recompensa">${emReais(recompensaDe(p, pct))}</td>` : ''}
+      <td class="pih-wl-valor">${emReais(centavos(p))}</td>
       <td>${esc(p.nick)}</td>
-      <td class="pih-wl-valor">${reais.format((Number(p.valorCentavos) || 0) / 100)}</td>
     </tr>`;
+  }
+
+  // A regra que move a lista, em azul como no site: é a cor de quem pega o Shiny.
+  function regraDaRecompensa(abertos, pct) {
+    if (!pct) return '';
+    const maior = abertos[0];
+    return `<div class="pih-vao pih-wl-regra">
+      <strong class="pih-wl-pct">${nf.format(pct)}%</strong>
+      <div class="pih-wl-regra-texto"><b>do valor de cada PIN vai sempre para quem pegar o Shiny e fechar a venda.</b>
+        <small>Faça a hunt, pegue o Shiny com o que foi pedido e venda para quem pediu.</small></div>
+      ${maior ? `<div class="pih-wl-maior"><span>Maior agora</span><b>${emReais(recompensaDe(maior, pct))}</b><small>✨ ${esc(maior.especie)}</small></div>` : ''}
+    </div>`;
   }
 
   function blocoWishlist() {
@@ -640,16 +669,17 @@
     if (!wishlist) return `<div class="pih-carga">Buscando a lista…</div><div class="pih-rodape">${aoSite}</div>`;
     if (wishlist.erro) return `<div class="pih-erro">Não deu para carregar a lista aqui.</div><div class="pih-rodape">${aoSite}</div>`;
     const abertos = Array.isArray(wishlist.dados?.abertos) ? wishlist.dados.abertos : [];
+    const pct = recompensaPct();
     const lista = abertos.length
       ? `<div class="pih-vao pih-lista"><table class="pih-tab">
-          <thead><tr><th>#</th><th>Shiny</th><th>Jogador</th><th>Pagou</th></tr></thead>
-          <tbody>${abertos.map(linhaDoPin).join('')}</tbody>
+          <thead><tr><th>#</th><th>Shiny</th>${pct ? '<th class="pih-wl-recompensa">Recompensa</th>' : ''}<th>Pago p/ listar</th><th>Pedido por</th></tr></thead>
+          <tbody>${abertos.map((p, i) => linhaDoPin(p, i, pct)).join('')}</tbody>
         </table></div>`
       : '<div class="pih-carga">Ainda não há PINs.</div>';
     return `<div class="pih-wl-chamada"><b>Não sabe qual Shiny farmar? Veja aqui!</b> Cada PIN é um Shiny que um jogador quer comprar.</div>
-      <div class="pih-vao pih-wl-volta">💰 <b>50% do valor volta</b> para quem fechar negócio: 25% para o anunciante e 25% para quem pegar o Shiny.</div>
+      ${regraDaRecompensa(abertos, pct)}
       ${lista}
-      <div class="pih-rodape">O valor é o que o jogador pagou para ficar listado. O preço do Shiny é negociado entre quem pediu e quem pegou. ${aoSite}</div>`;
+      <div class="pih-rodape">"Pago p/ listar" é o que o jogador pagou para ficar na lista; o preço do Shiny é combinado entre quem pediu e quem pegou. ${aoSite}</div>`;
   }
 
   async function desenhar() {
@@ -761,13 +791,24 @@
   // Recalcula com o painel aberto só quando muda o que entra na conta (outro pokémon, nível
   // novo, refino) — não a cada golpe recebido. Os discos não entram, então não disparam.
   // O dia sazonal vira às 18:00 de Brasília com o jogador em campo: muda o ranking, então entra aqui.
-  const assinaturaDe = (pk) => (pk ? `${pk.id}|${pk.level}|${JSON.stringify(pk.stats)}|${tipoDoDia() ?? ''}` : '');
+  const assinaturaDe = (pk) => (pk ? `${pk.id}|${pk.level}|${JSON.stringify(pk.stats)}|${tipoDoDia() ?? ''}|${eu?.level ?? ''}|${eu?.loja?.alvoAtrasados ?? ''}` : '');
 
   // ---- ligação com o jogo ----------------------------------------------------------------
   function preaquecer() {
     const ocioso = root.requestIdleCallback ?? ((fn) => setTimeout(fn, 1500));
     ocioso(() => PIH.carregarJogo().catch((err) => console.warn('[pokeidle-hunt] pré-carga falhou', err)));
   }
+
+  // A conta do painel, para a janela do Prey (prey.js): o mesmo pokémon, o mesmo contexto e as mesmas opções,
+  // sempre em XP/h, que é o que a escolha do Prey pede.
+  PIH.apoio = { url: URL_APOIO, qr: QR_APOIO };
+  PIH.calculo = {
+    pronto: () => !!(welcome && eu && pkAtivo()?.stats),
+    pkAtivo,
+    eu: () => eu,
+    contexto: (jogo, pk) => contexto(jogo, pk),
+    opcoes: () => ({ ...prefs, ordem: 'xp', tipoDoDia: tipoDoDia() }),
+  };
 
   PIH.on('welcome', (m) => {
     welcome = m;

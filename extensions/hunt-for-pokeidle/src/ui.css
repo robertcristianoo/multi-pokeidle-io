@@ -145,8 +145,17 @@
   font: 700 12px/1 "Barlow", system-ui, sans-serif; color: var(--sobre-mad, #fff6ef); background: var(--vao2, #462b39); }
 .pih-wl-chamada { margin-bottom: 8px; font-size: 12.5px; }
 .pih-wl-chamada b { color: #ffe9a8; }
-.pih-wl-volta { margin-bottom: 8px; font-size: 12.5px; }
-.pih-wl-volta b { color: #6fd08a; }
+/* A regra da recompensa: azul, a cor de quem pega o Shiny (a mesma do site). */
+.pih-wl-regra { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; box-shadow: inset 0 0 0 2px #6672ed99, 0 1px 0 var(--mad-luz2, #e7a86d); background: linear-gradient(90deg, #6672ed33, var(--vao, #33202b) 70%); }
+.pih-wl-pct { flex: none; color: #9aa3f7; font-size: 26px; font-weight: 900; line-height: 1; }
+.pih-wl-regra-texto { flex: 1; min-width: 0; font-size: 12.5px; }
+.pih-wl-regra-texto small { display: block; color: var(--vao-dim, #c9a9b4); font-size: 11.5px; }
+.pih-wl-maior { flex: none; display: grid; justify-items: end; text-align: right; }
+.pih-wl-maior span { color: var(--vao-dim, #c9a9b4); font-size: 10px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; }
+.pih-wl-maior b { color: #9aa3f7; font-size: 17px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.pih-wl-maior small { color: var(--vao-dim, #c9a9b4); font-size: 10.5px; }
+.pih-tab th.pih-wl-recompensa { color: #9aa3f7; }
+.pih-tab td.pih-wl-recompensa { color: #9aa3f7; font-weight: 800; }
 .pih-tab tr.pih-wl-primeiro td { background: #d09a1733; }
 .pih-tab tr.pih-wl-primeiro td.pih-wl-valor { color: #ffe9a8; font-weight: 800; }
 .pih-tab td.pih-wl-valor { font-weight: 700; }
@@ -198,3 +207,34 @@
 }
 .pih-btn.pih-icone b { font-size: 12px; line-height: 1; }
 .pih-btn.pih-icone svg { flex: none; }
+
+/* A janela do Prey (Mochila → Prey): o botão no topo, o resumo de cada cartela e a posição de cada opção. */
+.pih-btn.pih-prey-toggle { margin: 0 8px 0 auto; }
+/* Os dois botões do /hunt no topo da janela têm a medida da pílula do relógio ("Renova às…"), para serem vistos. */
+.pih-btn.pih-prey-toggle, .pih-btn.pih-prey-apoiar { padding: 6px 12px; border-radius: 6px; font-size: 12.5px; line-height: 1.35; }
+.pih-btn.pih-prey-toggle.pih-desligado { filter: grayscale(.7) brightness(.85); }
+.pih-prey-resumo {
+  margin: 6px 0 4px; padding: 6px 8px; border-radius: 6px;
+  background: rgba(208, 154, 23, .12); border: 1px solid rgba(208, 154, 23, .45);
+  font: 12px/1.4 Tahoma, Verdana, "Segoe UI", sans-serif; color: inherit; text-align: left;
+}
+.pih-prey-resumo b { color: #ffd76a; }
+.pih-prey-est { cursor: help; color: #ffd76a; }
+.pry-c-pk.pih-prey-marcado { position: relative; }
+.pih-prey-marca { position: absolute; inset: 0; z-index: 2; pointer-events: none; border-radius: inherit; }
+/* Dá mais XP que a hunt normal: borda verde. Não dá: um X vermelho por cima do retrato. */
+.pih-prey-marca.pih-prey-sim { box-shadow: inset 0 0 0 3px #36c26a, 0 0 8px rgba(54, 194, 106, .55); }
+.pih-prey-marca.pih-prey-nao::before, .pih-prey-marca.pih-prey-nao::after {
+  content: ''; position: absolute; left: 14%; right: 14%; top: 50%; height: 3px; margin-top: -1.5px;
+  border-radius: 2px; background: #e5484d; box-shadow: 0 0 2px rgba(0, 0, 0, .7);
+}
+.pih-prey-marca.pih-prey-nao::before { transform: rotate(45deg); }
+.pih-prey-marca.pih-prey-nao::after { transform: rotate(-45deg); }
+.pih-prey-sim-txt { color: #5fdc8c !important; }
+.pih-prey-nao-txt { color: #ff6b6f !important; }
+/* "Apoie o dev!" ao lado do liga/desliga, com o coração; o balão é o mesmo do painel. */
+.pih-btn.pih-prey-apoiar { display: inline-flex; align-items: center; gap: 6px; margin: 0 6px 0 auto; }
+.pih-btn.pih-prey-apoiar + .pih-prey-toggle { margin-left: 0; }
+.pih-coracao { width: 14px; height: 14px; fill: #c0392b; flex: none; }
+.pih-prey-apoio { margin: 6px 0 8px; padding: 8px; border-radius: 8px; background: rgba(0, 0, 0, .25); }
+.pih-prey-chip { color: #ffd76a; white-space: nowrap; }

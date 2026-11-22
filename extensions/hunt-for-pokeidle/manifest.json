@@ -3,7 +3,7 @@
 
   "manifest_version": 3,
   "name": "/hunt for PokeIdle",
-  "version": "1.0.19",
+  "version": "1.0.23",
   "description": "Mostra, acima do seu pokémon em campo no PokeIdle, onde caçar: as melhores hunts por XP/h e ouro/h, com os dados do jogo.",
   "icons": {
     "16": "icons/icon-16.png",
@@ -25,7 +25,8 @@
         "src/engine.js",
         "src/geo.js",
         "src/ui.js",
-        "src/atalho.js"
+        "src/atalho.js",
+        "src/prey.js"
       ],
       "run_at": "document_start",
       "world": "MAIN"
