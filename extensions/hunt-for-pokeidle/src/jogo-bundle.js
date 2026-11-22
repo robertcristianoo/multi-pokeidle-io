@@ -289,6 +289,7 @@
     GOLPES_ARTE_NOVA: () => GOLPES_ARTE_NOVA,
     GOLPES_ARTE_NOVA_2026_10_30: () => GOLPES_ARTE_NOVA_2026_10_30,
     GOLPES_ARTE_NOVA_2026_11_05: () => GOLPES_ARTE_NOVA_2026_11_05,
+    GOLPES_ARTE_NOVA_2026_11_15: () => GOLPES_ARTE_NOVA_2026_11_15,
     GOLPES_CONTRATO_2026_10_16: () => GOLPES_CONTRATO_2026_10_16,
     GOLPES_DUAS_FORMAS_2026_11_05: () => GOLPES_DUAS_FORMAS_2026_11_05,
     GOLPES_INICIAIS: () => GOLPES_INICIAIS,
@@ -303,6 +304,7 @@
     GOLPES_MEGAS_2026_10_27: () => GOLPES_MEGAS_2026_10_27,
     GOLPES_MEGAS_2026_10_29: () => GOLPES_MEGAS_2026_10_29,
     GOLPES_MEGAS_2026_10_30: () => GOLPES_MEGAS_2026_10_30,
+    GOLPES_MEGAS_2026_11_15: () => GOLPES_MEGAS_2026_11_15,
     GOLPES_MEGAS_CONTRATO_2026_10_16: () => GOLPES_MEGAS_CONTRATO_2026_10_16,
     GOLPES_MENOS_DE_10: () => GOLPES_MENOS_DE_10,
     GOLPES_OUTLAND_2026_10_13: () => GOLPES_OUTLAND_2026_10_13,
@@ -16350,6 +16352,38 @@
       ["Ultimate Force", "NORMAL", "SPECIAL", 600]
     ]
   };
+  var GOLPES_ARTE_NOVA_2026_11_15 = {
+    765: [
+      ["Terrain Pulse", "NORMAL", "SPECIAL", 35],
+      ["Echoed Voice", "NORMAL", "SPECIAL", 40],
+      ["Weather Ball", "NORMAL", "SPECIAL", 50],
+      ["Round", "NORMAL", "SPECIAL", 60],
+      ["Tri Attack", "NORMAL", "SPECIAL", 75],
+      ["Psyshock", "PSYCHIC", "SPECIAL", 80],
+      ["Hyper Voice", "NORMAL", "SPECIAL", 90],
+      ["Future Sight", "PSYCHIC", "SPECIAL", 120],
+      ["Techno Blast", "NORMAL", "SPECIAL", 120],
+      ["Hyper Beam", "NORMAL", "SPECIAL", 150],
+      ["Mental Singularity", "PSYCHIC", "SPECIAL", 600],
+      ["Ultimate Force", "NORMAL", "SPECIAL", 600]
+    ]
+  };
+  var GOLPES_MEGAS_2026_11_15 = {
+    9359: [
+      ["Power Trip", "DARK", "PHYSICAL", 25],
+      ["Fling", "DARK", "PHYSICAL", 40],
+      ["Beat Up", "DARK", "PHYSICAL", 55],
+      ["Assurance", "DARK", "PHYSICAL", 60],
+      ["Lash Out", "DARK", "PHYSICAL", 75],
+      ["Shadow Bone", "GHOST", "PHYSICAL", 85],
+      ["Foul Play", "DARK", "PHYSICAL", 95],
+      ["Shadow Force", "GHOST", "PHYSICAL", 120],
+      ["Pursuit", "DARK", "PHYSICAL", 120],
+      ["Midnight Ravage", "DARK", "PHYSICAL", 150],
+      ["Wicked Blow", "DARK", "PHYSICAL", 600],
+      ["Untold Nightmare", "GHOST", "PHYSICAL", 600]
+    ]
+  };
   var TABELAS = [
     GOLPES_INICIAIS,
     GOLPES_PSEUDO_LENDARIOS,
@@ -16376,7 +16410,8 @@
     GOLPES_ARTE_NOVA_2026_11_05,
     GOLPES_PRIMEIRO_ESTAGIO_2026_11_05,
     GOLPES_DUAS_FORMAS_2026_11_05,
-    GOLPES_SEM_EVOLUCAO_2026_11_05
+    GOLPES_SEM_EVOLUCAO_2026_11_05,
+    GOLPES_ARTE_NOVA_2026_11_15
   ];
   var TABELAS_FECHADAS = /* @__PURE__ */ new Set([
     GOLPES_SEGUNDA_EVO_2026_10_15,
@@ -16399,7 +16434,7 @@
     };
   }
   function golpesDaPlanilhaDaMega(pokeId) {
-    const linhas = GOLPES_MEGAS_2026_10_30[pokeId] ?? GOLPES_MEGAS_2026_10_29[pokeId] ?? GOLPES_MEGAS_2026_10_27[pokeId] ?? GOLPES_MEGAS_2026_10_26[pokeId] ?? GOLPES_MEGAS_2026_10_23[pokeId] ?? GOLPES_MEGAS_2026_10_22[pokeId] ?? GOLPES_MEGAS_2026_10_21[pokeId] ?? GOLPES_MEGAS_CONTRATO_2026_10_16[pokeId] ?? GOLPES_MEGAS_2026_10_03[pokeId];
+    const linhas = GOLPES_MEGAS_2026_11_15[pokeId] ?? GOLPES_MEGAS_2026_10_30[pokeId] ?? GOLPES_MEGAS_2026_10_29[pokeId] ?? GOLPES_MEGAS_2026_10_27[pokeId] ?? GOLPES_MEGAS_2026_10_26[pokeId] ?? GOLPES_MEGAS_2026_10_23[pokeId] ?? GOLPES_MEGAS_2026_10_22[pokeId] ?? GOLPES_MEGAS_2026_10_21[pokeId] ?? GOLPES_MEGAS_CONTRATO_2026_10_16[pokeId] ?? GOLPES_MEGAS_2026_10_03[pokeId];
     return linhas ? linhas.map(golpeDaLinha) : null;
   }
   function golpesDaPlanilhaDoOutland(pokeId) {
@@ -17564,6 +17599,16 @@
       bases: { hp: 106, atk: 190, def: 100, spAtk: 154, spDef: 100, speed: 130 }
     },
     {
+      dex: 359,
+      segunda: true,
+      slug: "absol_z",
+      nome: "Mega Absol Z",
+      pedra: "Absolite Z",
+      icone: "absolite-z",
+      tipos: ["DARK", "GHOST"],
+      bases: { hp: 65, atk: 154, def: 60, spAtk: 75, spDef: 60, speed: 151 }
+    },
+    {
       dex: 445,
       segunda: true,
       slug: "garchomp_z",
@@ -17752,7 +17797,6 @@
     642: { para: 8642, nivel: 8600 },
     645: { para: 8645, nivel: 8600 },
     646: { para: 8646, nivel: 8600 },
-    681: { para: 8681, nivel: 21200 },
     720: { para: 8720, nivel: 21200 },
     774: { para: 8774, nivel: 84650 },
     888: { para: 8888, nivel: 35150 },
@@ -17762,7 +17806,6 @@
     487: { para: 8487, nivel: 3500 },
     648: { para: 8648, nivel: 8600 },
     898: { para: 8898, nivel: 64950 },
-    901: { para: 8901, nivel: 160300 },
     1017: { para: 9017, nivel: 160300 }
   };
   function aplicarElosEvolutivos(lista, tabela) {
@@ -17915,7 +17958,6 @@
     670: 21200,
     674: 2e4,
     679: 14350,
-    680: 1e3,
     682: 16e3,
     684: 16e3,
     686: 16e3,
@@ -19071,6 +19113,7 @@
     chaveDoDiaSazonal: () => chaveDoDiaSazonal,
     danoSazonal: () => danoSazonal,
     ehDoTipoSazonal: () => ehDoTipoSazonal,
+    escudoSazonal: () => escudoSazonal,
     fimDoDiaSazonal: () => fimDoDiaSazonal,
     inicioDoDiaSazonal: () => inicioDoDiaSazonal,
     multDanoSazonal: () => multDanoSazonal
@@ -19115,6 +19158,11 @@
     return ataca / apanha;
   }
   var danoSazonal = (dano, mult) => mult === 1 ? dano : Math.max(dano > 0 ? 1 : 0, Math.round(dano * mult));
+  function escudoSazonal(nivel, alvoAtrasados) {
+    const alvo = Number(alvoAtrasados);
+    const n = Number(nivel);
+    return Number.isFinite(alvo) && alvo > 1 && Number.isFinite(n) && n < alvo;
+  }
 
   // tests/.cache/shared/captura-degrau.mjs
   var captura_degrau_exports = {};
@@ -19244,6 +19292,372 @@
     }));
   }
 
+  // tests/.cache/shared/prey.mjs
+  var prey_exports = {};
+  __export(prey_exports, {
+    PREY_BONUS: () => PREY_BONUS,
+    PREY_CARTELA2_DIAMANTES: () => PREY_CARTELA2_DIAMANTES,
+    PREY_CARTELAS: () => PREY_CARTELAS,
+    PREY_CATEGORIAS: () => PREY_CATEGORIAS,
+    PREY_CHANCE_BONUS_MIL: () => PREY_CHANCE_BONUS_MIL,
+    PREY_CHANCE_ESTRELAS_MIL: () => PREY_CHANCE_ESTRELAS_MIL,
+    PREY_CUSTO_BASE: () => PREY_CUSTO_BASE,
+    PREY_ESTRELAS_MAX: () => PREY_ESTRELAS_MAX,
+    PREY_MAX_EXTRAS: () => PREY_MAX_EXTRAS,
+    PREY_OPCOES: () => PREY_OPCOES,
+    PREY_REGIOES: () => PREY_REGIOES,
+    PREY_REGIOES_MIN: () => PREY_REGIOES_MIN,
+    PREY_ROLETADA_INTEIRA: () => PREY_ROLETADA_INTEIRA,
+    PREY_VALOR: () => PREY_VALOR,
+    cartela2Liberada: () => cartela2Liberada,
+    cartelaCompleta: () => cartelaCompleta,
+    cartelaDepoisDaEscolha: () => cartelaDepoisDaEscolha,
+    cartelaDepoisDaRoletada: () => cartelaDepoisDaRoletada,
+    cartelaValida: () => cartelaValida,
+    cartelasLiberadas: () => cartelasLiberadas,
+    custoDaRoletada: () => custoDaRoletada,
+    danoPve: () => danoPve,
+    efeitosDoPrey: () => efeitosDoPrey,
+    extrasDeSpawnPrey: () => extrasDeSpawnPrey,
+    indiceDaCategoria: () => indiceDaCategoria,
+    listaDaCartela: () => listaDaCartela,
+    multCapturaPrey: () => multCapturaPrey,
+    multDanoPrey: () => multDanoPrey,
+    multDefesaPrey: () => multDefesaPrey,
+    normalizarPrey: () => normalizarPrey,
+    planoDaEscolha: () => planoDaEscolha,
+    planoDaRoletada: () => planoDaRoletada,
+    poolDasRegioes: () => poolDasRegioes,
+    preyDoMomento: () => preyDoMomento,
+    regioesDasCartelas: () => regioesDasCartelas,
+    regioesDoPedido: () => regioesDoPedido,
+    regioesGravadas: () => regioesGravadas,
+    repartirExtras: () => repartirExtras,
+    sortearBonus: () => sortearBonus,
+    sortearEstrelas: () => sortearEstrelas,
+    sortearLista: () => sortearLista,
+    valorDoPrey: () => valorDoPrey
+  });
+  var PREY_CARTELAS = 2;
+  var PREY_CARTELA2_DIAMANTES = 100;
+  var PREY_OPCOES = 9;
+  var PREY_REGIOES = Object.freeze(["kanto", "johto", "hoenn", "sinnoh", "unova", "kalos", "alola", "galar", "paldea"]);
+  var PREY_REGIOES_MIN = 2;
+  function regioesDoPedido(v) {
+    if (!Array.isArray(v) || v.length > PREY_REGIOES.length) return null;
+    if (!v.every((r) => typeof r === "string" && PREY_REGIOES.includes(r))) return null;
+    if (new Set(v).size !== v.length || v.length < PREY_REGIOES_MIN) return null;
+    return PREY_REGIOES.filter((r) => v.includes(r));
+  }
+  function regioesGravadas(v) {
+    const r = regioesDoPedido(v);
+    return r && r.length < PREY_REGIOES.length ? r : null;
+  }
+  function regioesDasCartelas(automation) {
+    const bruto = Array.isArray(automation?.preyRegioes) ? automation.preyRegioes : [];
+    return Array.from({ length: PREY_CARTELAS }, (_, i) => regioesGravadas(bruto[i]));
+  }
+  var poolDasRegioes = (pool, regioes) => regioes ? (pool ?? []).filter((e) => regioes.includes(e.regiao)) : pool ?? [];
+  var PREY_BONUS = Object.freeze(["dano", "defesa", "captura", "spawn"]);
+  var PREY_CATEGORIAS = Object.freeze(["pokemon", "bonus", "estrelas"]);
+  var PREY_ROLETADA_INTEIRA = "tudo";
+  var PREY_ESTRELAS_MAX = 5;
+  var PREY_CHANCE_ESTRELAS_MIL = Object.freeze([550, 300, 100, 45, 5]);
+  var PREY_CHANCE_BONUS_MIL = 250;
+  var PREY_VALOR = Object.freeze({
+    dano: Object.freeze([10, 20, 30, 40, 50]),
+    defesa: Object.freeze([10, 20, 30, 40, 50]),
+    captura: Object.freeze([2, 4, 6, 8, 10]),
+    spawn: Object.freeze([1, 2, 3, 4, 5])
+  });
+  var PREY_MAX_EXTRAS = PREY_VALOR.spawn[PREY_ESTRELAS_MAX - 1];
+  var PREY_CUSTO_BASE = 1e6;
+  var EXPOENTE_MAX = 33;
+  var N_MAX = 1e3;
+  function custoDaRoletada(n) {
+    const k = Math.max(0, Math.min(EXPOENTE_MAX, Math.floor(Number(n) || 0)));
+    return PREY_CUSTO_BASE * 2 ** k;
+  }
+  var valorDoPrey = (bonus, est) => PREY_VALOR[bonus]?.[est - 1] ?? 0;
+  function sortearEstrelas(aleatorioInt) {
+    const r = aleatorioInt(1e3);
+    let acumulado = 0;
+    for (let i = 0; i < PREY_CHANCE_ESTRELAS_MIL.length; i++) {
+      acumulado += PREY_CHANCE_ESTRELAS_MIL[i];
+      if (r < acumulado) return i + 1;
+    }
+    return 1;
+  }
+  var sortearBonus = (aleatorioInt) => PREY_BONUS[aleatorioInt(PREY_BONUS.length)] ?? PREY_BONUS[0];
+  function sortearLista(pool, excluir, aleatorioInt) {
+    const fora = new Set((excluir ?? []).map(Number));
+    const livres = [...new Set((pool ?? []).map(Number))].filter((id) => Number.isSafeInteger(id) && id > 0 && !fora.has(id));
+    const out = [];
+    for (let i = 0; i < livres.length && out.length < PREY_OPCOES; i++) {
+      const resto = livres.length - i;
+      const j = i + Math.min(resto - 1, Math.max(0, Math.floor(Number(aleatorioInt(resto))) || 0));
+      [livres[i], livres[j]] = [livres[j], livres[i]];
+      out.push(livres[i]);
+    }
+    return out;
+  }
+  var ehObjeto = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+  var CHAVE_DIA_OK = /^\d{4}-\d{2}-\d{2}$/;
+  function contador(v, max = N_MAX) {
+    const n = Math.floor(Number(v));
+    return Number.isFinite(n) && n > 0 ? Math.min(n, max) : 0;
+  }
+  var idValido = (v) => {
+    const n = typeof v === "number" || typeof v === "string" ? Number(v) : NaN;
+    return Number.isSafeInteger(n) && n > 0 ? n : null;
+  };
+  function cartelaValida(c) {
+    if (!ehObjeto(c)) return null;
+    let lista = null;
+    if (Array.isArray(c.lista)) {
+      const ids = [...new Set(c.lista.map(idValido))];
+      if (ids.length && ids.length <= PREY_OPCOES && ids.every((id) => id != null)) lista = ids;
+    }
+    let pk = !lista || c.pk == null ? null : idValido(c.pk);
+    if (pk != null && !lista.includes(pk)) pk = null;
+    const est = Number(c.est);
+    const temResultado = !!lista && PREY_BONUS.includes(c.bonus) && Number.isInteger(est) && est >= 1 && est <= PREY_ESTRELAS_MAX;
+    const n = Array.isArray(c.n) ? c.n : [];
+    const nLimpo = PREY_CATEGORIAS.map((_, i) => contador(n[i]));
+    if (!lista && pk == null && !temResultado && nLimpo.every((x) => x === 0)) return null;
+    return { lista, pk, bonus: temResultado ? c.bonus : null, est: temResultado ? est : null, n: nLimpo };
+  }
+  var cartelaCompleta = (c) => !!c && c.pk != null && !!c.bonus && !!c.est;
+  var listaDaCartela = (c) => Array.isArray(c?.lista) ? c.lista : [];
+  var cartela2Liberada = (automation) => Number(automation?.preyCartela2) > 0;
+  var cartelasLiberadas = (automation) => cartela2Liberada(automation) ? PREY_CARTELAS : 1;
+  function normalizarPrey(bruto, dia) {
+    const vazio = { dia: String(dia ?? ""), cartelas: Array.from({ length: PREY_CARTELAS }, () => null) };
+    if (!ehObjeto(bruto) || !CHAVE_DIA_OK.test(String(bruto.dia ?? "")) || bruto.dia !== dia) return vazio;
+    const cartelas = Array.isArray(bruto.cartelas) ? bruto.cartelas : [];
+    return { dia, cartelas: vazio.cartelas.map((_, i) => cartelaValida(cartelas[i])) };
+  }
+  var preyDoMomento = (automation, t) => normalizarPrey(automation?.prey, chaveDoDiaSazonal(t));
+  function efeitosDoPrey(automation, dia) {
+    const prey = normalizarPrey(automation?.prey, dia);
+    const liberadas = cartelasLiberadas(automation);
+    const out = [];
+    prey.cartelas.forEach((c, cartela) => {
+      if (!cartelaCompleta(c) || cartela >= liberadas) return;
+      out.push({ cartela, pk: c.pk, bonus: c.bonus, est: c.est, valor: valorDoPrey(c.bonus, c.est) });
+    });
+    return out;
+  }
+  function multDanoPrey(efeitos, speciesId) {
+    let m = 1;
+    for (const e of efeitos ?? []) if (e.bonus === "dano" && e.pk === speciesId) m *= 1 + e.valor / 100;
+    return m;
+  }
+  function multDefesaPrey(efeitos, speciesId) {
+    let m = 1;
+    for (const e of efeitos ?? []) if (e.bonus === "defesa" && e.pk === speciesId) m *= 1 - e.valor / 100;
+    return m;
+  }
+  function multCapturaPrey(efeitos, speciesId) {
+    let m = 1;
+    for (const e of efeitos ?? []) if (e.bonus === "captura" && e.pk === speciesId) m *= 1 + e.valor / 100;
+    return m;
+  }
+  function extrasDeSpawnPrey(efeitos, speciesId) {
+    let n = 0;
+    for (const e of efeitos ?? []) if (e.bonus === "spawn" && e.pk === speciesId) n += e.valor;
+    return Math.min(PREY_MAX_EXTRAS, n);
+  }
+  function danoPve(dano, mult, aleatorio = Math.random) {
+    if (mult === 1 || !(dano > 0) || !Number.isFinite(mult) || mult <= 0) return dano;
+    const x = dano * mult;
+    const chao = Math.floor(x);
+    return Math.max(1, chao + (aleatorio() < x - chao ? 1 : 0));
+  }
+  var indiceDaCategoria = (categoria) => PREY_CATEGORIAS.indexOf(categoria);
+  var CARTELA_NOVA = Object.freeze({ lista: null, pk: null, bonus: null, est: null, n: [0, 0, 0] });
+  function cartelaDoPedido(prey, liberadas, pedido) {
+    const cartela = Number(pedido?.cartela);
+    if (!Number.isInteger(cartela) || cartela < 0 || cartela >= PREY_CARTELAS) return { erro: "prey.pedidoInvalido" };
+    if (cartela >= liberadas) return { erro: "prey.cartelaBloqueada" };
+    if (String(pedido?.dia ?? "") !== prey.dia) return { erro: "prey.diaVirou" };
+    return { cartela, atual: prey.cartelas[cartela] };
+  }
+  function planoDaRoletada(prey, liberadas, pedido) {
+    const base = cartelaDoPedido(prey, liberadas, pedido);
+    if (base.erro) return base;
+    const { atual } = base;
+    if (pedido?.categoria === PREY_ROLETADA_INTEIRA) {
+      if (atual?.bonus || atual?.lista) return { erro: "prey.jaRoletada" };
+      return { custo: 0, i: -1 };
+    }
+    const i = indiceDaCategoria(pedido?.categoria);
+    if (i < 0) return { erro: "prey.pedidoInvalido" };
+    if (!atual?.bonus) return { erro: "prey.roleteAntes" };
+    const n = atual?.n[i] ?? 0;
+    if (Number(pedido?.n) !== n) return { erro: "prey.mudou" };
+    return { custo: custoDaRoletada(n), i };
+  }
+  function cartelaDepoisDaRoletada(atual, i, sorteio) {
+    const c = cartelaValida(atual) ?? CARTELA_NOVA;
+    if (!Number.isInteger(i) || i < -1 || i >= PREY_CATEGORIAS.length) return null;
+    const estOk = Number.isInteger(sorteio?.est) && sorteio.est >= 1 && sorteio.est <= PREY_ESTRELAS_MAX;
+    if (i === -1) {
+      if (!PREY_BONUS.includes(sorteio?.bonus) || !estOk) return null;
+      if (!Array.isArray(sorteio?.lista) || !sorteio.lista.length) return null;
+      const nova2 = cartelaValida({ ...c, lista: sorteio.lista, pk: null, bonus: sorteio.bonus, est: sorteio.est });
+      return nova2?.lista && nova2.bonus && nova2.est ? nova2 : null;
+    }
+    const n = c.n.slice();
+    n[i] = Math.min(N_MAX, n[i] + 1);
+    if (i === 0) {
+      if (!Array.isArray(sorteio?.lista) || !sorteio.lista.length) return null;
+      const nova2 = cartelaValida({ ...c, lista: sorteio.lista, pk: null, n });
+      return nova2?.lista ? nova2 : null;
+    }
+    const nova = i === 1 ? PREY_BONUS.includes(sorteio?.bonus) ? cartelaValida({ ...c, bonus: sorteio.bonus, n }) : null : estOk ? cartelaValida({ ...c, est: sorteio.est, n }) : null;
+    return nova?.bonus && nova.est ? nova : null;
+  }
+  function planoDaEscolha(prey, liberadas, pedido) {
+    const base = cartelaDoPedido(prey, liberadas, pedido);
+    if (base.erro) return base;
+    const pk = idValido(pedido?.pk);
+    if (pk == null) return { erro: "prey.pedidoInvalido" };
+    if (!listaDaCartela(base.atual).length) return { erro: "prey.roleteAntes" };
+    if (base.atual?.pk != null) return { erro: "prey.jaEscolhido" };
+    if (!listaDaCartela(base.atual).includes(pk)) return { erro: "prey.foraDaLista" };
+    return { cartela: base.cartela, pk };
+  }
+  var cartelaDepoisDaEscolha = (atual, pk) => cartelaValida({ ...cartelaValida(atual) ?? CARTELA_NOVA, pk });
+  function repartirExtras(n, k, aleatorio = Math.random) {
+    const total = Math.max(0, Math.min(PREY_MAX_EXTRAS, Math.floor(Number(n) || 0)));
+    const manadas = Math.max(0, Math.floor(Number(k) || 0));
+    const out = new Array(manadas).fill(0);
+    if (!total || !manadas) return out;
+    const ordem = Array.from({ length: manadas }, (_, i) => i);
+    for (let i = manadas - 1; i > 0; i--) {
+      const j = Math.floor(aleatorio() * (i + 1));
+      [ordem[i], ordem[j]] = [ordem[j], ordem[i]];
+    }
+    for (let i = 0; i < total; i++) out[ordem[i % manadas]]++;
+    return out;
+  }
+
+  // tests/.cache/shared/bestiario.mjs
+  var bestiario_exports = {};
+  __export(bestiario_exports, {
+    BESTIARIO_DEGRAUS: () => BESTIARIO_DEGRAUS,
+    TIPOS_BESTIARIO: () => TIPOS_BESTIARIO,
+    bonusPorTipo: () => bonusPorTipo,
+    bpDaEspecie: () => bpDaEspecie,
+    degrauDoBestiario: () => degrauDoBestiario,
+    ehAbateDeDegrau: () => ehAbateDeDegrau,
+    especiesDoBestiario: () => especiesDoBestiario,
+    multBestiario: () => multBestiario,
+    pctDoBp: () => pctDoBp,
+    proximoDegrauDoBestiario: () => proximoDegrauDoBestiario
+  });
+
+  // tests/.cache/shared/chocadeira.mjs
+  var OVOS = Object.freeze([
+    Object.freeze({ id: "p2", itemId: 70091, potencia: 2, preco: 2e7, horas: 6, nome: "Mystery Egg P2" }),
+    Object.freeze({ id: "p3", itemId: 70092, potencia: 3, preco: 12e7, horas: 12, nome: "Mystery Egg P3" }),
+    Object.freeze({ id: "p4", itemId: 70093, potencia: 4, preco: 25e7, horas: 24, nome: "Mystery Egg P4" })
+  ]);
+  var OVO_SHINY = Object.freeze({
+    id: "shiny",
+    itemId: OVO_SHINY_ITEM_ID,
+    potencia: null,
+    horas: HORAS_OVO_SHINY,
+    nome: "Shiny Egg",
+    shiny: true
+  });
+  var TODOS_OS_OVOS = Object.freeze([...OVOS, OVO_SHINY]);
+  var OVO_POR_ID = new Map(TODOS_OS_OVOS.map((o) => [o.id, o]));
+  var OVO_POR_ITEM = new Map(TODOS_OS_OVOS.map((o) => [o.itemId, o]));
+  var dexBase2 = (id) => id >= 13e3 ? id % 1e3 : dexBaseDaForma(id) ?? id;
+  function podeChocarDoOvo(id) {
+    const n = Number(id);
+    return !isOutlandPokeId(n) && !isMegaPokeId(n) && !DEX_LENDARIO_OU_MITICO.has(dexBase2(n));
+  }
+  function especiesDoOvo(huntsJogaveis) {
+    const ids = /* @__PURE__ */ new Set();
+    for (const h of huntsJogaveis ?? []) {
+      if (h?.area === "outland") continue;
+      for (const e of h.especies ?? []) ids.add(Number(e.pokeId));
+    }
+    return [...ids].filter((id) => Number.isInteger(id) && id > 0 && podeChocarDoOvo(id)).sort((a, b) => a - b);
+  }
+
+  // tests/.cache/shared/pokedex.mjs
+  var OUTLAND_DEX_MAX_LEGADO = OUTLAND_DEX_BASE + 47;
+  function chavePokedex(pokeId) {
+    const id = Number(pokeId);
+    if (!Number.isFinite(id) || id < 1) return null;
+    if (isOutlandPokeIdLegado(id)) return remapOutlandPokeId(id);
+    if (isOutlandPokeId(id)) return dexChaveOutland(id);
+    return dexDe2(id);
+  }
+
+  // tests/.cache/shared/bestiario.mjs
+  var BESTIARIO_DEGRAUS = Object.freeze([
+    Object.freeze({ abates: 25e3, bp: 5 }),
+    Object.freeze({ abates: 15e4, bp: 15 }),
+    Object.freeze({ abates: 5e5, bp: 50 })
+  ]);
+  var TIPOS_BESTIARIO = TIPOS_SAZONAIS;
+  function degrauDoBestiario(k) {
+    const n = Number(k) || 0;
+    let d = 0;
+    for (const g of BESTIARIO_DEGRAUS) if (n >= g.abates) d++;
+    return d;
+  }
+  var bpDaEspecie = (k) => BESTIARIO_DEGRAUS[degrauDoBestiario(k) - 1]?.bp ?? 0;
+  var proximoDegrauDoBestiario = (k) => BESTIARIO_DEGRAUS.find((g) => (Number(k) || 0) < g.abates) ?? null;
+  var ehAbateDeDegrau = (k) => BESTIARIO_DEGRAUS.some((g) => g.abates === k);
+  var pctDoBp = (bp) => (Number(bp) || 0) / 100;
+  function especiesDoBestiario(huntsJogaveis, especiePorId) {
+    const nivelDe = /* @__PURE__ */ new Map();
+    for (const h of huntsJogaveis ?? []) {
+      for (const e of h?.especies ?? []) {
+        const id = Number(e?.pokeId);
+        const nv = Number(h?.nivel) || 0;
+        if (!nivelDe.has(id) || nv < nivelDe.get(id)) nivelDe.set(id, nv);
+      }
+    }
+    const vistas = /* @__PURE__ */ new Set();
+    const out = [];
+    for (const pokeId of especiesDoOvo(huntsJogaveis)) {
+      const chave = chavePokedex(pokeId);
+      if (chave == null || vistas.has(chave)) continue;
+      const esp = especiePorId?.(pokeId);
+      if (!esp) continue;
+      const tipos = [...new Set([esp.type1, esp.type2].map((t) => String(t ?? "").toUpperCase()))].filter((t) => TIPOS_BESTIARIO.includes(t));
+      if (!tipos.length) continue;
+      vistas.add(chave);
+      out.push({ chave, pokeId, tipos, nivel: nivelDe.get(pokeId) ?? 0 });
+    }
+    return out;
+  }
+  function bonusPorTipo(lista, abatesDe) {
+    const out = Object.fromEntries(TIPOS_BESTIARIO.map((t) => [t, 0]));
+    for (const e of lista ?? []) {
+      const bp = bpDaEspecie(abatesDe?.(e.chave));
+      if (!bp) continue;
+      for (const t of e.tipos) if (t in out) out[t] += bp;
+    }
+    return out;
+  }
+  function multBestiario(bpPorTipo, tipos) {
+    if (!bpPorTipo || !Array.isArray(tipos)) return 1;
+    let bp = 0;
+    for (let i = 0; i < tipos.length; i++) {
+      const t = tipos[i];
+      if (tipos.indexOf(t) === i) bp += Number(bpPorTipo[t]) || 0;
+    }
+    return bp > 0 ? 1 + bp / 1e4 : 1;
+  }
+
   // tests/.cache/shared/estado-delta.mjs
   function criarMescladorDeEstado() {
     let campos = null;
@@ -19272,6 +19686,6 @@
   }
 
   // <stdin>
-  var mod = { cooldown: cooldown_golpes_exports, especiais: golpes_especiais_exports, planilhas: golpes_planilhas_exports, outland: outland_exports, baseOutland: herdar_base_outland_exports, golpesOrre: herdar_golpes_orre_exports, megas: megas_exports, evolucoes: evolucoes_cruzadas_exports, recompensa: recompensa_hunt_exports, ajustes: ajustes_especie_espelho_exports, analyser: hunt_analyser_exports, ginasios: ginasios_exports, sazonal: dia_sazonal_exports, captura: captura_degrau_exports, ovoShiny: ovo_shiny_exports };
+  var mod = { cooldown: cooldown_golpes_exports, especiais: golpes_especiais_exports, planilhas: golpes_planilhas_exports, outland: outland_exports, baseOutland: herdar_base_outland_exports, golpesOrre: herdar_golpes_orre_exports, megas: megas_exports, evolucoes: evolucoes_cruzadas_exports, recompensa: recompensa_hunt_exports, ajustes: ajustes_especie_espelho_exports, analyser: hunt_analyser_exports, ginasios: ginasios_exports, sazonal: dia_sazonal_exports, captura: captura_degrau_exports, ovoShiny: ovo_shiny_exports, prey: prey_exports, bestiario: bestiario_exports };
   (globalThis.__pokeidleHunt ?? (globalThis.__pokeidleHunt = {})).definirModulosDoJogo?.(mod, criarMescladorDeEstado);
 })();

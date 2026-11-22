@@ -43,6 +43,9 @@
     // A chance de captura pelo estágio evolutivo (desde 17/10/2026) e o Fragmento de Ovo Shiny (Unova em diante).
     captura: 'shared/captura-degrau.mjs',
     ovoShiny: 'shared/ovo-shiny.mjs',
+    // O Prey e o Bestiário (desde 20/11/2026): bônus contra a espécie do dia e dano por tipagem pelos abates da Pokédex.
+    prey: 'shared/prey.mjs',
+    bestiario: 'shared/bestiario.mjs',
   };
   const CATALOGOS = {
     cr: 'assets/creatures.json',

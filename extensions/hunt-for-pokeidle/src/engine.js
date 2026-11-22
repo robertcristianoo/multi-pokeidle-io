@@ -28,7 +28,16 @@
 //
 // O DIA SAZONAL (desde 20/10/2026) vem do estado do jogo (`diaSazonal.tipo`) pela opção
 // `tipoDoDia`: nas hunts do Mapa os pokémon da tipagem do dia — o seu e os selvagens — batem o
-// dobro e levam ¼ do dano (`multDanoSazonal`, shared/dia-sazonal.mjs).
+// dobro e levam ¼ do dano (`multDanoSazonal`, shared/dia-sazonal.mjs). Com o SHIELD DO NOVATO (desde
+// 17/11/2026: nível abaixo do alvo do Boost dos Atrasados, `escudoSazonal`), o selvagem do tipo do dia
+// bate e aguenta como num dia comum; o seu pokémon do tipo segue com o 2×.
+//
+// O PREY e o BESTIÁRIO (desde 20/11/2026, jogo 1.458) vêm do estado do jogador e das regras do jogo
+// (`shared/prey.mjs`, `shared/bestiario.mjs`). Exatos: o Dano do Prey e o Bestiário multiplicam o seu golpe
+// (com o pódio e o dia), o Defensivo divide o golpe do selvagem, o Capture Boost multiplica a captura até o
+// teto. ESTIMADO: o Spawn põe +1 a +5 selvagens da espécie em cada onda, nos bandos que já existem — o
+// abate a mais custa a virada para o vizinho do bando (`MEDIDO.caminhadaPisoS`), não a caminhada do mapa.
+// Ninguém mediu isso em jogo ainda: a linha sai com ≈.
 //
 // O AoE (o disco) entra desde 07/11/2026, como ESTIMATIVA, quando o pokémon tem o disco: cada golpe
 // acerta todo selvagem no 11×11 em volta do herói. Quem mata de um golpe usa o tempo do mapa com AoE
@@ -329,7 +338,7 @@
       multCaptura: boost('captura'), multShiny: boost('shiny'), multLoot: boost('loot'),
       chanceShiny: Number(ctx.consts.chanceShiny) || 1 / 24000,
       consts: { base: 0.0075, piso: 0.003, teto: 0.1, raridadeDiv: 17, precoSemPreco: 6.5e9, ...(ctx.consts.captura ?? {}) },
-      chaves: ctx.mod.captura.chavesEmHunt(ctx.hunts),
+      chaves: ctx.mod.captura.chavesEmHunt(ctx.huntsDoJogo ?? ctx.hunts),
       looks: ctx.consts.shinyLooks ?? null,
     };
   }
@@ -385,6 +394,35 @@
     return sMapa - encurta * (1 - Math.exp(-F / MEDIDO.caminhadaTauS));
   }
 
+  // ---- Prey e Bestiário ---------------------------------------------------------------------------
+  /** Os efeitos do Prey que valem agora: as cartelas completas do dia, como o jogo (`efeitosDoPrey`). */
+  function preyDoJogador(ctx, agora = Date.now()) {
+    const { prey, sazonal } = ctx.mod;
+    if (!prey?.efeitosDoPrey || !sazonal?.chaveDoDiaSazonal) return [];
+    return prey.efeitosDoPrey(ctx.eu?.automation, sazonal.chaveDoDiaSazonal(agora));
+  }
+
+  /**
+   * O Bestiário por tipagem (em bp: 5 = +0,05%), dos derrotados da Pokédex, como a Mochila do jogo: a lista de
+   * espécies é a das hunts (`especiesDoBestiario`), e os abates somam a entrada antiga da espécie, como o
+   * `entradaPokedex` do cliente. `null` sem o módulo ou sem a Pokédex no estado.
+   */
+  function bestiarioDoJogador(ctx) {
+    const b = ctx.mod.bestiario;
+    const dex = ctx.eu?.pokedex;
+    if (!b?.bonusPorTipo || !dex) return null;
+    const lista = b.especiesDoBestiario(ctx.huntsDoJogo ?? ctx.hunts ?? [], (id) => ctx.especies.get(id));
+    const abates = new Map(lista.map((e) => [e.chave, (Number(dex[e.chave]?.k) || 0) + (e.pokeId !== e.chave ? Number(dex[e.pokeId]?.k) || 0 : 0)]));
+    return b.bonusPorTipo(lista, (chave) => abates.get(chave));
+  }
+
+  /** O tempo por abate com `extras` selvagens a mais em cada onda de `n` (o Spawn do Prey). */
+  function porAbateComExtras(porAbate, extras, n, luta, morto) {
+    if (!(extras > 0) || !(n > 0)) return porAbate;
+    const extra = Math.min(MEDIDO.caminhadaPisoS, morto) + luta;
+    return (n * porAbate + extras * extra) / (n + extras);
+  }
+
   function simularHunt(h, pk, golpesPk, ef, ctx, opcoes) {
     const especiesHunt = (h.especies ?? [])
       .map((e) => ({ esp: ctx.especies.get(e.pokeId), pontos: Number(e.pontos) || 0 }))
@@ -397,9 +435,15 @@
     const mapa = tempoDoMapa(h, ctx.ritmo, ctx.mapaVisto);
     const multSazonal = ctx.mod.sazonal?.multDanoSazonal;
     const sazonal = (atacante, defensor) => (opcoes.tipoDoDia && multSazonal ? multSazonal(opcoes.tipoDoDia, atacante, defensor) : 1);
+    // O Shield tira só o lado do selvagem: para a conta do dia, ele passa a não ter a tipagem.
+    const tiposDoDiaNoSelvagem = (tipos) => (opcoes.escudo ? [] : tipos);
     const gapS = cdPeloIv(REGRAS.gapJogadorMs, pk.ivs?.speed) / 1000;
     const cdInvS = cdPeloIv(REGRAS.investidaCdMs, pk.ivs?.speed) / 1000;
     const multPodio = pk.multPodio ?? 1;
+    const preyMod = ctx.mod.prey;
+    const efeitosPrey = opcoes.prey ?? [];
+    const bp = opcoes.bestiario ?? null;
+    let extras = 0, efeitoPrey = null, bestiarioPct = 0;
 
     let ttk = 0, dps = 0, hitMax = 0, xpKill = 0, ouroKill = 0, efMedia = 0, captura = 0, shiny = 0;
     const cap = opcoes.captura;
@@ -411,7 +455,12 @@
       const w = pontos / total;
       const tiposAlvo = tiposDe(esp);
       const st = statsSelvagem(esp, nivel);
-      const multEu = multPodio * sazonal(pk.tipos, tiposAlvo);
+      const preyDano = preyMod?.multDanoPrey?.(efeitosPrey, esp.pokeId) ?? 1;
+      const multBst = ctx.mod.bestiario?.multBestiario?.(bp, tiposAlvo) ?? 1;
+      bestiarioPct = Math.max(bestiarioPct, (multBst - 1) * 100);
+      efeitoPrey ??= efeitosPrey.find((e) => e.pk === esp.pokeId) ?? null;
+      extras += preyMod?.extrasDeSpawnPrey?.(efeitosPrey, esp.pokeId) ?? 0;
+      const multEu = multPodio * sazonal(pk.tipos, tiposDoDiaNoSelvagem(tiposAlvo)) * preyDano * multBst;
       const golpes = golpesPk.map((g) => {
         const fisico = g.category !== 'SPECIAL';
         const d = multEu * dano(pk.level, Math.max(REGRAS.poderMinimo, g.power), fisico ? pk.stats.atk : pk.stats.spAtk,
@@ -438,7 +487,8 @@
       ttk += w * s;
       lutas.push({ w, golpes, investida, hps });
 
-      const ameaca = ameacaDoSelvagem(esp, nivel, pk, ef, ctx, sazonal(tiposAlvo, pk.tipos));
+      const preyDefesa = preyMod?.multDefesaPrey?.(efeitosPrey, esp.pokeId) ?? 1;
+      const ameaca = ameacaDoSelvagem(esp, nivel, pk, ef, ctx, sazonal(tiposDoDiaNoSelvagem(tiposAlvo), pk.tipos) * preyDefesa);
       dps += w * ameaca.dps;
       hitMax = Math.max(hitMax, ameaca.hitMax);
 
@@ -448,8 +498,9 @@
       // (4º argumento), por decisão de 18/10: só a base.
       ouroKill += w * ctx.mod.recompensa.ouroPorDerrotaHunt(h, nivel, esp);
       if (cap) {
-        // O Capture Boost dobra a chance, até o teto da fórmula.
-        const p = Math.min(cap.consts.teto, chanceNoCorpo(esp, teto, cap.bola.catchRate, cap, ctx.mod) * cap.multCaptura);
+        // O Capture Boost dobra a chance e o do Prey multiplica junto, até o teto da fórmula.
+        const preyCaptura = preyMod?.multCapturaPrey?.(efeitosPrey, esp.pokeId) ?? 1;
+        const p = Math.min(cap.consts.teto, chanceNoCorpo(esp, teto, cap.bola.catchRate, cap, ctx.mod) * cap.multCaptura * preyCaptura);
         captura += w * p;
         if (temShiny(esp.pokeId, cap.looks)) shiny += w * p * cap.chanceShiny * cap.multShiny;
       }
@@ -496,7 +547,11 @@
     const aoe = !!pk.tmAoe;
     const sBase = aoe ? mapa.sAoe : mapa.s;
     const [porGolpeMin, porGolpeMax] = aoe ? MEDIDO.aoeAlvosFaixa : [1, 1];
-    const porAbate = (sMapa, porGolpe = aoe ? MEDIDO.aoeAlvosPorGolpe : 1) => tempoMorto(sMapa, ttk / porGolpe) + ttk / porGolpe;
+    const onda = Number(h.totalSpawns) || total;
+    const porAbate = (sMapa, porGolpe = aoe ? MEDIDO.aoeAlvosPorGolpe : 1) => {
+      const luta = ttk / porGolpe, morto = tempoMorto(sMapa, luta);
+      return porAbateComExtras(morto + luta, extras, onda, luta, morto);
+    };
     const kph = 3600 / porAbate(sBase);
 
     // Morte, com um selvagem batendo por vez: com poção automática só morre quem leva, de uma
@@ -527,6 +582,9 @@
       inviavel: false,
       ttk, kph: kphEf, kphFaixa, kphMedido, mortesH, umHit,
       aoe: aoe ? { porGolpe: MEDIDO.aoeAlvosPorGolpe, estimado: ttk > 0.02 } : null,
+      prey: efeitoPrey ? { bonus: efeitoPrey.bonus, est: efeitoPrey.est, valor: efeitoPrey.valor, cartela: efeitoPrey.cartela, estimado: efeitoPrey.bonus === 'spawn' } : null,
+      spawnExtras: extras,
+      bestiarioPct,
       hitPct: hitPior / hpPk,
       danoPorAbate,
       xpPokemonH: kphEf * xpKill * multPk,
@@ -581,13 +639,29 @@
     return REGIOES_DO_MAPA.find((r) => r.area === h.area && (r.geracao == null || r.geracao === ger))?.id ?? h.area ?? null;
   }
 
+  // Quem está no Shield do Novato: o mesmo teste do jogo (`escudoDoNovato` do app.js), com o alvo do dia que o
+  // servidor manda na loja. A cópia local cobre um pacote do jogo de antes do Shield.
+  function escudoDoNovato(ctx) {
+    const doJogo = ctx.mod.sazonal?.escudoSazonal;
+    const nivel = ctx.eu?.level, alvo = ctx.eu?.loja?.alvoAtrasados;
+    if (doJogo) return doJogo(nivel, alvo);
+    return Number(alvo) > 1 && Number(nivel) < Number(alvo);
+  }
+
   /**
    * Analisa todas as hunts para o pokémon `pk` (um item de `estado.pokemons`).
    * `ctx`: { mod, especies, hunts, consts, eu, ritmo, mapaVisto, ritmoMedido }.
-   * `opcoes`: { comPocao = true, ordem = 'xp' | 'ouro' | 'shiny' | 'fragmento', soLiberadas = true, tipoDoDia = null }.
+   * `opcoes`: { comPocao = true, ordem = 'xp' | 'ouro' | 'shiny' | 'fragmento', soLiberadas = true, tipoDoDia = null,
+   *   escudo (o Shield do Novato; sem a opção, sai do nível e do alvo dos Atrasados em `ctx.eu`),
+   *   prey (os efeitos do Prey; sem a opção, as cartelas completas do dia em `ctx.eu`),
+   *   bestiario (o bônus por tipagem em bp; sem a opção, o da Pokédex em `ctx.eu`) }.
+   * `ctx.huntsDoJogo`: todas as hunts, quando `ctx.hunts` é só um pedaço delas (a captura e o Bestiário olham todas).
    */
   function analisar(pk, ctx, opcoes = {}) {
     const op = { comPocao: true, ordem: 'xp', soLiberadas: true, tipoDoDia: null, ...opcoes };
+    op.escudo = !!op.tipoDoDia && (op.escudo ?? escudoDoNovato(ctx));
+    op.prey = opcoes.prey ?? preyDoJogador(ctx);
+    op.bestiario = opcoes.bestiario !== undefined ? opcoes.bestiario : bestiarioDoJogador(ctx);
     const esp = ctx.especies.get(pk.speciesId);
     if (!esp) throw new Error(`espécie ${pk.speciesId} (${pk.nome}) não está no catálogo`);
     const stats = pk.stats ?? null;
@@ -619,6 +693,9 @@
       especie: esp,
       golpes,
       bonusXp: op.bonusXp,
+      escudo: op.escudo,
+      prey: op.prey,
+      bestiario: op.bestiario,
       aoe: !!poke.tmAoe,
       captura: op.captura && {
         bola: op.captura.bola, origem: op.captura.origem, semParar: op.captura.semParar,
@@ -632,5 +709,115 @@
     };
   }
 
-  PIH.engine = { analisar, REGRAS, MEDIDO, REGIOES_DO_MAPA, regiaoDoMapa, _interno: { dano, statsSelvagem, segundosPorAbate, golpesDoPokemon, bonusXp, podioDoPokemon, tempoDoMapa, tempoMorto, capturaDoJogador, chanceNoCorpo, temShiny } };
+  const METRICA = { ouro: 'ouroH', shiny: 'shinyH', fragmento: 'fragmentoH' };
+
+  /**
+   * O ranking de hoje sem uma cartela do Prey: só as hunts que o treinador já abre, que são as únicas que podem ser a
+   * melhor. É a régua de `analisarPrey`; a janela do Prey calcula em pedaços (`hunts`) para não travar o jogo.
+   */
+  const huntsLiberadas = (ctx) => (ctx.huntsDoJogo ?? ctx.hunts ?? []).filter((h) => (h.nivel ?? 1) <= (ctx.eu?.level ?? Infinity));
+
+  /**
+   * As opções de uma cartela do Prey, da melhor para a pior, na métrica de `opcoes.ordem` (XP/h do pokémon por
+   * padrão). Cada espécie do Prey tem uma hunt só: a opção vale o que essa hunt passa a render com o bônus e as
+   * estrelas que saíram, somado ao que a outra cartela já dá; a opção de uma hunt que ele ainda não abre vem sem
+   * conta, no fim. A régua é a sua melhor hunt liberada sem esta cartela. `outrosBonus` diz, para cada outro bônus com as mesmas estrelas, a melhor opção liberada da lista: é o
+   * que roletar o bônus poderia trazer.
+   * `cartela`: { i, lista, bonus, est }. `pronto`: { base } com o ranking sem esta cartela já feito (as linhas de
+   * `huntsLiberadas`), e `memo`, um Map para guardar as linhas de uma roletada para a outra.
+   */
+  function analisarPrey(pk, ctx, opcoes = {}, cartela, pronto = {}) {
+    const prey = ctx.mod.prey;
+    if (!prey?.valorDoPrey || !cartela?.lista?.length) return null;
+    const chave = METRICA[opcoes.ordem] ?? 'xpPokemonH';
+    const todas = ctx.huntsDoJogo ?? ctx.hunts ?? [];
+    const outras = (opcoes.prey ?? preyDoJogador(ctx)).filter((e) => e.cartela !== cartela.i);
+    const bestiario = opcoes.bestiario !== undefined ? opcoes.bestiario : bestiarioDoJogador({ ...ctx, hunts: todas });
+    const op = { ...opcoes, prey: outras, bestiario, soLiberadas: false };
+    const valor = (l) => (l && !l.inviavel ? l[chave] : 0);
+    const base = pronto.base ?? analisar(pk, { ...ctx, hunts: huntsLiberadas(ctx), huntsDoJogo: todas }, op).linhas;
+    const naBase = new Map(base.map((l) => [l.slug, l]));
+    const melhor = base.reduce((m, l) => (valor(l) > valor(m) ? l : m), null);
+    const memo = pronto.memo ?? new Map();
+    const huntDe = new Map();
+    for (const h of todas) for (const e of h.especies ?? []) if (!huntDe.has(e.pokeId)) huntDe.set(e.pokeId, h);
+    const doDia = JSON.stringify(outras.map((e) => [e.pk, e.bonus, e.est]));
+    const k = (slug, bonus, est = cartela.est) => `${slug}|${bonus ?? '-'}|${bonus ? est : '-'}|${doDia}`;
+    // Cada hunt tem uma espécie, e as cartelas nunca repetem espécie: as opções de um bônus saem numa conta só,
+    // com o efeito de cada uma na sua hunt. Chamar o motor uma vez por opção repetiria o preparo dele 9 vezes.
+    const simular = (bonus, ids, est = cartela.est) => {
+      const faltam = ids.filter((id) => huntDe.has(id) && !memo.has(k(huntDe.get(id).slug, bonus, est)));
+      if (!faltam.length) return;
+      const efeitos = bonus ? faltam.map((id) => ({ cartela: cartela.i, pk: id, bonus, est, valor: prey.valorDoPrey(bonus, est) })) : [];
+      const r = analisar(pk, { ...ctx, hunts: faltam.map((id) => huntDe.get(id)), huntsDoJogo: todas }, { ...op, prey: [...outras, ...efeitos] });
+      for (const l of r.linhas) memo.set(k(l.slug, bonus, est), l);
+    };
+    // O Capture Boost não muda o XP, o ouro nem o fragmento: só a captura e o Shiny.
+    const semMudanca = (bonus) => bonus === 'captura' && chave !== 'shinyH';
+    const semEfeito = (h) => naBase.get(h.slug) ?? memo.get(k(h.slug, null)) ?? null;
+    const naHunt = (h, bonus, est = cartela.est) => (semMudanca(bonus) ? semEfeito(h) : memo.get(k(h.slug, bonus, est)) ?? null);
+    const contra = (v) => (melhor && valor(melhor) > 0 ? v / valor(melhor) - 1 : null);
+    const liberada = (h) => (ctx.eu?.level ?? Infinity) >= (h.nivel ?? 1);
+
+    const avaliar = (bonus, so) => {
+      const ids = cartela.lista.filter((id) => huntDe.has(id) && (!so || liberada(huntDe.get(id))));
+      simular(null, ids.filter((id) => !naBase.has(huntDe.get(id).slug)));
+      if (!semMudanca(bonus)) simular(bonus, ids);
+      return cartela.lista.map((id) => avaliarUma(id, bonus, so));
+    };
+    const avaliarUma = (id, bonus, so) => {
+      const h = huntDe.get(id) ?? null;
+      const nome = ctx.especies.get(id)?.name ?? `#${id}`;
+      if (!h || (so && !liberada(h))) return { pokeId: id, nome, hunt: h && { slug: h.slug, nome: h.nome, nivel: h.nivel }, liberada: !!h && liberada(h), valor: 0, contraMelhor: null };
+      const com = naHunt(h, bonus);
+      const sem = semEfeito(h);
+      const v = valor(com);
+      return {
+        pokeId: id, nome, hunt: { slug: h.slug, nome: h.nome, nivel: h.nivel },
+        liberada: liberada(h),
+        valor: v, linha: com,
+        ganhoNaHunt: valor(sem) > 0 ? v / valor(sem) - 1 : null,
+        contraMelhor: contra(v),
+      };
+    };
+    const ordenar = (lista) => lista.sort((a, b) => (b.liberada - a.liberada) || (b.valor - a.valor));
+
+    // A hunt que o treinador ainda não abre não entra na conta: ela não rende hoje, e a luta longa demais pesa.
+    const opcoesDaLista = ordenar(avaliar(cartela.bonus, true));
+    const outrosBonus = prey.PREY_BONUS.filter((b) => b !== cartela.bonus).map((bonus) => {
+      const top = ordenar(avaliar(bonus, true))[0];
+      return { bonus, valor: prey.valorDoPrey(bonus, cartela.est), melhor: top?.liberada && top.valor > 0 ? top : null };
+    }).sort((a, b) => (b.melhor?.valor ?? 0) - (a.melhor?.valor ?? 0));
+
+    // Dá mais que a hunt normal? A régua é a melhor hunt liberada sem esta cartela; a opção passa se render mais que ela.
+    const regua = valor(melhor);
+    const passa = (v) => regua > 0 && v > regua * (1 + 1e-6);
+    for (const o of opcoesDaLista) o.passa = !!o.liberada && passa(o.valor);
+    // E o que faria cada opção passar: o menor número de estrelas de cada bônus que mexe na métrica. As estrelas só
+    // aumentam o bônus, então a busca sobe de 1★ e para na primeira que passa. O Defensivo só mexe onde há morte.
+    const mexe = (bonus, h) => !semMudanca(bonus) && (bonus !== 'defesa' || (semEfeito(h)?.mortesH ?? 0) > 0);
+    const minEst = new Map(opcoesDaLista.filter((o) => o.liberada).map((o) => [o.pokeId, {}]));
+    for (const bonus of prey.PREY_BONUS) {
+      let pendentes = [...minEst.keys()].filter((id) => mexe(bonus, huntDe.get(id)));
+      for (let est = 1; est <= 5 && pendentes.length; est++) {
+        simular(bonus, pendentes, est);
+        pendentes = pendentes.filter((id) => {
+          if (!passa(valor(naHunt(huntDe.get(id), bonus, est)))) return true;
+          minEst.get(id)[bonus] = est;
+          return false;
+        });
+      }
+    }
+    for (const o of opcoesDaLista) o.minEst = minEst.get(o.pokeId) ?? null;
+    // Os caminhos da cartela: para cada bônus, as menores estrelas que fazem alguma opção passar, e quais opções.
+    const caminhos = prey.PREY_BONUS.map((bonus) => {
+      const ests = opcoesDaLista.map((o) => o.minEst?.[bonus]).filter(Boolean);
+      if (!ests.length) return null;
+      const est = Math.min(...ests);
+      return { bonus, est, opcoes: opcoesDaLista.filter((o) => o.minEst?.[bonus] === est).map((o) => ({ pokeId: o.pokeId, nome: o.nome })) };
+    }).filter(Boolean).sort((a, b) => a.est - b.est);
+    return { metrica: chave, melhorSemCartela: melhor, regua, opcoes: opcoesDaLista, outrosBonus, caminhos };
+  }
+
+  PIH.engine = { analisar, analisarPrey, huntsLiberadas, REGRAS, MEDIDO, REGIOES_DO_MAPA, regiaoDoMapa, _interno: { escudoDoNovato, preyDoJogador, bestiarioDoJogador, porAbateComExtras, dano, statsSelvagem, segundosPorAbate, golpesDoPokemon, bonusXp, podioDoPokemon, tempoDoMapa, tempoMorto, capturaDoJogador, chanceNoCorpo, temShiny } };
 })(globalThis);
