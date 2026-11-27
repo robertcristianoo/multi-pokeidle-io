@@ -11,6 +11,7 @@ const fs = require('fs');
 const path = require('path');
 const { app, BrowserWindow, Menu, ipcMain, session } = require('electron');
 const cfgLib = require('./config');
+const optimize = require('./optimize');
 const { createPages } = require('./pages');
 const { createGuard, kind: bonusKind, kindName, time: bonusTime } = require('./guard');
 const twitchLive = require('./twitch-live');
@@ -1115,6 +1116,38 @@ function createLives({
     limits: { max: cfgLib.MAX_SLOTS },
     live: { twitch: { ...liveNow.twitch }, kick: { ...liveNow.kick } },
   }));
+  // Optimize: reads what every channel of the lists charges for each bonus (with the login of the first account that has one on
+  // that site) and ranks the channels by price, cheapest first; channels with the cheap bonus disabled or more expensive go last.
+  // `lists` = { twitch: [channel], kick: [channel] } as shown in the window (maybe unsaved); `keys` = { twitch: [bonus], kick: [bonus] }.
+  // Returns { twitch, kick } with { acc, order, rows, keys } or { error } per site. Reads only: nothing is redeemed or saved.
+  const OPTIMIZE_PARALLEL = 4;
+  async function optimizeChannels(lists = {}, keys = {}) {
+    const out = {};
+    for (const site of SITE_ORDER) {
+      const channels = cfgLib.parseChannels(lists[site]);
+      if (!channels.length) { out[site] = { acc: null, order: [], rows: [], keys: [] }; continue; }
+      let acc = null, token = null, device = null;
+      for (const a of accountIds()) {
+        if (site === 'twitch') ({ token, device } = await readTwitchLogin(a)); else token = await readKickToken(a);
+        if (token) { acc = a; break; }
+      }
+      if (!token) { out[site] = { error: 'noLogin' }; continue; }
+      const reads = {};
+      const all = Object.keys(BONUSES);
+      for (let i = 0; i < channels.length; i += OPTIMIZE_PARALLEL) {
+        await Promise.all(channels.slice(i, i + OPTIMIZE_PARALLEL).map(async (ch) => {
+          try {
+            reads[ch] = site === 'kick'
+              ? await R.kickReadAsync(D.kickReadApi, ch, token, all, sessionFetch(acc))
+              : await R.twitchReadAsync(D.twitchReadApi, ch, token, device, all);
+          } catch { reads[ch] = null; }
+        }));
+      }
+      out[site] = { acc, ...optimize.rank(channels, reads, R.keysOf(keys[site]), site) };
+    }
+    return out;
+  }
+  ipcMain.handle('lives:optimize', (_e, lists, keys) => optimizeChannels(lists, keys));
   ipcMain.handle('lives:official-channels', () => officialChannels());
   ipcMain.handle('lives:config-save', (_e, raw) => {
     config.set(cfgLib.normalize(raw, { maxAccounts }));
@@ -1152,6 +1185,7 @@ function createLives({
     checkLives,
     applyLives,
     officialChannels,
+    optimizeChannels,
     redeemKick,
     twitchPoints,
     refreshBonus,

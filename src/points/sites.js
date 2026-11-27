@@ -5,10 +5,13 @@ const enc = encodeURIComponent;
 
 // Bônus do jogo que cada conta pode resgatar com os pontos do canal. `word` casa com o título do bônus no canal.
 const BONUSES = {
-  xp: { label: '+15% XP', cost: 300, word: '\\bxp\\b' },
-  captura: { label: 'Captura', cost: 500, word: 'captur' },
-  shiny: { label: 'Shiny', cost: 1000, word: 'lure|shiny' },
+  xp: { label: '+15% XP', cost: 300, kickCost: 200, word: '\\bxp\\b' },
+  captura: { label: 'Captura', cost: 500, kickCost: 500, word: 'captur' },
+  shiny: { label: 'Shiny', cost: 1000, kickCost: 1000, word: 'lure|shiny' },
 };
+
+// Standard 1 h price of a bonus on a site (`cost` is Twitch's, `kickCost` is Kick's: the XP bonus is cheaper there)
+const baseCost = (key, site) => (site === 'kick' ? BONUSES[key].kickCost : BONUSES[key].cost);
 
 const SITES = {
   twitch: {
@@ -86,4 +89,4 @@ function footerScript(mode) {
   })()`;
 }
 
-module.exports = { BONUSES, SITES, partitionOf, footerScript, POINTS_BUTTON_SELECTORS, CHAT_INPUT_SELECTORS };
+module.exports = { BONUSES, baseCost, SITES, partitionOf, footerScript, POINTS_BUTTON_SELECTORS, CHAT_INPUT_SELECTORS };
