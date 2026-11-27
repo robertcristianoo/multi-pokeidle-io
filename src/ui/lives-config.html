@@ -44,6 +44,12 @@
   button.official { background: #3a2a52; }
   #msg { color: #8ab4ff; margin-right: auto; font-size: 12px; }
   small { color: #a99bb8; }
+  #optreport { display: flex; gap: 12px; margin: 0 0 10px; }
+  #optreport:empty { display: none; }
+  #optreport .card { max-height: 190px; overflow-y: auto; }
+  #optreport table { margin-top: 4px; font-size: 12px; }
+  #optreport td, #optreport th { padding: 2px 4px; }
+  .p-cheap { color: #3ddc84; } .p-unknown { color: #a99bb8; } .p-raised { color: #f5a524; } .p-missing { color: #e5484d; }
   .pick { position: relative; display: inline-block; max-width: 100%; }
   .pick-btn { background: #000; color: #e6e0ea; border: 1px solid #444; border-radius: 4px; padding: 3px 8px; font: 12px "Segoe UI", sans-serif; font-weight: 400; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
   .pick-btn:hover { border-color: #666; }
@@ -65,11 +71,13 @@
   canal no ar que ainda não está aberto. As lives são leves: o app assiste como um player, sem vídeo (quase nada de CPU e
   memória), e só abre a página do canal na hora de resgatar ou pegar o baú.</p>
 <div class="row" style="margin:0 0 10px">
+  <button id="optimize" title="Reads what each channel charges for the bonuses and puts the cheapest channels first" data-i18n-title="lives.config.optimizeTitle" data-i18n="lives.config.optimize">Optimize by price</button>
   <button class="official" id="official" title="Lê os canais oficiais (no ar e offline) que o jogo informa e acrescenta no fim da lista os que faltam" data-i18n-title="lives.config.officialTitle" data-i18n="lives.config.official">Atualizar com a lista oficial do jogo</button>
   <button class="official" id="sort" title="Ordena agora cada lista por status: os no ar primeiro, os offline depois (a ordem de prioridade dentro de cada grupo continua)" data-i18n-title="lives.config.sortTitle" data-i18n="lives.config.sort">Ordenar por status</button>
   <label title="A cada conferência, quem fica no ar vai para o fim dos no ar e quem cai desce para os offline" data-i18n-title="lives.config.autosortTitle"><input type="checkbox" id="autosort"> <span data-i18n="lives.config.autosort">Manter ordenado por status</span></label>
   <small id="osrc"></small>
 </div>
+<div id="optreport"></div>
 <div class="lists">
   <div class="card twitch">
     <h2>Twitch <small id="ctw"></small></h2>
@@ -162,7 +170,7 @@
         cb.checked = i >= 0;
         cb.onchange = () => { sel = cb.checked ? [...sel, k] : sel.filter((x) => x !== k); paint(); };
         const lb = document.createElement('label');
-        lb.append(cb, t('lives.config.pick.cost', { label: bonuses[k].label, cost: bonuses[k].cost }));
+        lb.append(cb, t('lives.config.pick.cost', { label: bonuses[k].label, cost: site === 'kick' ? bonuses[k].kickCost : bonuses[k].cost }));
         row.append(lb);
         if (i >= 0) {
           row.append(
@@ -293,9 +301,78 @@
     $('osrc').textContent = t('lives.config.sorted');
   };
 
+  // Optimize: reads the price of every bonus on each channel, orders both lists cheapest first (channels without the cheap bonus
+  // or charging more go last) and shows the map of what each channel charges. The lists are only saved with Save.
+  let BONUSES = {};
+  const siteName = { twitch: 'Twitch', kick: 'Kick' };
+  const pickedKeys = (site) => {
+    const keys = new Set();
+    for (const tr of rows.querySelectorAll('tr')) for (const k of tr.querySelector('.pick.' + site).picker.value) keys.add(k);
+    return [...keys];
+  };
+  function paintReport(res) {
+    const box = $('optreport');
+    box.textContent = '';
+    for (const site of ['twitch', 'kick']) {
+      const r = res[site];
+      const card = document.createElement('div');
+      card.className = 'card ' + site;
+      const h = document.createElement('h2');
+      h.textContent = siteName[site];
+      card.append(h);
+      if (r.error) {
+        const p = document.createElement('p');
+        p.textContent = t('lives.config.optNoLogin', { site: siteName[site] });
+        card.append(p);
+      } else {
+        const table = document.createElement('table');
+        const head = table.createTHead().insertRow();
+        for (const text of [t('lives.config.opt.channel'), ...r.keys.map((k) => BONUSES[k].label), t('lives.config.opt.status')]) {
+          const th = document.createElement('th');
+          th.textContent = text;
+          head.append(th);
+        }
+        const body = table.createTBody();
+        const names = ['cheap', 'unknown', 'raised', 'missing'];
+        for (const row of r.rows) {
+          const tr = body.insertRow();
+          tr.className = 'p-' + names[row.tier];
+          tr.insertCell().textContent = `${row.rank}. ${row.channel}`;
+          for (const k of r.keys) {
+            const p = row.prices && row.prices[k];
+            tr.insertCell().textContent = row.prices ? (p ? p.cost : t('lives.config.opt.off')) : '–';
+          }
+          tr.insertCell().textContent = t('lives.config.opt.' + names[row.tier]);
+        }
+        card.append(table);
+      }
+      box.append(card);
+    }
+  }
+  $('optimize').onclick = async () => {
+    const btn = $('optimize');
+    btn.disabled = true;
+    $('osrc').textContent = t('lives.config.optimizing');
+    try {
+      const res = await lc.optimize({ twitch: lists.twitch, kick: lists.kick }, { twitch: pickedKeys('twitch'), kick: pickedKeys('kick') });
+      let low = 0;
+      for (const site of ['twitch', 'kick']) {
+        if (res[site].error) continue;
+        lists[site] = res[site].order;
+        low += res[site].rows.filter((x) => x.tier >= 2).length;
+        render(site);
+      }
+      paintReport(res);
+      $('osrc').textContent = t('lives.config.optimized', { tw: lists.twitch.length, kk: lists.kick.length, low });
+    } finally {
+      btn.disabled = false;
+    }
+  };
+
   let LABELS = {};
   lc.get().then(({ config, accounts, bonuses, live, labels }) => {
     LABELS = labels || {};
+    BONUSES = bonuses;
     state = config;
     lists.twitch = [...config.twitchChannels];
     lists.kick = [...config.kickChannels];
